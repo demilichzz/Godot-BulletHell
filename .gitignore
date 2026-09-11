@@ -1,0 +1,21 @@
+.godot/
+.tools/
+bin/
+obj/
+.vs/
+.mono/
+*.user
+*.suo
+*.userprefs
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.tmp
+*.temp
+
+# 本地验证生成的截图，不属于游戏资源。
+/outputs/display-verification/
+/outputs/stage-verification/
