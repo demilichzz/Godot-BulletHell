@@ -1,62 +1,80 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 
 /// <summary>弹幕所属阵营，用于筛选伤害目标。</summary>
 public enum BulletTeam
 {
-	// Boss 发出的敌弹。
-	Enemy,
-	// 玩家发出的攻击弹。
-	Player
+    // Boss 发出的敌弹。
+    Enemy,
+    // 玩家发出的攻击弹。
+    Player
 }
-/// <summary>按固定间隔生成指定形状的弹幕，保留累计时间余量。</summary>
-public sealed class BulletEmitter
+
+/// <summary>构造单次发射批次并保存仍有效的子弹引用，不负责时序或运动。</summary>
+public abstract class BulletEmitter
 {
-	// 发射间隔（秒）、弹幕样式与阵营。
-	private readonly double _interval;
-	private readonly BulletPattern _pattern;
-	private readonly BulletTeam _team;
-	// 距上次发射的累计秒数。
-	private double _elapsed;
-	/// <summary>构造一个从零开始计时的发射器。</summary>
-	/// <param name="interval">正数有限发射间隔，单位为秒。</param>
-	/// <param name="pattern">生成角度的弹幕样式。</param>
-	/// <param name="team">所发子弹的阵营。</param>
-	public BulletEmitter(double interval, BulletPattern pattern, BulletTeam team)
-	{
-		if (!double.IsFinite(interval) || interval <= 0) throw new ArgumentOutOfRangeException(nameof(interval));
-		_interval = interval;
-		_pattern = pattern;
-		_team = team;
-	}
-	/// <summary>推进发射时钟，达到间隔才发射第一波。</summary>
-	/// <param name="delta">经过的非负秒数。</param>
-	/// <param name="parent">接收子弹的独立容器；支持管理器或旧版普通节点。</param>
-	/// <param name="origin">全局发射位置，单位为像素。</param>
-	/// <param name="angle">基础角度，单位为度，0向右、90向下，默认0。</param>
-	public void Advance(double delta, Node2D parent, Vector2 origin, float angle = 0)
-	{
-		_elapsed += delta;
-		while (_elapsed + 1e-9 >= _interval)
-		{
-			_elapsed = Math.Max(0, _elapsed - _interval);
-			_pattern.Emit(direction => Spawn(parent, origin, direction), angle);
-		}
-	}
-	/// <summary>将一颗配置好的弹幕交给容器。</summary>
-	/// <param name="parent">独立的弹幕父节点。</param>
-	/// <param name="origin">全局位置，单位为像素。</param>
-	/// <param name="angle">角度（度），0向右、90向下。</param>
-	private void Spawn(Node2D parent, Vector2 origin, float angle)
-	{
-		if (parent is BulletManager manager)
-		{
-			manager.Spawn(origin, angle, _team);
-			return;
-		}
-		// 兼容旧版普通容器，子弹自行驱动物理更新。
-		var bullet = new Bullet();
-		bullet.ConfigureShot(parent.ToLocal(origin), angle, _team);
-		parent.AddChild(bullet);
-	}
+    // 本批次仍在管理器中存活的子弹。
+    private readonly List<Bullet> _bullets = new();
+    // 阻止同一个批次重复发射。
+    private bool _emitted;
+    /// <summary>本批次活动子弹的只读视图，注销时同步更新。</summary>
+    public IReadOnlyList<Bullet> Bullets { get; }
+    /// <summary>建立不可从外部增删的批次视图。</summary>
+    protected BulletEmitter() => Bullets = _bullets.AsReadOnly();
+    /// <summary>执行一次构造；重复调用抛错，容量不足时只保留成功登记的子弹。</summary>
+    /// <param name="manager">拥有节点及生命周期的管理器。</param>
+    /// <param name="origin">本批次全局起点，单位为逻辑像素，右和下为正。</param>
+    public void Emit(BulletManager manager, Vector2 origin)
+    {
+        ArgumentNullException.ThrowIfNull(manager);
+        if (!origin.IsFinite()) throw new ArgumentOutOfRangeException(nameof(origin));
+        if (_emitted) throw new InvalidOperationException("发射批次不可重复执行。");
+        _emitted = true;
+        Build(manager, origin);
+    }
+    /// <summary>由具体批次逐颗定义参数，可选用排列模式辅助计算方向。</summary>
+    /// <param name="manager">接收初始化子弹的管理器。</param>
+    /// <param name="origin">全局起点，单位为逻辑像素。</param>
+    protected abstract void Build(BulletManager manager, Vector2 origin);
+    /// <summary>检查容量后初始化一颗子弹，并同时登记到管理器和批次。</summary>
+    /// <param name="manager">接收节点的管理器。</param>
+    /// <param name="data">完整参数，位置使用全局逻辑像素。</param>
+    /// <returns>成功登记的实例，容量不足时为空。</returns>
+    protected Bullet? AddBullet(BulletManager manager, BulletSpawnData data)
+    {
+        data.Validate();
+        if (!manager.CanSpawn()) return null;
+        // 入树前完成初始化，失败时释放尚未托管的节点。
+        var bullet = new Bullet();
+        try
+        {
+            bullet.Configure(data);
+            manager.Register(bullet, this);
+            _bullets.Add(bullet);
+            return bullet;
+        }
+        catch
+        {
+            bullet.Free();
+            throw;
+        }
+    }
+    /// <summary>管理器销毁子弹时注销批次引用。</summary>
+    /// <param name="bullet">即将释放的子弹。</param>
+    internal void Unregister(Bullet bullet) => _bullets.Remove(bullet);
+}
+
+/// <summary>按完整参数构造单颗子弹的发射批次。</summary>
+public sealed class SingleBulletEmitter : BulletEmitter
+{
+    // 本次发射的参数快照，位置由 Emit 的全局起点覆盖。
+    private readonly BulletSpawnData _data;
+    /// <summary>保存单颗子弹的初始化参数。</summary>
+    /// <param name="data">单颗参数，发射位置由 Emit 提供。</param>
+    public SingleBulletEmitter(BulletSpawnData data) => _data = data;
+    /// <summary>在指定位置构造唯一子弹。</summary>
+    /// <param name="manager">接收子弹的管理器。</param>
+    /// <param name="origin">全局起点，单位为逻辑像素。</param>
+    protected override void Build(BulletManager manager, Vector2 origin) => AddBullet(manager, _data with { Position = origin });
 }

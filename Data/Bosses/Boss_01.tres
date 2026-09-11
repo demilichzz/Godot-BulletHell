@@ -1,15 +1,15 @@
 [gd_resource type="Resource" script_class="BossData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://Boss/BossData.cs" id="1"]
-[ext_resource type="Texture2D" path="res://Assets/Boss.png" id="2"]
+[ext_resource type="Texture2D" path="res://Assets/Units/Boss_01.png" id="2"]
 
 [resource]
 script = ExtResource("1")
-Id = "ring_boss"
+Id = "Boss_01"
 DisplayName = "环形守卫"
 Texture = ExtResource("2")
 MaxHp = 100
 CollisionRadius = 32.0
 VisualScale = 3.0
 SpawnPosition = Vector2(640, 250)
-PhaseProfile = "ring"
+PhaseProfile = "Boss_01"

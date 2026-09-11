@@ -1,7 +1,7 @@
 using Godot;
 using System.Collections.Generic;
 
-/// <summary>集中生成、移动、碰撞检测与释放弹幕。</summary>
+/// <summary>登记弹幕并统一推进、碰撞和释放，同步注销所属发射批次。</summary>
 public partial class BulletManager : Node2D
 {
 	// 活动弹幕列表；待释放节点立即移出，避免重复命中。
@@ -10,6 +10,8 @@ public partial class BulletManager : Node2D
 	private bool _limitReported;
 	/// <summary>当前活动弹幕数量，不包含待释放节点。</summary>
 	public int ActiveCount => _active.Count;
+	/// <summary>全场活动子弹的只读视图。</summary>
+	public IReadOnlyList<Bullet> ActiveBullets => _active.AsReadOnly();
 	/// <summary>生成一颗采用集中参数的弹幕。</summary>
 	/// <param name="origin">全局发射点，单位为像素。</param>
 	/// <param name="angle">屏幕角度（度），0向右、90向下。</param>
@@ -17,19 +19,33 @@ public partial class BulletManager : Node2D
 	/// <returns>生成的子弹，容量不足时为空。</returns>
 	public Bullet? Spawn(Vector2 origin, float angle, BulletTeam team)
 	{
+		// 兼容调用通过单发批次进入统一构造流程。
+		var emitter = new SingleBulletEmitter(BulletSpawnData.ForTeam(team, angle));
+		emitter.Emit(this, origin);
+		return emitter.Bullets.Count == 0 ? null : emitter.Bullets[0];
+	}
+	/// <summary>在构造节点前检查容量，满额提示仅输出一次。</summary>
+	/// <returns>是否仍可登记一颗子弹。</returns>
+	internal bool CanSpawn()
+	{
 		if (_active.Count >= BattleConfig.MaxBullets)
 		{
 			if (!_limitReported) GD.Print("弹幕达到2048上限，本次生成已跳过。");
 			_limitReported = true;
-			return null;
+			return false;
 		}
 		_limitReported = false;
-		// 子弹使用容器局部坐标，与 Boss 的变换分离。
-		var bullet = new Bullet();
-		bullet.ConfigureShot(ToLocal(origin), angle, team);
+		return true;
+	}
+	/// <summary>登记已初始化的节点，将全局起点转换为容器局部坐标。</summary>
+	/// <param name="bullet">由发射器初始化且尚未入树的子弹。</param>
+	/// <param name="emitter">所属单次发射批次。</param>
+	internal void Register(Bullet bullet, BulletEmitter emitter)
+	{
+		bullet.SpawnPosition = bullet.Position = ToLocal(bullet.Position);
+		bullet.Emitter = emitter;
 		AddChild(bullet);
 		_active.Add(bullet);
-		return bullet;
 	}
 	/// <summary>推进所有弹幕，并用目标相对位移检测连续碰撞。</summary>
 	/// <param name="delta">经过的非负秒数。</param>
@@ -54,8 +70,7 @@ public partial class BulletManager : Node2D
 					: boss.TakeDamage(bullet.Damage);
 			if (hit || bullet.Expired)
 			{
-				_active.RemoveAt(index);
-				bullet.QueueFree();
+				ReleaseAt(index);
 			}
 		}
 	}
@@ -75,9 +90,22 @@ public partial class BulletManager : Node2D
 	/// <summary>清理全部活动弹幕，同时重置满额提示。</summary>
 	public void Clear()
 	{
-		// 逐个释放本管理器持有的活动节点。
-		foreach (var bullet in _active) bullet.QueueFree();
-		_active.Clear();
+		// 倒序清理同时注销批次引用，已退出阶段的批次也能释放。
+		for (int index = _active.Count - 1; index >= 0; index--) ReleaseAt(index);
 		_limitReported = false;
 	}
+	/// <summary>从两个活动列表注销并延迟释放节点。</summary>
+	/// <param name="index">全场活动列表的有效零基索引。</param>
+	private void ReleaseAt(int index)
+	{
+		// 先移除引用，再释放，避免同一步重复命中。
+		var bullet = _active[index];
+		_active.RemoveAt(index);
+		bullet.Emitter?.Unregister(bullet);
+		bullet.Emitter = null;
+		RemoveChild(bullet);
+		bullet.QueueFree();
+	}
+	/// <summary>管理器离场时同步清除全部批次引用。</summary>
+	public override void _ExitTree() => Clear();
 }

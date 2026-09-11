@@ -2,7 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
-/// <summary>管理 Boss 生命、贴图与顺序阶段，默认由战斗管理器更新。</summary>
+/// <summary>管理 Boss 生命、贴图、碰撞轮廓与顺序阶段，默认由战斗管理器更新。</summary>
 public partial class BossController : Node2D
 {
 	/// <summary>当前生命点数。</summary>
@@ -39,7 +39,7 @@ public partial class BossController : Node2D
 	/// <summary>进入新阶段的通知，参数为阶段实例。</summary>
 	public event Action<BossPhase>? PhaseChanged;
 	// 有序阶段列表与当前索引。
-	private List<BossPhase> _phases = new() { new RingBossPhase() };
+	private List<BossPhase> _phases = new() { new Boss_01Phase() };
 	private int _phaseIndex;
 	// 独立贴图，缩放不影响碰撞半径。
 	private readonly Sprite2D _sprite = new() { Name = "Sprite" };
@@ -65,11 +65,18 @@ public partial class BossController : Node2D
 	/// <summary>加载图像并进入首个阶段。</summary>
 	public override void _Ready()
 	{
-		_sprite.Texture = _texture ?? GD.Load<Texture2D>("res://Assets/Boss.png");
+		_sprite.Texture = _texture ?? GD.Load<Texture2D>("res://Assets/Units/Boss_01.png");
 		_sprite.Centered = true;
+		// 贴图绘制在父节点轮廓下方，避免遮住真实碰撞范围。
+		_sprite.ShowBehindParent = true;
 		_sprite.TextureFilter = TextureFilterEnum.Nearest;
 		AddChild(_sprite);
 		EnterPhase();
+	}
+	/// <summary>按实际碰撞半径绘制橙红色圆形轮廓，线宽为2逻辑像素，不受贴图倍率影响。</summary>
+	public override void _Draw()
+	{
+		DrawArc(Vector2.Zero, CollisionRadius, 0, Mathf.Tau, 128, Colors.OrangeRed, 2, true);
 	}
 	/// <summary>进入当前索引对应阶段并通知。</summary>
 	private void EnterPhase()

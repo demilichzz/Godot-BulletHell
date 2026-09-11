@@ -6,7 +6,7 @@ using System;
 public partial class BossData : Resource
 {
     /// <summary>目录内唯一标识，默认对应现有环形 Boss。</summary>
-    [Export] public string Id { get; set; } = "ring_boss";
+    [Export] public string Id { get; set; } = "Boss_01";
     /// <summary>选择界面和战斗中显示的名称。</summary>
     [Export] public string DisplayName { get; set; } = "环形守卫";
     /// <summary>战斗贴图，使用带真实透明通道的 PNG。</summary>
@@ -21,8 +21,8 @@ public partial class BossData : Resource
     [Export] public float VisualScale { get; set; } = BattleConfig.BossScale;
     /// <summary>出生位置，单位为逻辑像素，右和下为正，默认(640,250)。</summary>
     [Export] public Vector2 SpawnPosition { get; set; } = BattleConfig.BossSpawn;
-    /// <summary>阶段组合注册键，默认ring。</summary>
-    [Export] public string PhaseProfile { get; set; } = "ring";
+    /// <summary>阶段组合注册键，默认Boss_01。</summary>
+    [Export] public string PhaseProfile { get; set; } = "Boss_01";
     /// <summary>检查配置是否能用于生成 Boss。</summary>
     public void Validate()
     {

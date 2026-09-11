@@ -29,13 +29,22 @@ public partial class StageVerification : Node
     {
         try
         {
+            // 正式目录必须加载迁移后的唯一Boss及其原始64像素贴图。
+            var production = GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
+            production.Validate();
+            Check(production.Entries.Count == 1 && production.Entries[0].Id == "Boss_01"
+                && production.Entries[0].PhaseProfile == "Boss_01", "正式Boss命名迁移");
+            Check(production.Entries[0].Texture!.ResourcePath == "res://Assets/Units/Boss_01.png"
+                && production.Entries[0].Texture!.GetSize() == new Vector2(64, 64), "正式Boss贴图迁移");
+            Check(ResourceUid.GetIdPath(ResourceUid.TextToId("uid://7iuuwxiu5ji")) == "res://Assets/Units/Boss_01.png"
+                && ResourceUid.GetIdPath(ResourceUid.TextToId("uid://cyx82pr2q67tt")) == "res://Assets/Units/Boss_05.png", "图片资源身份保留");
             // 使用七个仅测试可见的配置，覆盖多行和不完整末行。
             var catalog = new BossCatalog();
             for (int index = 0; index < 7; index++)
                 catalog.Entries.Add(new BossData
                 {
                     Id = $"test_{index}", DisplayName = $"测试 Boss {index}",
-                    Texture = GD.Load<Texture2D>("res://Assets/Boss.png"),
+                    Texture = GD.Load<Texture2D>("res://Assets/Units/Boss_01.png"),
                     MaxHp = 100 + index * 10, CollisionRadius = 32 + index,
                     VisualScale = 2 + index * 0.1f, SpawnPosition = new Vector2(600 + index, 250)
                 });
@@ -174,5 +183,3 @@ public partial class StageVerification : Node
         protected override void OnExit() => Exits++;
     }
 }
-
-

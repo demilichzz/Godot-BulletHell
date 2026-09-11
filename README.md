@@ -17,7 +17,7 @@ Godot 4.7.2 .NET / C# 2D Boss 战原型。启动后进入Boss选择场景，可�
 
 ## 参数与保留行为
 
-通用战斗与玩家参数位于 `Core/BattleConfig.cs`；当前Boss的独立配置位于 `Data/Bosses/RingBoss.tres`。默认逻辑分辨率与启动窗口为1280×800（16:10），窗口可调整大小；通过canvas_items与keep策略整体等比缩放，比例不同时居中并显示纯黑边，窗口尺寸不影响逻辑坐标与移动速度；位置和半径使用像素，速度使用像素/秒，时间使用秒。角度0°向右、90°向下。
+通用战斗与玩家参数位于 `Core/BattleConfig.cs`；当前Boss的独立配置位于 `Data/Bosses/Boss_01.tres`。默认逻辑分辨率与启动窗口为1280×800（16:10），窗口可调整大小；通过canvas_items与keep策略整体等比缩放，比例不同时居中并显示纯黑边，窗口尺寸不影响逻辑坐标与移动速度；位置和半径使用像素，速度使用像素/秒，时间使用秒。角度0°向右、90°向下。
 
 | 对象 | 参数 |
 |---|---|
@@ -29,23 +29,29 @@ Godot 4.7.2 .NET / C# 2D Boss 战原型。启动后进入Boss选择场景，可�
 | 玩家弹 | 每0.2秒单发，首发在0.2秒，速度600，寿命2秒，半径3，伤害1 |
 | 容量 | 活动弹幕最多2048颗，满额跳过新弹并输出调试提示 |
 
-Boss仍固定不动，保留原环形弹幕的角度、时钟余量与外观。`Assets/Boss.png`为64×64透明像素图；`Assets/Sprite_02.png`为160×16的十色图集，每格16×16，颜色从左至右为0～9。Boss与敌弹实际默认倍率均为3（旧README中的2已纠正）。贴图居中且最近邻过滤，弹幕按发射角度旋转，外观缩放不改变移动或碰撞。
+Boss仍固定不动，保留原环形弹幕的角度、时钟余量与外观。`Assets/Units/Boss_01.png`为64×64透明像素图；`Assets/Sprite_02.png`为160×16的十色图集，每格16×16，颜色从左至右为0～9。Boss与敌弹实际默认倍率均为3（旧README中的2已纠正）。贴图居中且最近邻过滤，弹幕按发射角度旋转，外观缩放不改变移动或碰撞。
 
 没有Boss接触伤害。敌弹只伤玩家，玩家弹只伤Boss；有效命中销毁。弹幕不因出屏提前释放。胜负后清理全部弹幕并停止模拟；同一物理步双方死亡判定失败。
 
-背景使用从旧项目复制的 `Assets/UI/UI_400x600_gamearea_4.png`（400×600）。图片以最近邻过滤、等比覆盖并居中裁切铺满1280×800逻辑画面，上下超出部分裁去；背景位于角色和弹幕下方，不接收鼠标输入，也不覆盖窗口黑边。HUD使用深色描边保持可读性。圆形边界不额外绘制，普通移动与闪避共用径向约束。
+背景使用从旧项目复制的 `Assets/UI/UI_400x600_gamearea_4.png`（400×600）。图片以最近邻过滤、等比覆盖并居中裁切铺满1280×800逻辑画面，上下超出部分裁去；背景位于角色和弹幕下方，不接收鼠标输入，也不覆盖窗口黑边。HUD使用深色描边保持可读性。活动区域绘制浅蓝色圆形边界，Boss绘制橙红色碰撞轮廓；普通移动与闪避共用径向约束。
 
 ## 模块与扩展
 
 - `Core`：BattleManager拥有唯一战斗物理更新入口，按玩家、Boss、弹幕、胜负顺序执行；BattleConfig集中参数。Step支持注入移动与闪避输入，便于验证。
 - `Player`：PlayerController协调PlayerMovement、PlayerDodge、PlayerHealth、PlayerAttack。生命变化和死亡使用C#事件。
-- `Boss`：BossController管理HP与阶段；BossPhase定义Enter、Advance、ShouldEnd和Exit。通过入树前SetPhases配置有序阶段；首版只使用RingBossPhase，最后阶段保持运行，死亡或结束时退出一次。
-- `Bullet`：BulletManager负责生成、连续碰撞、容量与销毁；BulletEmitter管理间隔和发射点；BulletPattern实现SinglePattern与RingPattern；BulletBehavior实现StraightBehavior。新增样式或运动可分别派生对应抽象类，无需改写Boss控制器。
-- `Bullet/Bullet.cs`保留原Initialize签名和默认倍率2；ConfigureShot使用首版阵营参数。普通容器中的子弹自行物理更新，管理器内的子弹只由管理器驱动。
-- `Boss/Boss.cs`为兼容入口，继承新BossController；普通容器下自行驱动，当前战斗交给BattleManager。
+- `Boss`：BossController管理HP与阶段；BossPhase定义Enter、Advance、ShouldEnd和Exit。通过入树前SetPhases配置有序阶段；首版只使用Boss_01Phase，最后阶段保持运行，死亡或结束时退出一次。
+- `Bullet`：BulletEmitter是一次性发射批次，按BulletSpawnData初始化每颗子弹，再登记到管理器与批次两个列表。BulletManager独占运动推进、连续碰撞、容量与释放，并同步注销批次引用；Emitter不控制计时、转向或变速。BulletBehavior负责生成后的运动。
+- `Bullet/Bullet.cs`保留入树前Initialize签名和默认倍率2；ConfigureShot使用默认阵营参数。子弹禁止自行物理更新。通过SetDirection、SetSpeed或Velocity改变运动时同步方向、速度及贴图朝向；外部逻辑可通过Emitter.Bullets只读视图选择本批次活动子弹。
+- `Boss/Boss.cs`保留入口名称及继承关系；正式发射流程使用BulletManager容器，由BattleManager统一驱动。Boss_01Phase负责每秒创建一个新Boss_01Emitter，通过循环直接生成24颗环形子弹，不调用BulletPattern。阶段退出只释放批次索引，已有子弹继续飞行；重开和离场统一清场。
 - `Main.cs`装配场景、默认InputMap及简单中文HUD。默认绑定同时兼容物理键和辅助输入设备的逻辑键码；已有同名输入动作不会被覆盖。
 
 碰撞使用子弹相对目标运动线段与双方半径之和判定，包含高速穿越与静止重叠。闪避与受击保护按物理步判定，碰撞后再推进计时；固定步为Godot项目默认60Hz。此阶段不承诺录像确定性。
+
+### 可选排列模式
+
+Emitter可直接使用循环，也可调用BulletPattern辅助计算方向。AngularPattern(count, offsetDegrees, clockwise)定义总数、非负角度间隔和顺逆时针，Emit回调接收角度、第二个参数为初始角度。24颗、15度间隔组成圆环；7颗、15度间隔组成90度扇形；同一批次起点由Emitter统一提供，速度等参数仍可逐颗修改。索引从0开始，方向为初始角度加或减索引乘间隔。
+
+Emitter只保存仍有效的子弹，命中、过期和清场时同步移除。需要删除子弹的外部操作不可直接Free节点；清场统一调用管理器。若操作会改变列表，应避免在foreach中增删同一列表。
 
 ## 验证
 
@@ -54,7 +60,7 @@ dotnet build
 & '.tools/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe' --headless --path . --scene res://Tests/BattleVerification.tscn
 ```
 
-也可通过原`.tools/verify.gd`入口运行同一验证场景。验证包含原弹幕时机、角度、图集、速度和寿命，圆心、圆内点、四轴与斜向边界、闪避越界、脚本迁移路径、背景布局、分辨率配置、闪避冷却、无敌防重复伤害，自动攻击与高速碰撞，阶段生命周期、同帧死亡、冻结、连续重开和容量上限。失败时返回非零退出码。
+也可通过原`.tools/verify.gd`入口运行同一验证场景。验证包含原弹幕时机、角度、图集、速度和寿命，圆心、圆内点、四轴与斜向边界、闪避越界、脚本迁移路径、背景布局、分辨率配置、闪避冷却、无敌防重复伤害，自动攻击与高速碰撞，阶段生命周期、同帧死亡、冻结、连续重开和容量上限。新增验证还覆盖一次性批次、双列表同一对象、外部批次转向、容量部分接收、命中与过期注销、阶段退出后继续飞行、重开和直接离场清理，以及圆环/扇形/逆时针/单发排列。失败时返回非零退出码。
 
 本期包含Boss选择界面，但不包含存档、录像、随机数管理、解锁、奖励评价、音频、设置菜单或追踪、分裂等扩展弹幕。
 
@@ -84,9 +90,9 @@ dotnet build
 
 ## 添加 Boss
 
-1. 复制 `Data/Bosses/RingBoss.tres`，设置唯一 Id、DisplayName、Texture、可选 Portrait、MaxHp、CollisionRadius、VisualScale、SpawnPosition 和 PhaseProfile。贴图使用真正带Alpha透明通道的PNG，并检查尺寸与透明度。
+1. 复制 `Data/Bosses/Boss_01.tres`，设置唯一 Id、DisplayName、Texture、可选 Portrait、MaxHp、CollisionRadius、VisualScale、SpawnPosition 和 PhaseProfile。贴图使用真正带Alpha透明通道的PNG，并检查尺寸与透明度。
 2. 将新资源按展示顺序加入 `Data/BossCatalog.tres` 的 Entries。目录当前只包含现有“环形守卫”，测试中的其他Boss不会出现在正式目录。
-3. 若沿用现有环形阶段，PhaseProfile保留 `ring` 即可。新行为在 `Boss/` 下继承 BossPhase，并通过 `BossFactory.RegisterProfile` 注册一个每次返回全新阶段列表的工厂；注册应在 GameManager 校验目录之前完成。
+3. 在 `Boss/BossPhase/新Boss标识/` 下实现专属BossPhase和BulletEmitter，各Boss不复用具体阶段。阶段负责发射时序，每次创建新的Emitter并调用Emit；通过TrackEmitter记录批次，在推进中调用PruneEmitters去掉空批次，生命周期重写应调用基类。使用BossFactory.RegisterProfile注册每次返回全新阶段列表的工厂，在GameManager校验目录之前完成注册。当前配置ID与PhaseProfile均为 `Boss_01`。
 4. BossFactory会应用独立配置并创建阶段，BattleManager重开复用同一配置；碰撞读取实例的CollisionRadius，HUD读取实例的MaxHp，无需再修改全局Boss数值或复制控制器。
 
 ## 添加 Stage

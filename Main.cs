@@ -1,6 +1,6 @@
 using Godot;
 
-/// <summary>组装当前战场、键盘操作和简易中文状态显示。</summary>
+/// <summary>组装当前战场、活动区域轮廓、键盘操作和简易中文状态显示。</summary>
 public partial class Main : Node2D
 {
 	/// <summary>入树前指定的 Boss 配置；为空时保留独立演示行为。</summary>
@@ -45,6 +45,12 @@ public partial class Main : Node2D
 			ZIndex = -1
 		};
 		AddChild(background);
+	}
+	/// <summary>绘制玩家活动区域的浅蓝色圆形边界，半径与移动约束一致，线宽为2逻辑像素。</summary>
+	public override void _Draw()
+	{
+		DrawArc(BattleConfig.ArenaCenter, BattleConfig.ArenaRadius, 0, Mathf.Tau, 256,
+			new Color(0.45f, 0.85f, 1f, 0.85f), 2, true);
 	}
 	/// <summary>刷新生命、闪避冷却与结束提示。</summary>
 	/// <param name="delta">渲染帧间隔秒数，不用于战斗模拟。</param>
