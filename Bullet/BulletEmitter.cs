@@ -72,7 +72,11 @@ public sealed class SingleBulletEmitter : BulletEmitter
     private readonly BulletSpawnData _data;
     /// <summary>保存单颗子弹的初始化参数。</summary>
     /// <param name="data">单颗参数，发射位置由 Emit 提供。</param>
-    public SingleBulletEmitter(BulletSpawnData data) => _data = data;
+    public SingleBulletEmitter(BulletSpawnData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        _data = data with { };
+    }
     /// <summary>在指定位置构造唯一子弹。</summary>
     /// <param name="manager">接收子弹的管理器。</param>
     /// <param name="origin">全局起点，单位为逻辑像素。</param>

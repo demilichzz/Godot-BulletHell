@@ -1,6 +1,6 @@
 using Godot;
 
-/// <summary>集中保存首版战斗参数；位置为像素，时间为秒。</summary>
+/// <summary>集中保存场地、角色与全场弹幕容量参数；位置为像素，时间为秒。</summary>
 public static class BattleConfig
 {
 	// 基准画面矩形，单位为逻辑像素，坐标向右、向下递增。
@@ -15,16 +15,12 @@ public static class BattleConfig
 	public const float MoveSpeed = 240, DodgeSpeed = 720;
 	// 闪避持续、冷却和受击无敌时间，单位为秒；冷却从触发计时。
 	public const double DodgeDuration = 0.15, DodgeCooldown = 1, HurtInvulnerability = 1;
-	// 双方初始生命与子弹伤害，单位为点。
-	public const int PlayerHp = 3, BossHp = 100, Damage = 1;
-	// 双方与弹幕碰撞半径，单位为像素，不随图片缩放。
-	public const float PlayerRadius = 5, BossRadius = 32, EnemyBulletRadius = 6, PlayerBulletRadius = 3;
-	// 双方射击间隔，单位为秒。
-	public const double BossInterval = 1, PlayerInterval = 0.2;
-	// 弹速为像素/秒，寿命为秒。
-	public const float EnemySpeed = 180, EnemyLifetime = 4, ShotSpeed = 600, ShotLifetime = 2;
-	// 环形数量、敌弹图集索引（0～9）与活动弹幕上限。
-	public const int RingCount = 24, EnemyColor = 0, MaxBullets = 2048;
-	// Boss 与敌弹显示倍率，均为正数。
-	public const float BossScale = 3, EnemyScale = 3;
+    // 双方初始生命，单位为点。
+    public const int PlayerHp = 3, BossHp = 300;
+    // 双方碰撞半径，单位为逻辑像素，不随贴图缩放。
+    public const float PlayerRadius = 5, BossRadius = 32;
+    // 全场活动弹幕数量上限。
+    public const int MaxBullets = 2048;
+    // Boss贴图显示倍率，正数，不改变碰撞范围。
+    public const float BossScale = 3;
 }

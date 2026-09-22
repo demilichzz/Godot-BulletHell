@@ -57,7 +57,7 @@ public partial class Main : Node2D
 	public override void _Process(double delta)
 	{
 		// 结束状态提示，仅在胜负后显示重开键。
-		var result = _battle.State switch { BattleState.Victory => "胜利！按 R 重新开始", BattleState.Defeat => "挑战失败，按 R 重新开始", _ => "战斗中" };
+		var result = _battle.State switch { BattleState.Victory => "胜利！按 R 重新开始", _ => "战斗中" };
 		_status.Text = $"玩家 HP {_battle.Player.Health.Hp}/{BattleConfig.PlayerHp}    Boss HP {_battle.Boss.Hp}/{_battle.Boss.MaxHp}\n"
 			+ $"闪避冷却 {_battle.Player.Dodge.Cooldown:0.0} 秒    时间 {_battle.Elapsed:0.0} 秒\n"
 			+ "WASD / 方向键移动 · 空格闪避 · 自动攻击 · Esc 返回选择\n" + result;

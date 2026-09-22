@@ -1,27 +1,31 @@
 using Godot;
-using System;
 
-/// <summary>周期性瞄准Boss当前中心，每次建立独立的单发批次。</summary>
+/// <summary>通过重复计时器瞄准Boss当前中心，逐次创建单发批次。</summary>
 public sealed class PlayerAttack
 {
-    // 已累计的攻击秒数，首次等待0.2秒后发射。
-    private double _elapsed;
-    /// <summary>推进自动攻击时序并构造单发批次。</summary>
-    /// <param name="delta">经过的非负秒数。</param>
-    /// <param name="bullets">战场弹幕管理器。</param>
-    /// <param name="origin">玩家全局中心，单位为逻辑像素。</param>
-    /// <param name="boss">当前目标，死亡后停止发射。</param>
-    public void Advance(double delta, BulletManager bullets, Vector2 origin, BossController boss)
+    // 参数模板与自动攻击句柄。
+    private readonly BulletSpawnData _template = new(BulletType.PlayerSet);
+    private VTimer? _timer;
+    /// <summary>绑定玩家后开始周期射击，首次等待模板间隔。</summary>
+    /// <param name="owner">玩家节点，发射位置取当前全局坐标。</param>
+    /// <param name="bullets">共享计时器及弹幕容器。</param>
+    /// <param name="boss">当前攻击目标，死亡后不再发射。</param>
+    public void Initialize(Node2D owner, BulletManager bullets, BossController boss)
     {
-        if (boss.Hp == 0) return;
-        _elapsed += delta;
-        while (_elapsed + 1e-9 >= BattleConfig.PlayerInterval)
-        {
-            _elapsed = Math.Max(0, _elapsed - BattleConfig.PlayerInterval);
-            // 本次瞄准角度以度表示，0向右、90向下。
-            var angle = Mathf.RadToDeg((boss.GlobalPosition - origin).Angle());
-            var emitter = new SingleBulletEmitter(BulletSpawnData.ForTeam(BulletTeam.Player, angle));
-            emitter.Emit(bullets, origin);
-        }
+        _timer?.Cancel();
+        // 秒模板集中转换为毫秒，重复间隔为0时由VTimer拒绝。
+        long interval = VTimerProcessor.SecondsToMilliseconds(_template.IntervalSeconds);
+        _timer = bullets.Timers.Register(new VTimer(interval, interval, 0, VTimerType.RepeatForever,
+            new[] { owner }, targets =>
+            {
+                if (!GodotObject.IsInstanceValid(boss) || boss.IsQueuedForDeletion() || !boss.IsInsideTree() || boss.Hp == 0) return;
+                // 采用事件时刻的全局起点和目标，弧度0向右、π/2向下。
+                var origin = targets[0].GlobalPosition;
+                var angle = VMath.StandardizationAngleFloat(VMath.GetAngleBetween2Points(origin, boss.GlobalPosition));
+                var emitter = new SingleBulletEmitter(_template with { AngleRadians = angle });
+                emitter.Emit(bullets, origin);
+            }));
     }
+    /// <summary>停止自动射击并解除回调。</summary>
+    public void Stop() => _timer?.Cancel();
 }

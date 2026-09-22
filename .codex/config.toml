@@ -1,0 +1,28 @@
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3
+
+[agents.analyst]
+description = """
+业务逻辑与架构分析 Agent。
+用于游戏机制、Boss机制、业务规则、架构设计、类职责、
+Replay确定性、VTimer或VMath设计等分析任务。
+只分析并形成实现规格，不修改项目文件。
+"""
+config_file = "./agents/analyst.toml"
+
+[agents.developer]
+description = """
+生产代码实现 Agent。
+需求明确后负责实现、修改或修复 C# / Godot 生产代码，
+并按任务需要读取项目规则文件。
+"""
+config_file = "./agents/developer.toml"
+
+[agents.tester]
+description = """
+测试与验证 Agent。
+生产代码修改后负责直接相关测试和业务验证。
+默认 Targeted Testing，不自行执行完整回归测试。
+"""
+config_file = "./agents/tester.toml"

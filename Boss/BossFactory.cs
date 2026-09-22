@@ -8,7 +8,7 @@ public static class BossFactory
     // 阶段组合工厂，必须每次返回新的有状态阶段实例。
     private static readonly Dictionary<string, Func<IEnumerable<BossPhase>>> Profiles = new(StringComparer.Ordinal)
     {
-        ["Boss_01"] = () => new BossPhase[] { new Boss_01Phase() }
+        ["Boss_01"] = () => new BossPhase[] { new B01_Phase01(), new B01_Phase02(), new B01_Phase03() }
     };
     /// <summary>注册可被 BossData 引用的阶段组合。</summary>
     /// <param name="key">非空且唯一的阶段组合标识。</param>

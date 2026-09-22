@@ -24,7 +24,7 @@ public partial class BossSelectItem : PanelContainer
         AddChild(column);
         column.AddChild(new TextureRect
         {
-            Texture = data.Portrait ?? data.Texture,
+            Texture = data.GetSelectionTexture(),
             CustomMinimumSize = new Vector2(200, 170),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,

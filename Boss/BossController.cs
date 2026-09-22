@@ -2,7 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
-/// <summary>管理 Boss 生命、贴图、碰撞轮廓与顺序阶段，默认由战斗管理器更新。</summary>
+/// <summary>管理 Boss 生命、图集动画、碰撞轮廓与顺序阶段，默认由战斗管理器更新。</summary>
 public partial class BossController : Node2D
 {
 	/// <summary>当前生命点数。</summary>
@@ -15,6 +15,11 @@ public partial class BossController : Node2D
 	public string DisplayName { get; private set; } = "环形守卫";
 	// 独立配置的战斗贴图；旧接口未配置时加载原图。
 	private Texture2D? _texture;
+	// 图集行列及每秒帧数；未配置入口使用 Boss_01 的四帧默认值。
+	private int _hframes = 2, _vframes = 2;
+	private double _animationFps = 4;
+	// 当前循环内已经过的秒数，重建实例时归零。
+	private double _animationSeconds;
 	/// <summary>在入树前应用独立配置。</summary>
 	/// <param name="data">已经定义贴图、生命与碰撞尺寸的 Boss 配置。</param>
 	public void Configure(BossData data)
@@ -25,6 +30,9 @@ public partial class BossController : Node2D
 		CollisionRadius = data.CollisionRadius;
 		DisplayName = data.DisplayName;
 		_texture = data.Texture;
+		_hframes = data.Hframes;
+		_vframes = data.Vframes;
+		_animationFps = data.AnimationFps;
 	}
 	/// <summary>独立弹幕容器。</summary>
 	public Node2D BulletParent { get; private set; } = null!;
@@ -39,7 +47,7 @@ public partial class BossController : Node2D
 	/// <summary>进入新阶段的通知，参数为阶段实例。</summary>
 	public event Action<BossPhase>? PhaseChanged;
 	// 有序阶段列表与当前索引。
-	private List<BossPhase> _phases = new() { new Boss_01Phase() };
+	private List<BossPhase> _phases = new() { new B01_Phase01(), new B01_Phase02(), new B01_Phase03() };
 	private int _phaseIndex;
 	// 独立贴图，缩放不影响碰撞半径。
 	private readonly Sprite2D _sprite = new() { Name = "Sprite" };
@@ -66,6 +74,10 @@ public partial class BossController : Node2D
 	public override void _Ready()
 	{
 		_sprite.Texture = _texture ?? GD.Load<Texture2D>("res://Assets/Units/Boss_01.png");
+		_sprite.Hframes = _hframes;
+		_sprite.Vframes = _vframes;
+		_sprite.Frame = 0;
+		_animationSeconds = 0;
 		_sprite.Centered = true;
 		// 贴图绘制在父节点轮廓下方，避免遮住真实碰撞范围。
 		_sprite.ShowBehindParent = true;
@@ -85,21 +97,41 @@ public partial class BossController : Node2D
 		CurrentPhase.Enter(this);
 		PhaseChanged?.Invoke(CurrentPhase);
 	}
-	/// <summary>推进阶段并在条件满足时切换，最后阶段保持运行。</summary>
-	/// <param name="delta">经过的非负秒数。</param>
+	/// <summary>推进图集动画与阶段并在条件满足时切换，最后阶段保持运行。</summary>
+	/// <param name="delta">经过的非负有限秒数。</param>
 	public void Advance(double delta)
 	{
+		if (!double.IsFinite(delta) || delta < 0) throw new ArgumentOutOfRangeException(nameof(delta));
 		PreviousPosition = GlobalPosition;
 		if (Hp == 0 || CurrentPhase is null) return;
-		if (_phaseIndex + 1 < _phases.Count && CurrentPhase.ShouldEnd(this))
-		{
-			Stop();
-			_phaseIndex++;
-			EnterPhase();
-		}
+		AdvanceAnimation(delta);
+		UpdatePhase();
 		CurrentPhase!.Advance(this, delta);
 	}
-	/// <summary>施加伤害，死亡与阶段退出只发生一次。</summary>
+    /// <summary>立即处理满足条件的阶段切换，单次伤害可跨过多个阈值。</summary>
+    private void UpdatePhase()
+    {
+        // 保持阶段有序进入和退出，旧计时器在同刻发射前取消。
+        while (Hp > 0 && CurrentPhase is not null && _phaseIndex + 1 < _phases.Count && CurrentPhase.ShouldEnd(this))
+        {
+            Stop();
+            _phaseIndex++;
+            EnterPhase();
+        }
+    }
+	/// <summary>按累计秒数推进逐行排列的图集帧，保留余量并支持一次跨越多个循环。</summary>
+	/// <param name="delta">本次更新的非负有限秒数。</param>
+	private void AdvanceAnimation(double delta)
+	{
+		// 总帧数与循环周期，周期单位为秒；单帧无需更新。
+		int frameCount = _hframes * _vframes;
+		if (frameCount == 1 || _animationFps <= 0) return;
+		double duration = frameCount / _animationFps;
+		_animationSeconds = (_animationSeconds + delta % duration) % duration;
+		// 消除60Hz累计在换帧边界附近的浮点误差，索引仍限制在图集内。
+		_sprite.Frame = (int)Math.Floor(_animationSeconds * _animationFps + 1e-9) % frameCount;
+	}
+	/// <summary>施加伤害并立即处理血线切阶段；归零时只执行一次死亡与退出。</summary>
 	/// <param name="damage">正整数伤害点数，非正数忽略。</param>
 	/// <returns>是否造成有效伤害。</returns>
 	public bool TakeDamage(int damage)
@@ -107,7 +139,8 @@ public partial class BossController : Node2D
 		if (Hp == 0 || damage <= 0) return false;
 		Hp = Math.Max(0, Hp - damage);
 		HealthChanged?.Invoke(Hp);
-		if (Hp == 0) { Stop(); Died?.Invoke(); }
+		if (Hp == 0) { (BulletParent as BulletManager)?.Timers.NotifyTargetDestroyed(this); Stop(); Died?.Invoke(); }
+        else UpdatePhase();
 		return true;
 	}
 	/// <summary>终止当前阶段，允许重复调用。</summary>

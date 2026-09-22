@@ -1,6 +1,6 @@
 # BulletHell
 
-Godot 4.7.2 .NET / C# 2D Boss 战原型。启动后进入Boss选择场景，可选择并进入通用战斗场景；战斗支持移动、闪避、自动攻击、伤害、胜负和重开。
+Godot 4.7.2 .NET / C# 2D Boss 战原型。启动后进入Boss选择场景，可选择并进入通用战斗场景；战斗支持移动、闪避、自动攻击、伤害、Boss胜利结算和重开。
 
 ## 运行与操作
 
@@ -11,47 +11,72 @@ Godot 4.7.2 .NET / C# 2D Boss 战原型。启动后进入Boss选择场景，可�
 - Esc：从战斗返回Boss选择，保留上次选择。
 - 空格：沿输入方向闪避；静止时沿最近一次移动方向，初始向上。按住不会重复闪避。
 - 自动瞄准 Boss 射击，无需攻击键。
-- 胜利或失败后按 R：重建战斗。
+- 击败Boss后按 R：重建战斗。
 
 左上角显示双方 HP、闪避冷却、战斗时间和结果。玩家以蓝色几何图形表示，白色中心为判定区域，闪避变为金色，受击后闪烁。
 
 ## 参数与保留行为
 
-通用战斗与玩家参数位于 `Core/BattleConfig.cs`；当前Boss的独立配置位于 `Data/Bosses/Boss_01.tres`。默认逻辑分辨率与启动窗口为1280×800（16:10），窗口可调整大小；通过canvas_items与keep策略整体等比缩放，比例不同时居中并显示纯黑边，窗口尺寸不影响逻辑坐标与移动速度；位置和半径使用像素，速度使用像素/秒，时间使用秒。角度0°向右、90°向下。
+场地、角色及全场弹幕容量参数位于 `Core/BattleConfig.cs`；弹幕默认参数集位于 `Bullet/BulletDefaultSet.cs`；当前Boss的独立配置位于 `Data/Bosses/Boss_01.tres`。默认逻辑分辨率与启动窗口为1280×800（16:10），窗口可调整大小；通过canvas_items与keep策略整体等比缩放，比例不同时居中并显示纯黑边，窗口尺寸不影响逻辑坐标与移动速度；位置和半径使用像素，速度使用像素/秒，运动与原配置时间使用秒，VTimer接口使用整数毫秒。内部角度统一使用弧度，0向右、π/2向下，顺时针为正。
 
 | 对象 | 参数 |
 |---|---|
-| Boss | 位置(640,250)，100 HP，碰撞半径32，图片倍率3 |
-| 敌弹 | 每1秒24发完整圆环，首发在1秒，速度180，寿命4秒，半径6，伤害1，颜色索引0，图片倍率3 |
+| Boss | 位置(640,250)，300 HP，碰撞半径32，图片倍率3 |
+| 敌弹 | 每阶段2个发射器，每1秒各24发完整圆环（合计48发），首发在进入阶段后1秒，速度180，寿命4秒，半径6，伤害1，颜色索引0，图片倍率3 |
 | 玩家 | 出生(640,600)，3 HP，速度240，半径5，中心限制在圆心(640,400)、半径395的圆内，保证判定圆完整位于直径800的活动区域 |
 | 闪避 | 速度720，持续0.15秒且无敌，触发起冷却1秒 |
 | 受击 | 无敌1秒，无敌时敌弹穿过，不销毁 |
 | 玩家弹 | 每0.2秒单发，首发在0.2秒，速度600，寿命2秒，半径3，伤害1 |
 | 容量 | 活动弹幕最多2048颗，满额跳过新弹并输出调试提示 |
 
-Boss仍固定不动，保留原环形弹幕的角度、时钟余量与外观。`Assets/Units/Boss_01.png`为64×64透明像素图；`Assets/Sprite_02.png`为160×16的十色图集，每格16×16，颜色从左至右为0～9。Boss与敌弹实际默认倍率均为3（旧README中的2已纠正）。贴图居中且最近邻过滤，弹幕按发射角度旋转，外观缩放不改变移动或碰撞。
+Boss进入战斗后先静止，第5秒首次选点，此后每5秒在圆心(640,250)、半径200的圆周上选取随机目标，以100像素/秒直线移动，到达后停止等待下一目标；移动中继续环形射击。`Assets/Units/Boss_01.png`为128×128透明像素图集，按左上、右上、左下、右下排列四张64×64帧，战斗以4 FPS循环挥臂（每帧0.25秒），结束冻结、重开复位；选择界面仅显示首帧；`Assets/Sprite_02.png`为160×16的十色图集，每格16×16，颜色从左至右为0～9。Boss与敌弹实际默认倍率均为3（旧README中的2已纠正）。贴图居中且最近邻过滤，弹幕按发射角度旋转，外观缩放不改变移动或碰撞。
 
-没有Boss接触伤害。敌弹只伤玩家，玩家弹只伤Boss；有效命中销毁。弹幕不因出屏提前释放。胜负后清理全部弹幕并停止模拟；同一物理步双方死亡判定失败。
+没有Boss接触伤害。敌弹只伤玩家，玩家弹只伤Boss；有效命中销毁。弹幕不因出屏提前释放。Boss生命归零后清理全部弹幕并停止模拟。玩家生命可降至0及负数，仍可移动、闪避、自动攻击和继续受伤，保留正常受击无敌，不触发死亡注销或失败结算；即使玩家为负血，击败Boss仍正常胜利。
 
 背景使用从旧项目复制的 `Assets/UI/UI_400x600_gamearea_4.png`（400×600）。图片以最近邻过滤、等比覆盖并居中裁切铺满1280×800逻辑画面，上下超出部分裁去；背景位于角色和弹幕下方，不接收鼠标输入，也不覆盖窗口黑边。HUD使用深色描边保持可读性。活动区域绘制浅蓝色圆形边界，Boss绘制橙红色碰撞轮廓；普通移动与闪避共用径向约束。
 
 ## 模块与扩展
 
-- `Core`：BattleManager拥有唯一战斗物理更新入口，按玩家、Boss、弹幕、胜负顺序执行；BattleConfig集中参数。Step支持注入移动与闪避输入，便于验证。
-- `Player`：PlayerController协调PlayerMovement、PlayerDodge、PlayerHealth、PlayerAttack。生命变化和死亡使用C#事件。
-- `Boss`：BossController管理HP与阶段；BossPhase定义Enter、Advance、ShouldEnd和Exit。通过入树前SetPhases配置有序阶段；首版只使用Boss_01Phase，最后阶段保持运行，死亡或结束时退出一次。
+- `Core`：BattleManager通过StepFixed接收一个60Hz逻辑步的移动与闪避输入，按计时事件分段推进玩家、Boss、弹幕和胜负；BattleConfig保存场地、角色及全场容量参数。
+- `Player`：PlayerController协调PlayerMovement、PlayerDodge、PlayerHealth、PlayerAttack。生命变化使用C#事件，零血及负血不触发玩家死亡。
+- `Boss`：BossController管理HP与阶段；BossPhase定义Enter、Advance、ShouldEnd和Exit。通过入树前SetPhases配置有序阶段；Boss_01使用B01_Phase01、B01_Phase02、B01_Phase03；每损失100点生命立即进入下一阶段（300血时为剩余200、100两条血线），最后阶段持续至Boss被击败。单次伤害跨多个阈值时同刻顺序切换。
 - `Bullet`：BulletEmitter是一次性发射批次，按BulletSpawnData初始化每颗子弹，再登记到管理器与批次两个列表。BulletManager独占运动推进、连续碰撞、容量与释放，并同步注销批次引用；Emitter不控制计时、转向或变速。BulletBehavior负责生成后的运动。
-- `Bullet/Bullet.cs`保留入树前Initialize签名和默认倍率2；ConfigureShot使用默认阵营参数。子弹禁止自行物理更新。通过SetDirection、SetSpeed或Velocity改变运动时同步方向、速度及贴图朝向；外部逻辑可通过Emitter.Bullets只读视图选择本批次活动子弹。
-- `Boss/Boss.cs`保留入口名称及继承关系；正式发射流程使用BulletManager容器，由BattleManager统一驱动。Boss_01Phase负责每秒创建一个新Boss_01Emitter，通过循环直接生成24颗环形子弹，不调用BulletPattern。阶段退出只释放批次索引，已有子弹继续飞行；重开和离场统一清场。
+- `Bullet/Bullet.cs`通过Configure(BulletSpawnData)接收完整参数；BulletManager.Spawn(BulletSpawnData)也仅接收完整参数。子弹禁止自行物理更新。通过SetDirection、SetSpeed或Velocity改变运动时同步方向、速度及贴图朝向；外部逻辑可通过Emitter.Bullets只读视图选择本批次活动子弹。
+- `Boss/Boss.cs`保留入口名称及继承关系；正式发射流程使用BulletManager容器，由BattleManager统一驱动。三个阶段分别使用独立的B01P01_Emitter01/02、B01P02_Emitter01/02和B01P03_Emitter01/02。每阶段每秒创建两个批次，每批通过循环直接生成24颗环形子弹，不调用BulletPattern；目前两个批次方向相同，所以会重叠。阶段退出停止移动、射击及随机抽样并释放批次索引，已有子弹继续飞行；重开和离场统一清场。
 - `Main.cs`装配场景、默认InputMap及简单中文HUD。默认绑定同时兼容物理键和辅助输入设备的逻辑键码；已有同名输入动作不会被覆盖。
 
-碰撞使用子弹相对目标运动线段与双方半径之和判定，包含高速穿越与静止重叠。闪避与受击保护按物理步判定，碰撞后再推进计时；固定步为Godot项目默认60Hz。此阶段不承诺录像确定性。
+碰撞使用子弹相对目标运动线段与双方半径之和判定，包含高速穿越与静止重叠。每个固定步按计时事件切段：先运动、碰撞并注销失效目标，再执行同刻动作；伤害计时起点取检测段终点。闪避结束影响后续运动段，Boss归零时结算胜利，玩家零血及负血不结束战斗。项目显式固定60Hz。固定种子与同样固定步输入已验证可重现当前战斗过程；尚未实现录像存储、输入回放或跨版本兼容机制。
+
+### 枚举默认参数集
+
+`BulletType.ScaleSet`保留当前敌弹参数，`BulletType.PlayerSet`保留当前玩家弹参数；新增枚举成员统一使用`XXXSet`命名。`BulletDefaultSet.Get(type)`返回不可修改的公共预设，贴图以资源路径保存。参数包括贴图路径、图集行列数、按行排列的零基贴图索引、速度、寿命、碰撞半径、发射间隔、阵营、伤害、贴图倍率、贴图/圆点显示方式及圆点颜色。
+
+`new BulletSpawnData()`默认应用ScaleSet；也可使用带BulletType的构造函数。`setPattern(type)`只批量复制上述字段，保留位置、角度和运动行为；后续赋值覆盖预设。未知枚举立即抛错，不会部分修改数据。生成前校验参数范围、贴图类型及图集索引，避免产生无效节点。
+
+```csharp
+// 先应用整组参数，再设置本次发射的独立参数。
+var data = new BulletSpawnData();
+data.setPattern(BulletType.ScaleSet);
+data.Position = origin;
+data.AngleRadians = angleRadians;
+data.Speed = 240; // 逻辑像素/秒。
+```
+
+Boss_01三个阶段和PlayerAttack分别持有ScaleSet、PlayerSet模板，将模板的IntervalSeconds转换为毫秒注册永久重复VTimer，并传递同一模板生成子弹。Emitter不计时；六个具体Emitter均直接循环生成24颗弹。SingleBulletEmitter与B01P01_Emitter01接收参数时复制快照，之后修改源数据不会改变待发射参数或已生成子弹。运动行为对象不做深拷贝；有状态行为须为每颗子弹单独创建。圆点按碰撞半径绘制，VisualScale仅用于贴图显示。
 
 ### 可选排列模式
 
-Emitter可直接使用循环，也可调用BulletPattern辅助计算方向。AngularPattern(count, offsetDegrees, clockwise)定义总数、非负角度间隔和顺逆时针，Emit回调接收角度、第二个参数为初始角度。24颗、15度间隔组成圆环；7颗、15度间隔组成90度扇形；同一批次起点由Emitter统一提供，速度等参数仍可逐颗修改。索引从0开始，方向为初始角度加或减索引乘间隔。
+Emitter可直接使用循环，也可调用BulletPattern辅助计算方向。AngularPattern(count, offsetRadians, clockwise)定义总数、非负角度间隔和顺逆时针，Emit回调接收角度、第二个参数为初始角度。24颗、π/12弧度间隔组成圆环；7颗、π/12弧度间隔组成π/2弧度扇形；同一批次起点由Emitter统一提供，速度等参数仍可逐颗修改。索引从0开始，方向为初始弧度加或减索引乘间隔，输出标准化到[0,2π)；偏移量本身保留圈数。
 
 Emitter只保存仍有效的子弹，命中、过期和清场时同步移除。需要删除子弹的外部操作不可直接Free节点；清场统一调用管理器。若操作会改变列表，应避免在foreach中增删同一列表。
+
+### 随机数与圆周移动
+
+`Math/VMath.cs`是所有业务随机数的唯一入口。`randomSeed`只读；`setRandomSeed(int seed = 0)`重置固定SplitMix64序列，负种子按无符号32位位模式扩展。`getRandomInt(min,max)`支持完整int闭区间，使用拒绝采样避免取模偏差；`getRandomDouble(min,max)`用53位样本生成包含两端的小数。相等端点直接返回、不消耗随机序列；非法范围和非有限小数端点抛错。
+
+BattleManager的BattleRandomSeed常量默认为0，每次进入战斗及R重开均在创建对象前重置。Boss_01每个阶段在进入后的5、10、15秒等时刻各抽取一次随机角度，目标采用战场局部坐标，移动速度为100逻辑像素/秒。共享处理器在固定步内按射击或选点时刻分段；同刻先移动和选点，再从当前全局位置发射。渲染帧和UI不抽取战斗随机数。
+
+未来录像仍需保存一致的初始状态、种子与逐物理步输入，保持随机调用顺序及算法版本；较复杂的通用数学计算优先提出扩展VMath的方案。
 
 ## 验证
 
@@ -60,9 +85,9 @@ dotnet build
 & '.tools/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe' --headless --path . --scene res://Tests/BattleVerification.tscn
 ```
 
-也可通过原`.tools/verify.gd`入口运行同一验证场景。验证包含原弹幕时机、角度、图集、速度和寿命，圆心、圆内点、四轴与斜向边界、闪避越界、脚本迁移路径、背景布局、分辨率配置、闪避冷却、无敌防重复伤害，自动攻击与高速碰撞，阶段生命周期、同帧死亡、冻结、连续重开和容量上限。新增验证还覆盖一次性批次、双列表同一对象、外部批次转向、容量部分接收、命中与过期注销、阶段退出后继续飞行、重开和直接离场清理，以及圆环/扇形/逆时针/单发排列。失败时返回非零退出码。
+也可通过原`.tools/verify.gd`入口运行同一验证场景。验证包含原弹幕时机、角度、图集、速度和寿命，圆心、圆内点、四轴与斜向边界、闪避越界、脚本迁移路径、背景布局、分辨率配置、闪避冷却、无敌防重复伤害，自动攻击与高速碰撞，阶段生命周期、血线交接、玩家负血、冻结、连续重开和容量上限。新增验证还覆盖一次性批次、双列表同一对象、外部批次转向、容量部分接收、命中与过期注销、阶段退出后继续飞行、重开和直接离场清理，以及圆环/扇形/逆时针/单发排列。失败时返回非零退出码。
 
-本期包含Boss选择界面，但不包含存档、录像、随机数管理、解锁、奖励评价、音频、设置菜单或追踪、分裂等扩展弹幕。
+本期包含Boss选择界面，但不包含存档、录像、解锁、奖励评价、音频、设置菜单或追踪、分裂等扩展弹幕。
 
 
 
@@ -86,11 +111,11 @@ dotnet build
 - `GameManager.RequestStage(id, bossId)`：检查注册目标与Boss参数，拦截重复请求，延迟到安全时机切换。目标工厂创建后，先禁止旧场景处理，再进入目标；成功后退出、移除并释放旧节点，准备失败时保留旧场景。不会在两帧之间同时运行两个Stage。
 - 返回选择只保存选中Boss标识，Stage节点不缓存；每次战斗都重新创建控制器和阶段实例。进入战斗后须释放确认空格，再次按下才会闪避。
 
-`BattleState.Running/Victory/Defeat` 是战斗内部状态，独立于游戏当前 Stage。R 重开不会切换 Stage，Esc 返回会销毁战斗 Stage。
+`BattleState.Running/Victory` 是战斗内部状态，独立于游戏当前 Stage。R 重开不会切换 Stage，Esc 返回会销毁战斗 Stage。
 
 ## 添加 Boss
 
-1. 复制 `Data/Bosses/Boss_01.tres`，设置唯一 Id、DisplayName、Texture、可选 Portrait、MaxHp、CollisionRadius、VisualScale、SpawnPosition 和 PhaseProfile。贴图使用真正带Alpha透明通道的PNG，并检查尺寸与透明度。
+1. 复制 `Data/Bosses/Boss_01.tres`，设置唯一 Id、DisplayName、Texture、可选 Portrait、Hframes、Vframes、AnimationFps、MaxHp、CollisionRadius、VisualScale、SpawnPosition 和 PhaseProfile。贴图使用真正带Alpha透明通道的PNG，并检查尺寸与透明度。
 2. 将新资源按展示顺序加入 `Data/BossCatalog.tres` 的 Entries。目录当前只包含现有“环形守卫”，测试中的其他Boss不会出现在正式目录。
 3. 在 `Boss/BossPhase/新Boss标识/` 下实现专属BossPhase和BulletEmitter，各Boss不复用具体阶段。阶段负责发射时序，每次创建新的Emitter并调用Emit；通过TrackEmitter记录批次，在推进中调用PruneEmitters去掉空批次，生命周期重写应调用基类。使用BossFactory.RegisterProfile注册每次返回全新阶段列表的工厂，在GameManager校验目录之前完成注册。当前配置ID与PhaseProfile均为 `Boss_01`。
 4. BossFactory会应用独立配置并创建阶段，BattleManager重开复用同一配置；碰撞读取实例的CollisionRadius，HUD读取实例的MaxHp，无需再修改全局Boss数值或复制控制器。
@@ -111,3 +136,64 @@ dotnet build
 ```
 
 集成测试使用临时七Boss目录覆盖多行导航、视口输入分发、确认隔离、独立Boss参数、返回选择、循环切换、扩展Stage注册和空目录。渲染入口通过正式目录验证选择→战斗→返回，并保存截图到 `outputs/stage-verification/`。
+
+随机与移动重现验证（将可执行文件路径替换为本机Godot .NET路径）：
+
+```powershell
+& 'D:/Develop/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe' --headless --path . --scene res://Tests/DeterminismVerification.tscn
+```
+
+验证固定算法样本、整数拒绝采样、小数闭区间与溢出边界、相等及非法范围不消耗序列，以及Boss选点、速度、到达停止、事件分段、发射起点和同种子同输入的逐步重现。
+
+### 弧度与坐标工具
+
+`VMath.GetDistanceBetween2Points`和`GetAngleBetween2Points`支持四个double坐标或两个Vector2，调用方保证同一坐标空间；重合点方向为0。`StandardizationAngle`将最终方向标准化到[0,2π)，单精度方向会额外处理整圈上界舍入。`PolarMove`返回极坐标位移后的Vector2，支持负距离，不创建或修改节点。工具内部采用双精度，拒绝非有限输入，结果超出返回类型范围时抛错。
+
+`DegreesToRadians`与`RadiansToDegrees`仅转换单位，保留正负与圈数。初始化数据的`AngleRadians`允许任意有限弧度；子弹初始化及`SetDirection`时标准化，速度向量和贴图`Rotation`同步更新。Boss圆周目标、玩家瞄准及弹幕方向统一接入VMath；随机调用次数和顺序不变，同种子同输入可重复，但不承诺与迁移前浮点结果逐位一致。
+
+确定性验证同时覆盖距离、四轴四象限、重合点、多圈与负角度、整圈边界、极坐标正负距离、单位往返转换及非法输入。
+
+### VTimer与固定逻辑时间
+
+`Timer/VTimer.cs`定义毫秒接口、VTimerType和VTimerState；`VTimerProcessor`管理整数时钟、稳定注册序号以及目标关联。每秒60000单位，每毫秒60单位，每个60Hz固定步1000单位。物理回调只推进固定步，不累计渲染delta或墙上时间。
+
+构造参数依次为`startTimeMs, intervalMs, endTimeMs, type, targetList, action`。构造不执行动作，`Register`固定目标快照并开始计时；起始0在当前时刻的调度轮执行。Once执行一次，忽略间隔和结束；Repeat在包含终点的期限内重复；RepeatForever忽略结束。忽略的参数填写0，不使用特殊负数。所有时间非负，重复间隔必须正数，有限结束不能早于起始，换算溢出明确报错。
+
+例如起始2000、间隔500、结束3000的Repeat在2000、2500、3000毫秒执行。结束点不在周期上时只结束，不额外执行。`RemainingMs`查询距下一动作或截止点的剩余时间，未注册或结束时为0。`Cancel()`可重复调用；结束实例不能再次注册。
+
+`targetList`在注册时复制并按顺序去重。动作收到的`aliveTargets`是其中仍存活目标的只读快照；排队释放、离场、逻辑死亡和实际释放均被过滤，全部失效或初始为空时取消。业务逻辑死亡通过`NotifyTargetDestroyed`通知处理器，不必等待节点释放。阶段计时器通过TrackTimer登记，退出取消；子弹行为绑定子弹，阶段退出后可以继续。回调不要捕获并操作未检查的其他节点，也不要在销毁对象后继续使用它。
+
+```csharp
+// 此时emitter已经完成一次发射；计时器保存注册时的批次成员。
+var stopTimer = new VTimer(
+    startTimeMs: 2000,
+    intervalMs: 0,
+    endTimeMs: 0,
+    type: VTimerType.Once,
+    targetList: emitter.Bullets,
+    action: aliveTargets =>
+    {
+        // aliveTargets由VTimer在执行时筛选并传入。
+        foreach (Node2D target in aliveTargets)
+        {
+            if (target is Bullet bullet) bullet.SetSpeed(0);
+        }
+    });
+battle.Timers.Register(stopTimer);
+```
+
+已迁移：Boss每1000毫秒由当前阶段两个Emitter各发射一批、玩家每200毫秒攻击、Boss每5000毫秒选点、150毫秒闪避结束、1000毫秒闪避冷却结束及1000毫秒受击无敌结束。动画、受击闪烁和子弹年龄／寿命保留原有直接计算，Emitter不推进时间。
+
+同刻按注册序号执行，Boss先选点后发射；新生子弹只推进出生后的剩余时间。回调新增动作在当前回调结束后排入，同刻已有动作优先。一次推进补齐所有周期；同刻最多执行10000次，超限或回调异常会停止推进并报错，重新开始须清场重置。不允许回调递归推进处理器；取消和战斗清场立即阻止旧时间线后续动作。
+
+计时回归场景`Tests/TimerVerification.tscn`覆盖边界、补发、目标清理、回调增删、25毫秒步内停止及发射，以及2秒停止、2.5秒转向恢复的子弹行为示例。正式Boss没有加入此示例攻击。已有战斗、场景、随机重现验证继续运行；重现对比增加不同显示刷新次数。分段发射与状态边界改变可能影响旧版命中结果，不承诺旧录像或跨平台浮点逐位兼容。
+
+```powershell
+& 'D:/Develop/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe' --headless --path . --scene res://Tests/TimerVerification.tscn
+```
+
+### Boss_01三阶段与负血量
+
+Boss_01初始300血：阶段01覆盖300～201血，阶段02覆盖200～101血，阶段03覆盖100～1血，0血胜利。各阶段分别继承BossPhase，拥有独立的两个Emitter类，便于后续分别设计攻击。进入新阶段时重新等待1000毫秒发射和5000毫秒选点，Boss位置和动画保持连续；旧阶段的移动状态及计时器退出，已发子弹继续存活。碰撞造成切阶段时先取消旧计时器，再处理同刻事件，避免血线边界多发旧弹幕。
+
+玩家HP为有符号整数，归零或降为负数都继续参与战斗；仅在int最小值处防止算术回绕。有效受伤仍有1000毫秒保护，闪避和自动攻击不因血量停用。重开恢复玩家3血、Boss300血及阶段01。测试覆盖六个Emitter的24颗等角参数、200/100阈值、跨阶段大伤害、同刻发射交接、负血操作和正常胜利。

@@ -29,13 +29,14 @@ public partial class StageVerification : Node
     {
         try
         {
-            // 正式目录必须加载迁移后的唯一Boss及其原始64像素贴图。
+            // 正式目录使用四帧图集，每帧仍为64像素。
             var production = GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
             production.Validate();
             Check(production.Entries.Count == 1 && production.Entries[0].Id == "Boss_01"
                 && production.Entries[0].PhaseProfile == "Boss_01", "正式Boss命名迁移");
             Check(production.Entries[0].Texture!.ResourcePath == "res://Assets/Units/Boss_01.png"
-                && production.Entries[0].Texture!.GetSize() == new Vector2(64, 64), "正式Boss贴图迁移");
+                && production.Entries[0].Texture!.GetSize() == new Vector2(128, 128), "正式Boss四帧图集");
+            VerifyAnimation(production.Entries[0]);
             Check(ResourceUid.GetIdPath(ResourceUid.TextToId("uid://7iuuwxiu5ji")) == "res://Assets/Units/Boss_01.png"
                 && ResourceUid.GetIdPath(ResourceUid.TextToId("uid://cyx82pr2q67tt")) == "res://Assets/Units/Boss_05.png", "图片资源身份保留");
             // 使用七个仅测试可见的配置，覆盖多行和不完整末行。
@@ -45,6 +46,7 @@ public partial class StageVerification : Node
                 {
                     Id = $"test_{index}", DisplayName = $"测试 Boss {index}",
                     Texture = GD.Load<Texture2D>("res://Assets/Units/Boss_01.png"),
+                    Hframes = 2, Vframes = 2, AnimationFps = 4,
                     MaxHp = 100 + index * 10, CollisionRadius = 32 + index,
                     VisualScale = 2 + index * 0.1f, SpawnPosition = new Vector2(600 + index, 250)
                 });
@@ -111,15 +113,15 @@ public partial class StageVerification : Node
             Input.ActionRelease("player_dodge");
             // Boss 在子弹终点外37像素判定范围内，独立半径应参与碰撞。
             battle.Bullets.Clear();
-            battle.Bullets.Spawn(battle.Boss.GlobalPosition + new Vector2(39, 0), 0, BulletTeam.Player)!.Velocity = Vector2.Zero;
-            battle.Step(1.0 / 60, Vector2.Zero, false);
+            battle.Bullets.Spawn(new BulletSpawnData(BulletType.PlayerSet) { Position = battle.Boss.GlobalPosition + new Vector2(39, 0) })!.Velocity = Vector2.Zero;
+            battle.StepFixed( Vector2.Zero, false);
             Check(battle.Boss.Hp == 149, "碰撞使用独立Boss半径");
             var originalBoss = battle.Boss;
             var originalPhase = battle.Boss.CurrentPhase;
             battle.Restart();
             Check(battle.Boss != originalBoss && battle.Boss.CurrentPhase != originalPhase && battle.Boss.Hp == 150, "重开同配置新实例");
             battle.Boss.TakeDamage(150);
-            battle.Step(1.0 / 60, Vector2.Zero, false);
+            battle.StepFixed( Vector2.Zero, false);
             Check(battle.State == BattleState.Victory, "配置Boss击败结算");
             using var back = new InputEventKey { Keycode = Key.Escape, Pressed = true };
             GetViewport().PushInput(back, true);
@@ -168,6 +170,84 @@ public partial class StageVerification : Node
             GD.PushError(error.ToString());
             GetTree().Quit(1);
         }
+    }
+    /// <summary>验证图集播放、结束冻结、重开复位及静态选择图片。</summary>
+    /// <param name="data">正式Boss配置，使用2×2图集与每秒4帧。</param>
+    private void VerifyAnimation(BossData data)
+    {
+        // 独立战场禁止自动更新，以精确注入动画时间。
+        var world = new Node2D();
+        AddChild(world);
+        var battle = new BattleManager();
+        world.AddChild(battle);
+        battle.Initialize(world, data);
+        battle.SetPhysicsProcess(false);
+        var sprite = battle.Boss.GetNode<Sprite2D>("Sprite");
+        Check(sprite.Hframes == 2 && sprite.Vframes == 2 && sprite.Frame == 0
+            && sprite.GetRect().Size == new Vector2(64, 64), "动画初始帧与单帧尺寸");
+        battle.Boss.Advance(0.24);
+        Check(sprite.Frame == 0, "换帧前保持首帧");
+        battle.Boss.Advance(0.01);
+        Check(sprite.Frame == 1, "四分之一秒第二帧");
+        battle.Boss.Advance(0.25);
+        Check(sprite.Frame == 2, "半秒第三帧");
+        battle.Boss.Advance(0.25);
+        Check(sprite.Frame == 3, "四分之三秒第四帧");
+        battle.Boss.Advance(0.25);
+        Check(sprite.Frame == 0, "一秒循环复位");
+        battle.Boss.Advance(2.75);
+        Check(sprite.Frame == 3, "大时间步保留余量");
+        battle.Boss.Stop();
+        battle.Boss.Advance(0.5);
+        Check(sprite.Frame == 3, "结束冻结动画");
+        battle.Restart();
+        sprite = battle.Boss.GetNode<Sprite2D>("Sprite");
+        Check(sprite.Frame == 0, "重开首帧");
+        // 六十次固定物理步仍应恰好循环一次。
+        for (int tick = 0; tick < 60; tick++) battle.Boss.Advance(1.0 / 60);
+        Check(sprite.Frame == 0, "60Hz动画循环");
+        // 卡片只持有静态区域，不受战斗更新影响。
+        var card = new BossSelectItem();
+        card.Initialize(data, 0);
+        var preview = card.GetChild<VBoxContainer>(0).GetChild<TextureRect>(0);
+        Check(preview.Texture is AtlasTexture atlas && atlas.Atlas == data.Texture
+            && atlas.Region == new Rect2(0, 0, 64, 64), "选择卡片仅首帧");
+        battle.Boss.Advance(0.25);
+        Check(preview.Texture.GetSize() == new Vector2(64, 64), "动画不改变选择图片");
+        card.Free();
+        // 单帧配置保持静态，独立肖像仍优先。
+        var single = new BossData { Texture = data.GetSelectionTexture() };
+        single.Validate();
+        Check(single.GetSelectionTexture() == single.Texture, "单帧选择贴图兼容");
+        battle.StopBattle();
+        var staticBoss = BossFactory.Create(single, battle.Bullets);
+        world.AddChild(staticBoss);
+        staticBoss.Advance(0.75);
+        Check(staticBoss.GetNode<Sprite2D>("Sprite").Frame == 0, "单帧战斗静态");
+        single.Portrait = GD.Load<Texture2D>("res://Assets/Units/Boss_05.png");
+        Check(single.GetSelectionTexture() == single.Portrait, "独立肖像优先");
+        // 无效行列、不可整除尺寸以及非法帧率必须被拒绝。
+        var invalid = (BossData)data.Duplicate();
+        invalid.Hframes = 3;
+        CheckInvalidAnimation(invalid);
+        invalid.Hframes = 0;
+        CheckInvalidAnimation(invalid);
+        invalid.Hframes = 2;
+        invalid.AnimationFps = 0;
+        CheckInvalidAnimation(invalid);
+        invalid.AnimationFps = double.NaN;
+        CheckInvalidAnimation(invalid);
+        world.Free();
+    }
+    /// <summary>确认非法动画配置抛出参数异常。</summary>
+    /// <param name="data">预期验证失败的配置。</param>
+    private void CheckInvalidAnimation(BossData data)
+    {
+        // 捕获结果用于区分正确拒绝与静默接受。
+        bool rejected = false;
+        try { data.Validate(); }
+        catch (ArgumentException) { rejected = true; }
+        Check(rejected, "拒绝非法动画配置");
     }
     /// <summary>验证注册扩展和生命周期次数的测试场景。</summary>
     private partial class ProbeStage : Stage
