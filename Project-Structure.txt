@@ -9,46 +9,67 @@ Project-Structure
 - 根目录保留项目配置和文档文件，便于定位入口与开发约定。
 
 BulletHell/ — Godot .NET / C# 2D Boss 挑战项目；根目录含常驻游戏入口和战场场景资源。
-├── Assets/ — 美术与字体资源；根层存放弹幕图集。
+├── Assets/ — 美术与字体资源，按弹幕、界面和单位分类。
 │   ├── fonts/ — 界面及 HUD 使用的字体资源。
 │   │   ├── fusion_pixel/ — 支持简体中文的 Fusion Pixel 像素字体。
 │   │   └── lxgl/ — 霞鹜文楷屏幕阅读字体，供战斗 HUD 使用。
+│   ├── Sprites/ — 圆形、鳞形、水滴及星形弹幕十色图集，每格16×16像素。
 │   ├── UI/ — 战斗区域的界面背景图片。
-│   └── Units/ — Boss_01四帧透明动画图集及其余Boss单位素材；未配置的素材不进入正式目录。
+│   └── Units/ — Boss_01～05的四帧透明动画图集，均为2×2布局、每帧64×64像素；未配置的素材不进入正式目录。
 ├── Boss/ — Boss 配置类型、展示目录、实例工厂、控制器与阶段行为。
 │   ├── Boss.cs
 │   │   └── Boss：旧版 Boss 兼容入口，普通弹幕容器下自行驱动新控制器。
 │   ├── BossCatalog.cs
 │   │   └── BossCatalog：保存 Boss 的展示顺序，并按唯一标识查询。
 │   ├── BossController.cs
-│   │   └── BossController：管理 Boss 生命、图集动画、碰撞轮廓与顺序阶段，默认由战斗管理器更新。
+│   │   └── BossController：管理 Boss 生命、图集动画、碰撞轮廓与顺序阶段，支持切换相邻阶段，默认由战斗管理器更新。
 │   ├── BossData.cs
 │   │   └── BossData：保存单个 Boss 的静态配置，可在编辑器中创建独立资源。
 │   ├── BossFactory.cs
 │   │   └── BossFactory：从独立配置生成控制器和全新阶段，供挑战与重开共用。
 │   └── BossPhase/ — 阶段抽象基类及按Boss组织的专属阶段、发射批次。
 │       ├── BossPhase.cs
-│       │   └── BossPhase：定义Boss阶段生命周期，持有活动批次及退出时取消的阶段计时器。
-│       └── Boss_01/ — Boss_01的三个独立阶段、圆周目标移动及六个直接循环构造的发射器。
-│           ├── B01_Phase01.cs
-│           │   └── B01_Phase01：调度Boss_01阶段01的双发射器和圆周目标移动。
-│           ├── B01_Phase02.cs
-│           │   └── B01_Phase02：调度Boss_01阶段02的双发射器和圆周目标移动。
-│           ├── B01_Phase03.cs
-│           │   └── B01_Phase03：调度Boss_01阶段03的双发射器和圆周目标移动。
-│           ├── B01P01_Emitter01.cs
-│           │   └── B01P01_Emitter01：为Boss_01阶段01的发射器01构造一次24颗等角环形弹幕。
-│           ├── B01P01_Emitter02.cs
-│           │   └── B01P01_Emitter02：为Boss_01阶段01的发射器02构造一次24颗等角环形弹幕。
-│           ├── B01P02_Emitter01.cs
-│           │   └── B01P02_Emitter01：为Boss_01阶段02的发射器01构造一次24颗等角环形弹幕。
-│           ├── B01P02_Emitter02.cs
-│           │   └── B01P02_Emitter02：为Boss_01阶段02的发射器02构造一次24颗等角环形弹幕。
-│           ├── B01P03_Emitter01.cs
-│           │   └── B01P03_Emitter01：为Boss_01阶段03的发射器01构造一次24颗等角环形弹幕。
-│           └── B01P03_Emitter02.cs
-│               └── B01P03_Emitter02：为Boss_01阶段03的发射器02构造一次24颗等角环形弹幕。
-├── Bullet/ — 子弹状态、枚举默认参数集与初始化参数、单次发射批次、可选方向排列、运动行为及生命周期管理。
+│       │   └── BossPhase：管理Boss阶段的移动、初始生命、活动批次及阶段计时器。
+│       ├── Boss_01/ — Boss_01的三个独立阶段、固定或圆周目标移动及六个发射器。
+│       │   ├── B01_Phase01.cs
+│       │   │   └── B01_Phase01：调度Boss_01阶段01的双发射器和圆周目标移动。
+│       │   ├── B01_Phase02.cs
+│       │   │   └── B01_Phase02：调度Boss_01阶段02的发射器和固定目标移动。
+│       │   ├── B01_Phase03.cs
+│       │   │   └── B01_Phase03：调度Boss_01阶段03的斜线逐圈发射和圆周目标移动。
+│       │   ├── B01P01_Emitter01.cs
+│       │   │   └── B01P01_Emitter01：为Boss_01阶段01的发射器01构造一次24颗等角环形弹幕。
+│       │   ├── B01P01_Emitter02.cs
+│       │   │   └── B01P01_Emitter02：为Boss_01阶段01的发射器02构造一次16颗等角环形弹幕，并覆盖速度与颜色。
+│       │   ├── B01P02_Emitter01.cs
+│       │   │   └── B01P02_Emitter01：在六个随机圆心分别构造12颗等角环形弹幕。
+│       │   ├── B01P02_Emitter02.cs
+│       │   │   └── B01P02_Emitter02：为Boss_01阶段02的发射器02构造一次24颗等角环形弹幕。
+│       │   ├── B01P03_Emitter01.cs
+│       │   │   └── B01P03_Emitter01：沿Boss下方斜线依次生成六圈敌弹，并为每圈设置延迟追踪。
+│       │   └── B01P03_Emitter02.cs
+│       │       └── B01P03_Emitter02：为Boss_01阶段03的发射器02构造一次24颗等角环形弹幕。
+│       ├── Boss_02/ — Boss_02的基础阶段与空发射器。
+│       │   ├── B02_Phase01.cs
+│       │   │   └── B02_Phase01：Boss_02的唯一阶段，沿用基类移动且暂不发射弹幕。
+│       │   └── B02P01_Emitter01.cs
+│       │       └── B02P01_Emitter01：Boss_02阶段01的空发射器，暂不生成弹幕。
+│       ├── Boss_03/ — Boss_03的基础阶段与空发射器。
+│       │   ├── B03_Phase01.cs
+│       │   │   └── B03_Phase01：Boss_03的唯一阶段，沿用基类移动且暂不发射弹幕。
+│       │   └── B03P01_Emitter01.cs
+│       │       └── B03P01_Emitter01：Boss_03阶段01的空发射器，暂不生成弹幕。
+│       ├── Boss_04/ — Boss_04的基础阶段与空发射器。
+│       │   ├── B04_Phase01.cs
+│       │   │   └── B04_Phase01：Boss_04的唯一阶段，沿用基类移动且暂不发射弹幕。
+│       │   └── B04P01_Emitter01.cs
+│       │       └── B04P01_Emitter01：Boss_04阶段01的空发射器，暂不生成弹幕。
+│       └── Boss_05/ — Boss_05的基础阶段与空发射器。
+│           ├── B05_Phase01.cs
+│           │   └── B05_Phase01：Boss_05的唯一阶段，沿用基类移动且暂不发射弹幕。
+│           └── B05P01_Emitter01.cs
+│               └── B05P01_Emitter01：Boss_05阶段01的空发射器，暂不生成弹幕。
+├── Bullet/ — 子弹状态、枚举默认参数集、单次发射批次、可选方向排列、运动行为及生命周期管理。
 │   ├── Bullet.cs
 │   │   └── Bullet：保存弹幕状态与外观，由管理器统一推进和释放。
 │   ├── BulletBehavior.cs
@@ -56,33 +77,35 @@ BulletHell/ — Godot .NET / C# 2D Boss 挑战项目；根目录含常驻游戏�
 │   │   └── StraightBehavior：按当前速度进行直线运动。
 │   ├── BulletDefaultSet.cs
 │   │   ├── BulletType [枚举]：选择一整组弹幕基础参数，成员统一以Set结尾。
-│   │   └── BulletDefaultSet：集中保存不可变的弹幕参数预设，不包含位置、角度和运动行为。
+│   │   └── BulletDefaultSet [记录类]：集中保存不可变的弹幕完整初始化参数与默认预设。
 │   ├── BulletEmitter.cs
 │   │   ├── BulletTeam [枚举]：弹幕所属阵营，用于筛选伤害目标。
 │   │   ├── BulletEmitter：构造单次发射批次并保存仍有效的子弹引用，不负责时序或运动。
 │   │   └── SingleBulletEmitter：按完整参数构造单颗子弹的发射批次。
 │   ├── BulletManager.cs
-│   │   └── BulletManager：持有战斗计时器，统一推进弹幕与碰撞，释放时注销批次和目标关联。
-│   ├── BulletPattern.cs
-│   │   ├── BulletPattern：可选的弹幕方向排列工具，不负责创建子弹或控制发射时序。
-│   │   ├── SinglePattern：沿指定初始方向输出单颗子弹角度。
-│   │   └── AngularPattern：从单一起点按固定角度间隔排列方向，支持圆环、扇形和单发。
-│   └── BulletSpawnData.cs
-│       └── BulletSpawnData [记录类]：保存可逐项修改或批量应用预设的子弹初始化参数，位置使用全局逻辑像素。
+│   │   └── BulletManager：统一推进弹幕与碰撞，释放时注销批次和目标关联。
+│   └── BulletPattern.cs
+│       ├── BulletPattern：可选的弹幕方向排列工具，不负责创建子弹或控制发射时序。
+│       ├── SinglePattern：沿指定初始方向输出单颗子弹角度。
+│       └── AngularPattern：从单一起点按固定角度间隔排列方向，支持圆环、扇形和单发。
 ├── Core/ — 常驻游戏管理、单场战斗推进、通用参数与默认输入绑定。
 │   ├── BattleConfig.cs
 │   │   └── BattleConfig：集中保存场地、角色与全场弹幕容量参数；位置为像素，时间为秒。
+│   ├── GlobalEvent.cs
+│   │   ├── GlobalEvent：提供当前战斗实体、弹幕管理器及计时器注册的全局入口。
+│   │   └── GlobalEvent.Scope：管理初始化、清理和固定步推进期间的临时战斗上下文。
 │   ├── BattleManager.cs
 │   │   ├── BattleState [枚举]：单场战斗的运行与结束状态。
 │   │   └── BattleManager：以60Hz固定步和计时事件分段驱动战斗，管理种子、结束与重开。
 │   ├── GameInput.cs
-│   │   └── GameInput：注册全游戏默认动作，保留用户已有的同名映射。
+│   │   └── GameInput：注册全游戏默认动作及战斗Q/E阶段切换，保留用户已有的同名映射。
 │   └── GameManager.cs
 │       └── GameManager：常驻游戏根管理器，通过注册表延迟替换唯一活动 Stage。
-├── Data/ — Godot 数据配置资源；根层保存正式 Boss 展示目录，目前仅包含环形守卫。
-│   └── Bosses/ — 单个 Boss 的独立配置资源，目前包含环形守卫的属性、贴图引用、动画参数与阶段配置。
+├── Data/ — Godot 数据配置资源；根层保存Boss_01～05的正式展示目录。
+│   └── Bosses/ — Boss_01～05各自的属性、贴图引用、动画参数与阶段配置资源。
 ├── Math/ — 统一弧度的坐标数学与随机数工具，为战斗重现提供统一随机入口。
 │   └── VMath.cs
+│       ├── RandomDiffMode [枚举]：指定随机偏移区间从零起算或以零为中心。
 │       └── VMath：提供统一弧度的坐标数学工具及固定算法的可重现随机序列。
 ├── Player/ — 玩家控制器及移动、闪避、生命、自动攻击组件。
 │   ├── PlayerAttack.cs
@@ -120,7 +143,7 @@ BulletHell/ — Godot .NET / C# 2D Boss 挑战项目；根目录含常驻游戏�
 │   ├── VTimer.cs
 │   │   ├── VTimerType [枚举]：定义单次、有限重复及永久重复计时器。
 │   │   ├── VTimerState [枚举]：记录计时器从创建到完成或取消的状态。
-│   │   └── VTimer：保存毫秒配置和固定目标，向回调提供仍存活的节点。
+│   │   └── VTimer：保存毫秒配置，支持无目标回调或绑定存活节点的回调。
 │   └── VTimerProcessor.cs
 │       └── VTimerProcessor：按整数逻辑时间稳定调度计时器，并管理目标生命周期关联。
 ├── UI/ — Boss 选择网格与单项展示控件。
@@ -132,7 +155,7 @@ BulletHell/ — Godot .NET / C# 2D Boss 挑战项目；根目录含常驻游戏�
 ├── AGENTS.md — 项目开发约定与本文档的同步维护规则。
 ├── BulletHell.csproj — Godot .NET SDK、C# 目标框架及构建配置。
 ├── Main.cs
-│   └── Main：组装当前战场、活动区域轮廓、键盘操作和简易中文状态显示。
+│   └── Main：组装当前战场、活动区域轮廓、键盘操作和显示阶段及Q/E提示的简易中文状态显示。
 ├── project.godot — Godot 项目、启动场景、窗口与渲染配置。
 ├── Project-Structure.txt — 项目目录、代码类型及资源目录内容索引。
 └── README.md — 运行操作、玩法参数、模块扩展与验证说明。

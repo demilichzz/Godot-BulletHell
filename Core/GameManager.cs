@@ -74,6 +74,7 @@ public partial class GameManager : Node
         // 只释放本次工厂创建且尚未挂载的节点，拒绝误删已有场景。
         var ownsNext = false;
         var previous = CurrentStage;
+        var previousBattle = GlobalEvent.CaptureCurrent();
         try
         {
             if (!IsInsideTree()) return;
@@ -98,6 +99,8 @@ public partial class GameManager : Node
                 if (next.GetParent() == StageHost) StageHost.RemoveChild(next);
                 next.QueueFree();
             }
+            if (GlobalEvent.IsValidBattle(previousBattle)) GlobalEvent.BindCurrent(previousBattle!);
+            else if (previousBattle is not null) GlobalEvent.ClearCurrent(previousBattle);
             if (previous is not null) previous.ProcessMode = ProcessModeEnum.Inherit;
             GD.PushError($"场景切换失败：{error.Message}");
         }

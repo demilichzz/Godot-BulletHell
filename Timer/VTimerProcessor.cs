@@ -57,7 +57,7 @@ public sealed class VTimerProcessor
             }
             timers.Add(timer);
         }
-        if (timer.Targets.Count == 0) timer.Cancel();
+        if (timer.RequiresTargets && timer.Targets.Count == 0) timer.Cancel();
         return timer;
     }
     /// <summary>检查节点是否仍属于可执行动作的战场实体。</summary>
@@ -85,7 +85,7 @@ public sealed class VTimerProcessor
         // 节点队列释放尚未真正出树时也要从快照移除。
         foreach (var node in timer.Targets.ToArray())
             if (!IsAlive(node)) RemoveTarget(timer, node);
-        if (timer.Targets.Count == 0) timer.Cancel();
+        if (timer.RequiresTargets && timer.Targets.Count == 0) timer.Cancel();
     }
     /// <summary>解除一个目标关联，最后一个引用解除时移除事件订阅。</summary>
     /// <param name="timer">关联计时器。</param>

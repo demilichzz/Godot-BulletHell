@@ -4,8 +4,6 @@ using System.Collections.Generic;
 /// <summary>持有战斗计时器，统一推进弹幕与碰撞，释放时注销批次和目标关联。</summary>
 public partial class BulletManager : Node2D
 {
-    /// <summary>本战斗共享的整数逻辑时钟。</summary>
-    public VTimerProcessor Timers { get; } = new();
 	// 活动弹幕列表；待释放节点立即移出，避免重复命中。
 	private readonly List<Bullet> _active = new();
 	// 满额提示只输出一次，恢复容量后允许再次提示。
@@ -15,13 +13,13 @@ public partial class BulletManager : Node2D
 	/// <summary>全场活动子弹的只读视图。</summary>
 	public IReadOnlyList<Bullet> ActiveBullets => _active.AsReadOnly();
 	/// <summary>通过单发批次生成一颗采用完整初始化参数的弹幕。</summary>
-	/// <param name="data">完整初始化参数，位置为全局逻辑像素。</param>
+	/// <param name="settings">完整初始化参数，位置为全局逻辑像素。</param>
 	/// <returns>生成的子弹，容量不足时为空。</returns>
-	public Bullet? Spawn(BulletSpawnData data)
+	public Bullet? Spawn(BulletDefaultSet settings)
 	{
 		// 保存本次参数快照，所有子弹仍经过统一登记流程。
-		var emitter = new SingleBulletEmitter(data);
-		emitter.Emit(this, data.Position);
+		var emitter = new SingleBulletEmitter(settings);
+		emitter.Emit(this, settings.Position);
 		return emitter.Bullets.Count == 0 ? null : emitter.Bullets[0];
 	}
 	/// <summary>在构造节点前检查容量，满额提示仅输出一次。</summary>
@@ -100,7 +98,7 @@ public partial class BulletManager : Node2D
 	{
 		// 先移除引用，再释放，避免同一步重复命中。
 		var bullet = _active[index];
-		Timers.NotifyTargetDestroyed(bullet);
+		GlobalEvent.TryNotifyTargetDestroyed(bullet);
 		_active.RemoveAt(index);
 		bullet.Emitter?.Unregister(bullet);
 		bullet.Emitter = null;
@@ -108,5 +106,5 @@ public partial class BulletManager : Node2D
 		bullet.QueueFree();
 	}
 	/// <summary>管理器离场时同步清除全部批次引用。</summary>
-	public override void _ExitTree() { Clear(); Timers.Clear(); }
+	public override void _ExitTree() => Clear();
 }

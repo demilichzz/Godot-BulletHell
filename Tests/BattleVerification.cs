@@ -31,22 +31,55 @@ public partial class BattleVerification : Node
 		battle.SetPhysicsProcess(false);
 		return battle;
 	}
-	/// <summary>执行回归集，失败时以非零状态退出。</summary>
-	private void Run()
-	{
-		try
-		{
-			VerifyOriginal();
-			VerifyPlayer();
-			VerifyCombat();
-			VerifyPhases();
-            VerifyBoss01Stages();
-            VerifyNegativePlayerHealth();
-            VerifyBatches();
-            VerifyDefaultSets();
-			VerifyInput();
-			GD.Print($"PASS: {_checks} battle regression assertions");
-			GetTree().Quit();
+    /// <summary>执行回归集或弹幕重构相关验证，失败时以非零状态退出。</summary>
+    private void Run()
+    {
+        try
+        {
+            var userArgs = OS.GetCmdlineUserArgs();
+            if (userArgs.Contains("--targeted-sprites"))
+            {
+                VerifySpriteSets();
+                GD.Print($"PASS: {_checks} targeted sprite assertions");
+            }
+            else if (userArgs.Contains("--targeted-bullet"))
+            {
+                VerifyOriginal();
+                VerifyBatches();
+                VerifyDefaultSets();
+                GD.Print($"PASS: {_checks} targeted bullet assertions");
+            }
+            else if (userArgs.Contains("--targeted-phase-switch"))
+            {
+                VerifyPhaseSwitch();
+                GD.Print($"PASS: {_checks} targeted phase switch assertions");
+            }
+            else if (userArgs.Contains("--targeted-global-services"))
+            {
+                VerifyGlobalServices();
+                GD.Print($"PASS: {_checks} targeted global service assertions");
+            }
+            else if (userArgs.Contains("--targeted-b01"))
+            {
+                VerifyBoss01Sequence();
+                VerifyBoss01Stages();
+                VerifyPhaseSwitch();
+                GD.Print($"PASS: {_checks} targeted B01 assertions");
+            }
+            else
+            {
+                VerifyOriginal();
+                VerifyPlayer();
+                VerifyCombat();
+                VerifyPhases();
+                VerifyBoss01Stages();
+                VerifyNegativePlayerHealth();
+                VerifyBatches();
+                VerifyDefaultSets();
+                VerifyInput();
+                GD.Print($"PASS: {_checks} battle regression assertions");
+            }
+            GetTree().Quit();
 		}
 		catch (Exception error)
 		{
@@ -58,36 +91,37 @@ public partial class BattleVerification : Node
 	private void VerifyOriginal()
 	{
 		// 测试场地、独立容器及兼容 Boss。
-		var world = new Node2D();
-		AddChild(world);
-		var container = new BulletManager();
-		world.AddChild(container);
-		var boss = new Boss { Position = BattleConfig.BossSpawn };
-		boss.Initialize(container);
-		world.AddChild(boss);
-		boss.SetPhysicsProcess(false);
+		var battle = CreateBattle(out var world);
+		battle.Player.Attack.Stop();
+		var container = battle.Bullets;
+		var boss = battle.Boss;
 		Check(boss.Position == new Vector2(640, 250), "Boss位置");
 		Check(boss.GetNode<Sprite2D>("Sprite").Scale == Vector2.One * 3, "Boss倍率3");
-		VerificationClock.BossSeconds(boss, 0.99);
+		VerificationClock.BossSeconds(battle, 0.99);
 		Check(container.GetChildCount() == 0, "第一秒前不能发射");
-		VerificationClock.BossSeconds(boss, 0.01);
-		Check(container.GetChildCount() == 48, "第一秒双发射器各24发");
-		// 每颗弹的序号对应π/12弧度间距。
-		for (int index = 0; index < 48; index++)
+		VerificationClock.BossSeconds(battle, 0.01);
+		Check(container.GetChildCount() == 40, $"第一秒双发射器各自按既有参数发射，实际{container.GetChildCount()}发");
+		// 前24颗为默认环形弹，后16颗为既有定制环形弹。
+		for (int index = 0; index < 40; index++)
 		{
 			var bullet = container.GetChild<Bullet>(index);
 			var sprite = bullet.GetNode<Sprite2D>("Sprite");
-			Check(Mathf.IsEqualApprox(bullet.AngleRadians, index % 24 * Mathf.Tau / 24), "环形角度");
-			Check(bullet.Speed == 180 && bullet.LifetimeSeconds == 4, "原弹速寿命");
-			Check(sprite.Scale == Vector2.One * 3 && sprite.Frame == 0 && sprite.Centered, "原弹幕外观");
+			var isDefault = index < 24;
+			var localIndex = isDefault ? index : index - 24;
+			var expectedCount = isDefault ? 24 : 16;
+			var expectedSpeed = isDefault ? 180 : 240;
+			var expectedColor = isDefault ? 0 : 3;
+			Check(Mathf.IsEqualApprox(bullet.AngleRadians, localIndex * Mathf.Tau / expectedCount), "环形角度");
+			Check(bullet.Speed == expectedSpeed && bullet.LifetimeSeconds == 4, "原弹速寿命");
+			Check(sprite.Scale == Vector2.One * 3 && sprite.Frame == expectedColor && sprite.Centered, "原弹幕外观");
 			Check(sprite.TextureFilter == CanvasItem.TextureFilterEnum.Nearest, "最近邻");
 		}
-		VerificationClock.BossSeconds(boss, 2.5);
-		Check(container.GetChildCount() == 144, "大步长补发");
-		VerificationClock.BossSeconds(boss, 0.5);
-		Check(container.GetChildCount() == 192, "发射余量");
+		VerificationClock.BossSeconds(battle, 2.5);
+		Check(container.GetChildCount() == 120, "大步长补发");
+		VerificationClock.BossSeconds(battle, 0.5);
+		Check(container.GetChildCount() == 160, "发射余量");
 		// 所有实际子弹由管理器推进，外部初始化入口不再自行更新。
-        var sampleBatch = new SingleBulletEmitter(new BulletSpawnData
+        var sampleBatch = new SingleBulletEmitter(BulletDefaultSet.Get(BulletType.ScaleSet) with
         {
             AngleRadians = Mathf.Pi / 2, Speed = 100, LifetimeSeconds = 0.25f, VisualScale = 2
         });
@@ -100,13 +134,21 @@ public partial class BattleVerification : Node
         // 枚举图集颜色，迁移后仍逐颗保留外观配置。
         for (int color = 0; color < 10; color++)
         {
-            var colored = new SingleBulletEmitter(new BulletSpawnData { ColorIndex = color, VisualScale = 1 });
+            var colored = new SingleBulletEmitter(BulletDefaultSet.Get(BulletType.ScaleSet) with
+            {
+                ColorIndex = color,
+                VisualScale = 1
+            });
             colored.Emit(container, Vector2.Zero);
             Check(colored.Bullets[0].GetNode<Sprite2D>("Sprite").Frame == color, "图集颜色");
         }
         // 无效参数应在创建节点之前失败，不污染任一列表。
-        foreach (var invalidData in new[] { new BulletSpawnData { ColorIndex = 10 },
-            new BulletSpawnData { VisualScale = float.NaN }, new BulletSpawnData { Speed = -1 } })
+        foreach (var invalidData in new[]
+        {
+            BulletDefaultSet.Get(BulletType.ScaleSet) with { ColorIndex = 10 },
+            BulletDefaultSet.Get(BulletType.ScaleSet) with { VisualScale = float.NaN },
+            BulletDefaultSet.Get(BulletType.ScaleSet) with { Speed = -1 }
+        })
         {
             var invalidBatch = new SingleBulletEmitter(invalidData);
             var before = container.GetChildCount();
@@ -131,12 +173,13 @@ public partial class BattleVerification : Node
 			Check(movement.Clamp(center + direction * 1000).DistanceTo(center + direction * 395) < 0.001, "圆形径向约束");
 			Check(movement.Clamp(center + direction * 395).DistanceTo(center + direction * 395) < 0.001, "圆周位置稳定");
 		}
-		// 在场节点供独立组件绑定，逻辑时间由处理器推进。
-        var componentOwner = new Node2D();
-        AddChild(componentOwner);
-        var componentTimers = new VTimerProcessor();
+		// 组件使用完整战斗提供的全局计时器，测试仍直接推进本场处理器。
+        var componentBattle = CreateBattle(out var componentWorld);
+        componentBattle.Player.Attack.Stop();
+        var componentOwner = componentBattle.Player;
+        var componentTimers = componentBattle.Timers;
         var dodge = new PlayerDodge();
-        dodge.Initialize(componentOwner, componentTimers);
+        dodge.Initialize(componentOwner);
 		Check(dodge.TryStart(Vector2.Zero) && dodge.Direction == Vector2.Up, "默认向上闪避");
 		Check(!dodge.TryStart(Vector2.Right), "闪避冷却阻止重复");
 		componentTimers.AdvanceByUnits(9000);
@@ -146,21 +189,21 @@ public partial class BattleVerification : Node
 				// 60Hz下不允许浮点余量额外延长闪避、冷却和无敌。
 		componentTimers.Clear(true);
         var fixedDodge = new PlayerDodge();
-        fixedDodge.Initialize(componentOwner, componentTimers);
+        fixedDodge.Initialize(componentOwner);
 		fixedDodge.TryStart(Vector2.Up);
 		for (int tick = 0; tick < 9; tick++) componentTimers.AdvanceByUnits(1000);
 		Check(!fixedDodge.IsActive, "9个固定步结束闪避");
 		for (int tick = 9; tick < 60; tick++) componentTimers.AdvanceByUnits(1000);
 		Check(fixedDodge.Cooldown == 0, "60个固定步恢复冷却");
 		var fixedHealth = new PlayerHealth();
-        fixedHealth.Initialize(componentOwner, componentTimers);
+        fixedHealth.Initialize(componentOwner);
 		fixedHealth.TakeDamage(1, false);
 		for (int tick = 0; tick < 60; tick++) componentTimers.AdvanceByUnits(1000);
 		Check(fixedHealth.TakeDamage(1, false), "60个固定步结束受击无敌");
 		// 独立生命组件与事件计数。
 		componentTimers.Clear(true);
         var health = new PlayerHealth();
-        health.Initialize(componentOwner, componentTimers);
+        health.Initialize(componentOwner);
 		var changes = 0;
 		health.HealthChanged += hp => changes++;
 		Check(!health.TakeDamage(1, true), "闪避无敌");
@@ -168,7 +211,7 @@ public partial class BattleVerification : Node
 		componentTimers.AdvanceByUnits(60000);
 		Check(health.TakeDamage(99, false) && health.Hp == -97, "生命允许降为负数");
 		Check(!health.TakeDamage(1, false) && changes == 2, "负血保留受击保护与通知");
-        componentOwner.Free();
+		componentWorld.Free();
 		var battle = CreateBattle(out var world);
 		VerificationClock.BattleSeconds(battle, 0.1, Vector2.One, false);
 		Check(Math.Abs(battle.Player.Position.DistanceTo(BattleConfig.PlayerSpawn) - 24) < 0.001, "实际移动速度");
@@ -204,12 +247,12 @@ public partial class BattleVerification : Node
 		Check(!shot.IsPhysicsProcessing(), "托管子弹无重复更新");
 		battle.Bullets.Clear();
 		// 高速敌弹穿过玩家，实际连续碰撞必须扣血。
-		var enemy = battle.Bullets.Spawn(new BulletSpawnData { Position = battle.Player.GlobalPosition - new Vector2(100, 0) })!;
+		var enemy = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { Position = battle.Player.GlobalPosition - new Vector2(100, 0) })!;
 		enemy.Velocity = Vector2.Right * 12000;
 		battle.StepFixed( Vector2.Zero, false);
 		Check(battle.Player.Health.Hp == 2, "实际高速敌弹命中");
 		Check(battle.Boss.Hp == 300, "敌弹不伤Boss");
-		var passing = battle.Bullets.Spawn(new BulletSpawnData { Position = battle.Player.GlobalPosition })!;
+		var passing = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { Position = battle.Player.GlobalPosition })!;
 		passing.Velocity = Vector2.Zero;
 		battle.StepFixed( Vector2.Zero, false);
 		Check(battle.Player.Health.Hp == 2 && battle.Bullets.ActiveCount == 1, "无敌期间敌弹穿过");
@@ -234,14 +277,17 @@ public partial class BattleVerification : Node
 		battle.Timers.AdvanceByUnits(60000);
         battle.Bullets.Clear();
 		battle.Boss.TakeDamage(299);
-		battle.Bullets.Spawn(new BulletSpawnData { Position = battle.Player.GlobalPosition })!.Velocity = Vector2.Zero;
-		battle.Bullets.Spawn(new BulletSpawnData(BulletType.PlayerSet) { Position = battle.Boss.GlobalPosition })!.Velocity = Vector2.Zero;
+		battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { Position = battle.Player.GlobalPosition })!.Velocity = Vector2.Zero;
+		battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.PlayerSet) with { Position = battle.Boss.GlobalPosition })!.Velocity = Vector2.Zero;
 		battle.StepFixed( Vector2.Zero, false);
 		Check(battle.Boss.Hp == 0 && battle.Player.Health.Hp == 0 && battle.State == BattleState.Victory, "玩家同段零血不阻止Boss击败胜利");
 		battle.Restart();
 		// 容量测试保持所有弹幕远离目标。
-		for (int index = 0; index < BattleConfig.MaxBullets; index++) battle.Bullets.Spawn(new BulletSpawnData { Position = new Vector2(-10000, 0) });
-		Check(battle.Bullets.Spawn(new BulletSpawnData()) is null, "容量上限");
+		for (int index = 0; index < BattleConfig.MaxBullets; index++) battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+		{
+			Position = new Vector2(-10000, 0)
+		});
+		Check(battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { }) is null, "容量上限");
 		battle.Bullets.Clear();
 		Check(battle.Bullets.ActiveCount == 0, "容量清理");
 		world.Free();
@@ -273,7 +319,251 @@ public partial class BattleVerification : Node
 		Check(second.Exits == 1 && deaths == 1, "死亡退出一次");
 		world.Free();
 	}
-    /// <summary>验证Boss_01三阶段血量阈值、六种发射器及阶段计时器交接。</summary>
+	/// <summary>验证全局战斗服务的绑定、重开、胜利保留及旧实例隔离。</summary>
+	private void VerifyGlobalServices()
+	{
+		var battle = CreateBattle(out var world);
+		Check(ReferenceEquals(GlobalEvent.GetBoss(), battle.Boss)
+			&& ReferenceEquals(GlobalEvent.GetPlayer(), battle.Player)
+			&& ReferenceEquals(GlobalEvent.GetBulletManager(), battle.Bullets), "阶段初始化可查询全局实体");
+		var oldTimers = battle.Timers;
+		var oldBullets = battle.Bullets;
+		battle.Restart();
+		Check(!ReferenceEquals(oldTimers, battle.Timers) && !ReferenceEquals(oldBullets, battle.Bullets)
+			&& oldTimers.ActiveCount == 0 && ReferenceEquals(GlobalEvent.GetBoss(), battle.Boss), "重开替换战斗服务");
+		var victoryBoss = battle.Boss;
+		var victoryPlayer = battle.Player;
+		var victoryBullets = battle.Bullets;
+		victoryBoss.TakeDamage(300);
+		battle.StepFixed(Vector2.Zero, false);
+		Check(battle.State == BattleState.Victory && ReferenceEquals(GlobalEvent.GetBoss(), victoryBoss)
+			&& ReferenceEquals(GlobalEvent.GetPlayer(), victoryPlayer)
+			&& ReferenceEquals(GlobalEvent.GetBulletManager(), victoryBullets), "胜利保留全局实体");
+		try { GlobalEvent.RegisterTimer(new VTimer(1, 0, 0, VTimerType.Once, new[] { victoryPlayer }, _ => { })); Check(false, "胜利后仍可注册计时器"); }
+		catch (InvalidOperationException) { _checks++; }
+		battle.StopBattle();
+		try { GlobalEvent.GetBoss(); Check(false, "停止后仍可读取全局Boss"); }
+		catch (InvalidOperationException) { _checks++; }
+		world.Free();
+
+		var first = CreateBattle(out var firstWorld);
+		var second = CreateBattle(out var secondWorld);
+		first.StopBattle();
+		Check(ReferenceEquals(GlobalEvent.GetBoss(), second.Boss)
+			&& ReferenceEquals(GlobalEvent.GetBulletManager(), second.Bullets), "旧战斗停止不污染新绑定");
+		firstWorld.Free();
+		Check(ReferenceEquals(GlobalEvent.GetBoss(), second.Boss), "旧战斗延迟离场不解除新绑定");
+		var secondTimers = second.Timers;
+		secondWorld.Free();
+		Check(secondTimers.ActiveCount == 0, "直接离场清理全部计时器");
+		try { GlobalEvent.GetPlayer(); Check(false, "直接离场后仍可读取全局玩家"); }
+		catch (InvalidOperationException) { _checks++; }
+	}
+    /// <summary>验证Q/E相邻阶段切换、边界、计时器交接与固定输入结果。</summary>
+    private void VerifyPhaseSwitch()
+    {
+        GameInput.EnsureBindings();
+        // 阶段切换动作分别验证物理键和逻辑键映射。
+        foreach (var binding in new[] { ("battle_previous_phase", Key.Q), ("battle_next_phase", Key.E) })
+        {
+            using var physical = new InputEventKey { PhysicalKeycode = binding.Item2, Pressed = true };
+            using var logical = new InputEventKey { Keycode = binding.Item2, Pressed = true };
+            Check(InputMap.EventIsAction(physical, binding.Item1), "阶段切换物理按键映射");
+            Check(InputMap.EventIsAction(logical, binding.Item1), "阶段切换逻辑按键映射");
+        }
+
+        // 建立隔离战斗，停止玩家攻击以稳定阶段计时器数量。
+        var battle = CreateBattle(out var world);
+        battle.Player.Attack.Stop();
+        var boss = battle.Boss;
+        var playerPosition = battle.Player.Position;
+        var bossPosition = boss.Position = new Vector2(321, 234);
+        var initialPhase = boss.CurrentPhase!;
+        var initialTimers = battle.Timers.ActiveCount;
+        Check(initialPhase.Name == "环形弹幕 · 阶段01" && boss.Hp == 300 && initialTimers == 2, "阶段切换初始状态");
+        // 旧阶段弹幕用于验证切换时仍由管理器保留。
+        var oldBullet = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        {
+            Position = new Vector2(-1000, -1000),
+            Speed = 0
+        })!;
+
+        battle.StepFixed(Vector2.Zero, false, false, true);
+        Check(boss.CurrentPhase is B01_Phase02 && boss.Hp == 200
+            && boss.Position.DistanceTo(new Vector2(640, 240)) < bossPosition.DistanceTo(new Vector2(640, 240))
+            && battle.Player.Position == playerPosition, "E切入阶段02并在当前物理步开始移动");
+        Check(GodotObject.IsInstanceValid(oldBullet) && battle.Bullets.ActiveCount == 1
+            && battle.Timers.ActiveCount == initialTimers - 1, "切换保留旧弹并重建阶段计时器");
+        // 保存阶段对象，确认切入后的首个周期不会提前发射。
+        var phaseTwo = boss.CurrentPhase!;
+        var phaseTwoStart = boss.Position;
+        VerificationClock.BossSeconds(battle, 0.5);
+        Check(Mathf.IsEqualApprox(boss.Position.DistanceTo(phaseTwoStart), 100), "阶段02移动速度200");
+        VerificationClock.BossSeconds(battle, 0.4);
+        Check(phaseTwo.Emitters.Count == 0, "切入阶段后首周期仍等待");
+        VerificationClock.BossSeconds(battle, 0.1);
+        Check(phaseTwo.Emitters.Count == 1 && battle.Timers.ActiveCount == initialTimers - 1,
+            "阶段02首周期只执行一次成功发射的批次");
+        VerificationClock.BossSeconds(battle, 0.6);
+        Check(boss.Position == new Vector2(640, 240) && !((B01_Phase02)phaseTwo).IsMoving,
+            "阶段02到达固定目标后停止");
+
+        // 同时按键的阶段、生命和位置快照。
+        var beforeBoth = boss.CurrentPhase;
+        var beforeBothHp = boss.Hp;
+        var beforeBothPosition = boss.Position;
+        battle.StepFixed(Vector2.Zero, false, true, true);
+        Check(ReferenceEquals(boss.CurrentPhase, beforeBoth) && boss.Hp == beforeBothHp
+            && boss.Position == beforeBothPosition, "同时按Q/E不切换或重置");
+        battle.StepFixed(Vector2.Zero, false, false, true);
+        Check(boss.CurrentPhase is B01_Phase03 && boss.Hp == 100 && boss.Position == beforeBothPosition, "E切入阶段03");
+        // 末阶段计时器数量用于确认边界按键不重复注册。
+        var phaseThreeTimers = battle.Timers.ActiveCount;
+        boss.TakeDamage(1);
+        battle.StepFixed(Vector2.Zero, false, false, true);
+        Check(boss.CurrentPhase is B01_Phase03 && boss.Hp == 99 && battle.Timers.ActiveCount == phaseThreeTimers, "末阶段E不循环且不回血");
+        battle.StepFixed(Vector2.Zero, false, true, false);
+        Check(boss.CurrentPhase is B01_Phase02 && boss.Hp == 200, "Q返回阶段02");
+        battle.StepFixed(Vector2.Zero, false, true, false);
+        Check(boss.CurrentPhase is B01_Phase01 && boss.Hp == 300, "Q返回阶段01");
+        boss.TakeDamage(1);
+        battle.StepFixed(Vector2.Zero, false, true, false);
+        Check(boss.CurrentPhase is B01_Phase01 && boss.Hp == 299, "首阶段Q不循环且不回血");
+
+        battle.Restart();
+        battle.Player.Attack.Stop();
+        boss = battle.Boss;
+        battle.Boss.TakeDamage(101);
+        Check(boss.CurrentPhase is B01_Phase02 && boss.Hp == 199, "自然受伤进入阶段02不回血");
+        battle.Boss.TakeDamage(99);
+        Check(boss.CurrentPhase is B01_Phase03 && boss.Hp == 100, "自然受伤进入阶段03不回血");
+        battle.Boss.TakeDamage(100);
+        battle.StepFixed(Vector2.Zero, false);
+        Check(battle.State == BattleState.Victory && boss.CurrentPhase is null, "外部致死后固定步进入胜利");
+        battle.StepFixed(Vector2.Zero, false, true, false);
+        Check(battle.State == BattleState.Victory && boss.CurrentPhase is null, "胜利后Q不生效");
+        world.Free();
+
+        // 停止战斗后记录生命，确认输入不会恢复阶段。
+        var stoppedBattle = CreateBattle(out var stoppedWorld);
+        var stoppedHp = stoppedBattle.Boss.Hp;
+        stoppedBattle.StopBattle();
+        stoppedBattle.StepFixed(Vector2.Zero, false, false, true);
+        Check(stoppedBattle.Boss.CurrentPhase is null && stoppedBattle.Boss.Hp == stoppedHp, "Stop后E不生效");
+        stoppedWorld.Free();
+
+        // 两个相同战斗实例执行相同切换序列，比较固定输入结果。
+        var firstRun = CreateBattle(out var firstWorld);
+        var secondRun = CreateBattle(out var secondWorld);
+        firstRun.Player.Attack.Stop();
+        secondRun.Player.Attack.Stop();
+        var inputs = new[] { (Previous: false, Next: true), (Previous: false, Next: false), (Previous: true, Next: false) };
+        foreach (var input in inputs)
+        {
+            firstRun.StepFixed(Vector2.Zero, false, input.Previous, input.Next);
+            secondRun.StepFixed(Vector2.Zero, false, input.Previous, input.Next);
+        }
+        Check(firstRun.Boss.CurrentPhase!.Name == secondRun.Boss.CurrentPhase!.Name
+            && firstRun.Boss.Hp == secondRun.Boss.Hp && firstRun.Boss.Position == secondRun.Boss.Position
+            && firstRun.Timers.NowUnits == secondRun.Timers.NowUnits, "固定输入阶段切换可重现");
+        firstWorld.Free();
+        secondWorld.Free();
+
+        // 直接调用切换接口，确认当前动画帧不被阶段重入重置。
+        var animationBattle = CreateBattle(out var animationWorld);
+        var animationSprite = animationBattle.Boss.GetNode<Sprite2D>("Sprite");
+        animationSprite.Frame = 1;
+        Check(animationBattle.Boss.TrySwitchAdjacentPhase(1) && animationSprite.Frame == 1, "直接切换不重置动画帧");
+        animationWorld.Free();
+    }
+    /// <summary>验证阶段03逐圈时序、延迟追踪、退出和容量不足。</summary>
+    private void VerifyBoss01Sequence()
+    {
+        var battle = CreateBattle(out var world);
+        battle.Player.Attack.Stop();
+        var boss = battle.Boss;
+        boss.TakeDamage(200);
+        Check(boss.CurrentPhase is B01_Phase03 && !boss.CurrentPhase.IsMoving,
+            "阶段03切入时保持当前位置");
+        Vector2 origin = boss.GlobalPosition;
+        VerificationClock.BossSeconds(battle, 0.999);
+        Check(battle.Bullets.ActiveCount == 0, "首次发射前没有阶段03子弹");
+        VerificationClock.BossSeconds(battle, 0.001);
+        var emitter = (B01P03_Emitter01)boss.CurrentPhase!.Emitters[0];
+        Check(emitter.Bullets.Count == 12 && battle.Bullets.ActiveCount == 12,
+            "第一圈在发射时刻生成12颗");
+        // 后续圆心以首次发射时的位置为准，Boss位移不改变本轮斜线。
+        boss.Position = new Vector2(800, 240);
+        for (int ring = 2; ring <= 6; ring++)
+        {
+            VerificationClock.BossSeconds(battle, 0.199);
+            Check(emitter.Bullets.Count == (ring - 1) * 12, "不足200毫秒不提前生成下一圈");
+            VerificationClock.BossSeconds(battle, 0.001);
+            Check(emitter.Bullets.Count == ring * 12 && battle.Bullets.ActiveCount == ring * 12,
+                "每200毫秒恰好生成一圈");
+        }
+        Vector2 source = VMath.PolarMove(origin, Mathf.Pi * 5 / 6, 400);
+        Vector2 end = VMath.PolarMove(origin, Mathf.Pi * 11 / 6, 400);
+        end.Y += 300;
+        double distance = VMath.GetDistanceBetween2Points(source, end);
+        double lineAngle = VMath.GetAngleBetween2Points(source, end);
+        for (int ring = 0; ring < 6; ring++)
+        {
+            Vector2 center = VMath.PolarMove(source, lineAngle, distance * ring / 5);
+            for (int index = 0; index < 12; index++)
+            {
+                Bullet bullet = emitter.Bullets[ring * 12 + index];
+                double angle = index * Math.Tau / 12;
+                Check(bullet.GlobalPosition.DistanceTo(VMath.PolarMove(center, angle, 70)) < 0.001
+                    && Math.Abs(bullet.AngleRadians - angle) < 0.000001 && bullet.Speed == 0,
+                    "六个等距圆心及每圈12颗等角静止弹");
+            }
+        }
+        VerificationClock.BossSeconds(battle, 0.999);
+        Check(emitter.Bullets[0].Speed == 0, "第一圈未满两秒保持静止");
+        battle.Player.Position = new Vector2(700, 650);
+        VerificationClock.BossSeconds(battle, 0.001);
+        Bullet firstBullet = emitter.Bullets[0];
+        Check(firstBullet.Speed == 150 && emitter.Bullets[12].Speed == 0
+            && Math.Abs(firstBullet.AngleRadians - VMath.GetAngleBetween2Points(
+                firstBullet.GlobalPosition, battle.Player.GlobalPosition)) < 0.000001,
+            "第一圈两秒后逐颗瞄准当时的玩家，下一圈仍静止");
+        VerificationClock.BossSeconds(battle, 0.2);
+        Check(emitter.Bullets[12].Speed == 150 && emitter.Bullets[24].Speed == 0,
+            "第二圈按自身出生时间延迟转向");
+        VerificationClock.BossSeconds(battle, 1.8);
+        Check(boss.CurrentPhase is B01_Phase03 && boss.CurrentPhase.IsMoving
+            && Math.Abs(boss.CurrentPhase.MoveTarget.DistanceTo(new Vector2(640, 250)) - 200) < 0.001,
+            "阶段03仍在第五秒选择圆周移动目标");
+        world.Free();
+
+        var stoppedBattle = CreateBattle(out var stoppedWorld);
+        stoppedBattle.Player.Attack.Stop();
+        stoppedBattle.Boss.TakeDamage(200);
+        VerificationClock.BossSeconds(stoppedBattle, 1.4);
+        var stoppedEmitter = (B01P03_Emitter01)stoppedBattle.Boss.CurrentPhase!.Emitters[0];
+        Check(stoppedEmitter.Bullets.Count == 36, "退出前已生成三圈");
+        stoppedBattle.Boss.Stop();
+        VerificationClock.BossSeconds(stoppedBattle, 2.5);
+        Check(stoppedEmitter.Bullets.Count == 36 && stoppedEmitter.Bullets.All(bullet => bullet.Speed == 150),
+            "退出取消未生成的圈，已出生子弹仍按各自计时转向");
+        while (stoppedBattle.Bullets.ActiveCount < BattleConfig.MaxBullets - 4)
+            stoppedBattle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+            {
+                Position = new Vector2(-1000, -1000),
+                Speed = 0
+            });
+        var limited = new B01P03_Emitter01();
+        limited.Emit(stoppedBattle.Bullets, stoppedBattle.Boss.GlobalPosition);
+        int timersBeforeEmptyRing = stoppedBattle.Timers.ActiveCount;
+        limited.EmitNextRing();
+        Check(limited.Bullets.Count == 4 && stoppedBattle.Bullets.ActiveCount == BattleConfig.MaxBullets
+            && stoppedBattle.Timers.ActiveCount == timersBeforeEmptyRing,
+            "容量不足时只登记成功生成的弹，空圈不注册转向计时器");
+        stoppedWorld.Free();
+    }
+
+    /// <summary>验证Boss_01三阶段血量阈值、已发批次及阶段计时器交接。</summary>
     private void VerifyBoss01Stages()
     {
         // 正式资源与无配置入口都必须使用300血和相同阶段组合。
@@ -283,10 +573,10 @@ public partial class BattleVerification : Node
         battle.Player.Attack.Stop();
         var boss = battle.Boss;
         Check(boss.MaxHp == 300 && boss.Hp == 300 && boss.CurrentPhase is B01_Phase01, "默认入口首阶段300血");
-        VerificationClock.BossSeconds(boss, 1);
+        VerificationClock.BossSeconds(battle, 1);
         var first = boss.CurrentPhase!;
         var surviving = first.Emitters[0];
-        // 保存六个已发批次，阶段退出清理索引后仍能验证存活子弹。
+        // 保存成功产生子弹的批次，阶段退出清理索引后仍能验证存活子弹。
         var batches = first.Emitters.ToList();
         Check(first.Emitters.Count == 2 && first.Emitters[0] is B01P01_Emitter01
             && first.Emitters[1] is B01P01_Emitter02, "阶段01独立双发射器");
@@ -296,31 +586,25 @@ public partial class BattleVerification : Node
         Check(boss.Hp == 200 && boss.CurrentPhase is B01_Phase02, "200血立即进入阶段02");
         Check(first.Emitters.Count == 0 && surviving.Bullets.Count == 24
             && battle.Timers.ActiveCount == 2, "旧阶段取消计时器但保留既有子弹");
-        VerificationClock.BossSeconds(boss, 0.99);
-        Check(boss.CurrentPhase!.Emitters.Count == 0 && battle.Bullets.ActiveCount == 48, "新阶段首次等待完整周期");
-        VerificationClock.BossSeconds(boss, 0.01);
+        VerificationClock.BossSeconds(battle, 0.99);
+        Check(boss.CurrentPhase!.Emitters.Count == 0 && battle.Bullets.ActiveCount == 40, "新阶段首次等待完整周期");
+        VerificationClock.BossSeconds(battle, 0.01);
         var second = boss.CurrentPhase!;
         batches.AddRange(second.Emitters);
-        Check(second.Emitters.Count == 2 && second.Emitters[0] is B01P02_Emitter01
-            && second.Emitters[1] is B01P02_Emitter02 && battle.Bullets.ActiveCount == 96, "阶段02仅发两个独立批次");
+        Check(second.Emitters.Count == 1 && second.Emitters[0] is B01P02_Emitter01
+            && second.Emitters[0].Bullets.Count == 72 && battle.Bullets.ActiveCount == 112,
+            "阶段02首轮生成六圈各12颗子弹");
         boss.TakeDamage(99);
         Check(boss.Hp == 101 && ReferenceEquals(second, boss.CurrentPhase), "101血保持阶段02");
         boss.TakeDamage(1);
-        Check(boss.CurrentPhase is B01_Phase03 && battle.Timers.ActiveCount == 2, "100血进入阶段03且无重复计时器");
-        VerificationClock.BossSeconds(boss, 1);
+        Check(boss.CurrentPhase is B01_Phase03 && battle.Timers.ActiveCount == 3,
+            "100血进入阶段03，已发子弹的行为计时器继续存活");
+        VerificationClock.BossSeconds(battle, 1);
         var third = boss.CurrentPhase!;
         batches.AddRange(third.Emitters);
-        Check(third.Emitters.Count == 2 && third.Emitters[0] is B01P03_Emitter01
-            && third.Emitters[1] is B01P03_Emitter02, "阶段03独立双发射器");
-        // 六个具体发射器暂时都保留24颗、速度180及等角弧度设计。
-        Check(batches.Count == 6, "三阶段共六个独立发射器批次");
-        foreach (var emitter in batches)
-        {
-            Check(emitter.Bullets.Count == 24, "每个发射器均生成24颗弹幕");
-            for (int index = 0; index < emitter.Bullets.Count; index++)
-                Check(emitter.Bullets[index].Speed == 180
-                    && Mathf.IsEqualApprox(emitter.Bullets[index].AngleRadians, index * Mathf.Tau / 24), "阶段弹幕参数保持一致");
-        }
+        Check(third.Emitters.Count == 1 && third.Emitters[0] is B01P03_Emitter01
+            && third.Emitters[0].Bullets.Count == 12, "阶段03第一圈立即生成");
+        Check(batches.Count == 4, "记录四个成功产生子弹的发射批次");
         boss.TakeDamage(99);
         Check(boss.Hp == 1 && ReferenceEquals(third, boss.CurrentPhase), "1血保持最后阶段");
         boss.TakeDamage(1);
@@ -338,6 +622,7 @@ public partial class BattleVerification : Node
         // 正式工厂入口也注册三个独立阶段。
         var configured = BossFactory.Create(data, battle.Bullets);
         world.AddChild(configured);
+        configured.StartPhases();
         configured.TakeDamage(100);
         Check(configured.CurrentPhase is B01_Phase02, "正式配置进入阶段02");
         configured.TakeDamage(100);
@@ -346,8 +631,8 @@ public partial class BattleVerification : Node
         battle.Restart();
         battle.Player.Attack.Stop();
         // 发射边界前放入阈值伤害弹，碰撞须先取消旧阶段同刻发射。
-        VerificationClock.BossSeconds(battle.Boss, 0.99);
-        battle.Bullets.Spawn(new BulletSpawnData(BulletType.PlayerSet)
+        VerificationClock.BossSeconds(battle, 0.99);
+        battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.PlayerSet) with
         {
             Position = battle.Boss.Position,
             Speed = 0,
@@ -361,9 +646,9 @@ public partial class BattleVerification : Node
         });
         Check(battle.Boss.CurrentPhase is B01_Phase02 && battle.Bullets.ActiveCount == 0,
             "血线碰撞先于同刻发射，旧阶段不多发一轮");
-        VerificationClock.BossSeconds(battle.Boss, 1);
-        Check(battle.Bullets.ActiveCount == 48 && battle.Boss.CurrentPhase!.Emitters.Count == 2,
-            "交接后只有新阶段两批弹幕");
+        VerificationClock.BossSeconds(battle, 1);
+        Check(battle.Bullets.ActiveCount == 72 && battle.Boss.CurrentPhase!.Emitters.Count == 1,
+            "交接后只有新阶段成功发射的弹幕");
         world.Free();
     }
     /// <summary>验证玩家零血及负血仍可操作、攻击、受伤和正常胜利。</summary>
@@ -383,7 +668,11 @@ public partial class BattleVerification : Node
         Check(!battle.Player.Health.TakeDamage(1, false), "零血仍受正常无敌保护");
         VerificationClock.BattleSeconds(battle, 0.8, Vector2.Zero, false);
         battle.Bullets.Clear();
-        battle.Bullets.Spawn(new BulletSpawnData { Position = battle.Player.Position, Speed = 0 });
+        battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        {
+            Position = battle.Player.Position,
+            Speed = 0
+        });
         battle.StepFixed(Vector2.Zero, false);
         Check(battle.Player.Health.Hp == -1 && battle.State == BattleState.Running, "实际敌弹命中后血量下降到负数");
         before = battle.Player.Position;
@@ -407,6 +696,16 @@ public partial class BattleVerification : Node
         manager.Position = new Vector2(30, 40);
         var origin = new Vector2(-10000, -10000);
         battle.Player.Attack.Stop();
+        // 停止初始阶段，以下计时验证只观察手动创建的批次。
+        battle.Boss.Stop();
+        var delayed = new B01P01_Emitter02();
+        delayed.Emit(manager, origin);
+        Check(delayed.Bullets.Count == 16 && delayed.Bullets.All(bullet => bullet.Speed == 300),
+            "阶段01发射器02初速300");
+        battle.Timers.AdvanceByUnits(119940);
+        Check(delayed.Bullets.All(bullet => bullet.Speed == 300), "发射器02两秒前保持初速");
+        battle.Timers.AdvanceByUnits(60);
+        Check(delayed.Bullets.All(bullet => bullet.Speed == 100), "发射器02两秒后降速100");
         var first = new B01P01_Emitter01();
         var second = new B01P01_Emitter01();
         first.Emit(manager, origin);
@@ -441,11 +740,11 @@ public partial class BattleVerification : Node
         manager.Advance(4, battle.Player, battle.Boss);
         Check(first.Bullets.Count == 0 && second.Bullets.Count == 0 && manager.ActiveCount == 0, "过期同步注销");
         // 命中与清场通过同一注销入口，容量不足时不能新增节点。
-        var hit = new SingleBulletEmitter(new BulletSpawnData { Speed = 0 });
+        var hit = new SingleBulletEmitter(BulletDefaultSet.Get(BulletType.ScaleSet) with { Speed = 0 });
         hit.Emit(manager, battle.Player.GlobalPosition);
         manager.Advance(0, battle.Player, battle.Boss);
         Check(hit.Bullets.Count == 0 && manager.ActiveCount == 0, "命中同步注销");
-        for (int index = 0; index < BattleConfig.MaxBullets - 1; index++) manager.Spawn(new BulletSpawnData { Position = origin });
+        for (int index = 0; index < BattleConfig.MaxBullets - 1; index++) manager.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { Position = origin });
         var partial = new B01P01_Emitter01();
         partial.Emit(manager, origin);
         Check(partial.Bullets.Count == 1 && manager.ActiveCount == BattleConfig.MaxBullets
@@ -456,7 +755,7 @@ public partial class BattleVerification : Node
         manager.Clear();
         Check(partial.Bullets.Count == 0 && manager.ActiveCount == 0, "清场同步注销");
         // 阶段退出后子弹仍存活，空批次在下一次推进时移除。
-        VerificationClock.BossSeconds(battle.Boss, 1);
+        VerificationClock.BossSeconds(battle, 1);
         var phase = battle.Boss.CurrentPhase!;
         var surviving = phase.Emitters[0];
         battle.Boss.Stop();
@@ -466,12 +765,12 @@ public partial class BattleVerification : Node
         battle.Restart();
         Check(surviving.Bullets.Count == 0, "重开注销旧批次");
         battle.Player.Attack.Stop();
-        VerificationClock.BossSeconds(battle.Boss, 1);
+        VerificationClock.BossSeconds(battle, 1);
         phase = battle.Boss.CurrentPhase!;
         battle.Bullets.Clear();
         battle.Boss.Advance(0);
         Check(phase.Emitters.Count == 0, "阶段移除空批次");
-        VerificationClock.BossSeconds(battle.Boss, 1);
+        VerificationClock.BossSeconds(battle, 1);
         surviving = phase.Emitters[0];
         world.Free();
         Check(surviving.Bullets.Count == 0, "直接离场注销引用");
@@ -496,15 +795,51 @@ public partial class BattleVerification : Node
         try { _ = new AngularPattern(1, float.NaN); Check(false, "间隔校验"); }
         catch (ArgumentOutOfRangeException) { _checks++; }
     }
+    /// <summary>验证四种弹幕贴图的资源路径、非贴图参数一致性及十色图集生成。</summary>
+    private void VerifySpriteSets()
+    {
+        // 保留既有枚举值，避免外部记录的参数集编号变化。
+        Check((int)BulletType.ScaleSet == 0 && (int)BulletType.PlayerSet == 1, "原预设编号稳定");
+        // 使用隔离战斗验证真实生成路径，不推进战斗时间。
+        var battle = CreateBattle(out var world);
+        var scale = BulletDefaultSet.Get(BulletType.ScaleSet);
+        var entries = new[]
+        {
+            (BulletType.ScaleSet, "scale"), (BulletType.DotSet, "dot"),
+            (BulletType.DropSet, "drop"), (BulletType.StarSet, "star")
+        };
+        // 逐种预设及逐色索引检查，确保末帧也能正常切片。
+        foreach (var (type, name) in entries)
+        {
+            var settings = BulletDefaultSet.Get(type);
+            Check(settings.TexturePath == $"res://Assets/Sprites/Sprite_{name}.png", "新图集路径");
+            Check((settings with { TexturePath = scale.TexturePath }) == scale, "除贴图外全部参数与鳞弹一致");
+            for (int index = 0; index < 10; index++)
+            {
+                var bullet = battle.Bullets.Spawn(settings with { ColorIndex = index })!;
+                var sprite = bullet.GetNode<Sprite2D>("Sprite");
+                Check(sprite.Visible && sprite.Texture.ResourcePath == settings.TexturePath
+                    && sprite.Texture.GetSize() == new Vector2(160, 16)
+                    && sprite.Hframes == 10 && sprite.Vframes == 1 && sprite.Frame == index
+                    && sprite.GetRect().Size == new Vector2(16, 16), "十色图集逐格生成");
+            }
+        }
+        // 玩家圆点预设保持原行为，与新增圆形贴图弹幕分开。
+        var player = BulletDefaultSet.Get(BulletType.PlayerSet);
+        Check(!player.UseSprite && player.TexturePath is null && player.Team == BulletTeam.Player
+            && player.Speed == 600 && player.Radius == 3, "玩家预设保持不变");
+        world.Free();
+    }
     /// <summary>验证枚举预设、覆盖顺序、快照隔离及可配置的弹幕外观。</summary>
     private void VerifyDefaultSets()
     {
+        VerifySpriteSets();
         // 明确检查原敌弹与玩家弹的数值，防止迁移改变现有玩法。
-        var scale = new BulletSpawnData();
-        var player = new BulletSpawnData(BulletType.PlayerSet);
+        var scale = BulletDefaultSet.Get(BulletType.ScaleSet) with { };
+        var player = BulletDefaultSet.Get(BulletType.PlayerSet) with { };
         Check(scale.Speed == 180 && scale.LifetimeSeconds == 4 && scale.Radius == 6 && scale.IntervalSeconds == 1
             && scale.Team == BulletTeam.Enemy && scale.Damage == 1, "鳞弹预设数值");
-        Check(scale.TexturePath == "res://Assets/Sprite_02.png" && scale.Hframes == 10 && scale.Vframes == 1
+        Check(scale.TexturePath == "res://Assets/Sprites/Sprite_scale.png" && scale.Hframes == 10 && scale.Vframes == 1
             && scale.ColorIndex == 0 && scale.VisualScale == 3 && scale.UseSprite && scale.CircleColor == Colors.Cyan, "鳞弹预设外观");
         Check(player.Speed == 600 && player.LifetimeSeconds == 2 && player.Radius == 3 && player.IntervalSeconds == 0.2
             && player.Team == BulletTeam.Player && player.Damage == 1, "玩家弹预设数值");
@@ -512,52 +847,83 @@ public partial class BattleVerification : Node
             && player.VisualScale == 3 && !player.UseSprite && player.CircleColor == Colors.Cyan, "玩家弹预设外观");
         // 将所有预设字段改为自定义值，再检查批量设置是否完整覆盖。
         var behavior = new StraightBehavior();
-        var data = new BulletSpawnData
+        var data = BulletDefaultSet.Get(BulletType.ScaleSet) with
         {
-            Position = new Vector2(10, 20), AngleRadians = 1.25f, Behavior = behavior,
-            TexturePath = "res://Assets/Units/Boss_01.png", Hframes = 4, Vframes = 2, ColorIndex = 7,
-            Speed = 25, LifetimeSeconds = 10, Radius = 12, IntervalSeconds = 5, Team = BulletTeam.Enemy,
-            Damage = 8, VisualScale = 2, UseSprite = true, CircleColor = Colors.Red
+            Position = new Vector2(10, 20),
+            AngleRadians = 1.25f,
+            Behavior = behavior,
+            TexturePath = "res://Assets/Units/Boss_01.png",
+            Hframes = 4,
+            Vframes = 2,
+            ColorIndex = 7,
+            Speed = 25,
+            LifetimeSeconds = 10,
+            Radius = 12,
+            IntervalSeconds = 5,
+            Team = BulletTeam.Enemy,
+            Damage = 8,
+            VisualScale = 2,
+            UseSprite = true,
+            CircleColor = Colors.Red
         };
-        data.setPattern(BulletType.PlayerSet);
-        Check(data == (player with
+        var switched = BulletDefaultSet.Get(BulletType.PlayerSet) with
         {
             Position = data.Position,
             AngleRadians = data.AngleRadians,
             Behavior = behavior
-        }), "覆盖全部预设字段");
-        Check(data.Position == new Vector2(10, 20) && data.AngleRadians == 1.25f && ReferenceEquals(data.Behavior, behavior), "位置角度行为不被覆盖");
-        data.Speed = 250;
-        data.Team = BulletTeam.Enemy;
-        Check(data.Speed == 250 && data.Team == BulletTeam.Enemy && player.Speed == 600
+        };
+        Check(switched.TexturePath == player.TexturePath && switched.Hframes == player.Hframes
+            && switched.Vframes == player.Vframes && switched.ColorIndex == player.ColorIndex
+            && switched.Speed == player.Speed && switched.LifetimeSeconds == player.LifetimeSeconds
+            && switched.Radius == player.Radius && switched.IntervalSeconds == player.IntervalSeconds
+            && switched.Team == player.Team && switched.Damage == player.Damage
+            && switched.VisualScale == player.VisualScale && switched.UseSprite == player.UseSprite
+            && switched.CircleColor == player.CircleColor, "预设切换保留其余字段");
+        Check(switched.Position == new Vector2(10, 20) && switched.AngleRadians == 1.25f
+            && ReferenceEquals(switched.Behavior, behavior), "位置角度行为不被覆盖");
+        var customized = switched with
+        {
+            Speed = 250,
+            Team = BulletTeam.Enemy
+        };
+        Check(customized.Speed == 250 && customized.Team == BulletTeam.Enemy && player.Speed == 600
             && BulletDefaultSet.Get(BulletType.PlayerSet).Speed == 600, "逐项赋值及预设隔离");
-        // 未知枚举不能让原对象出现部分修改。
-        var beforeInvalid = data with { };
-        try { data.setPattern((BulletType)999); Check(false, "未知枚举未拦截"); }
+        // 未知枚举不能取得参数集。
+        try { _ = BulletDefaultSet.Get((BulletType)999); Check(false, "未知枚举未拦截"); }
         catch (ArgumentOutOfRangeException) { _checks++; }
-        Check(data == beforeInvalid, "未知枚举不改变原参数");
         // 在真实管理器中检查单发批次快照、生成后隔离和自定义二维图集。
         var battle = CreateBattle(out var world);
         var origin = new Vector2(-10000, -10000);
-        data.setPattern(BulletType.ScaleSet);
-        data.Speed = 123;
-        var batch = new SingleBulletEmitter(data);
-        data.setPattern(BulletType.PlayerSet);
+        var batchSettings = BulletDefaultSet.Get(BulletType.ScaleSet) with
+        {
+            Position = origin,
+            Speed = 123
+        };
+        var batch = new SingleBulletEmitter(batchSettings);
+        batchSettings = batchSettings with { Speed = 456 };
         batch.Emit(battle.Bullets, origin);
         var shot = batch.Bullets[0];
         Check(shot.Speed == 123 && shot.Team == BulletTeam.Enemy && shot.LifetimeSeconds == 4, "批次保留创建时快照");
-        data.Speed = 999;
+        batchSettings = batchSettings with { Speed = 999 };
         Check(shot.Speed == 123, "初始化数据不改变已生成子弹");
-        var atlasData = new BulletSpawnData
+        var atlasData = BulletDefaultSet.Get(BulletType.ScaleSet) with
         {
-            Position = origin, TexturePath = "res://Assets/Units/Boss_01.png",
-            Hframes = 4, Vframes = 2, ColorIndex = 7, VisualScale = 2
+            Position = origin,
+            TexturePath = "res://Assets/Units/Boss_01.png",
+            Hframes = 4,
+            Vframes = 2,
+            ColorIndex = 7,
+            VisualScale = 2
         };
         var atlasBullet = battle.Bullets.Spawn(atlasData)!;
         var sprite = atlasBullet.GetNode<Sprite2D>("Sprite");
         Check(sprite.Texture.ResourcePath == atlasData.TexturePath && sprite.Hframes == 4 && sprite.Vframes == 2
             && sprite.Frame == 7 && sprite.GetRect().Size == new Vector2(32, 64), "配置贴图与二维图集末帧");
-        var dotData = new BulletSpawnData(BulletType.PlayerSet) { Position = origin, CircleColor = Colors.Magenta };
+        var dotData = BulletDefaultSet.Get(BulletType.PlayerSet) with
+        {
+            Position = origin,
+            CircleColor = Colors.Magenta
+        };
         var dot = battle.Bullets.Spawn(dotData)!;
         Check(!dot.GetNode<Sprite2D>("Sprite").Visible && dot.GetNode<Sprite2D>("Sprite").Texture is null
             && dot.CircleColor == Colors.Magenta, "圆点颜色与无贴图模式");
@@ -568,7 +934,10 @@ public partial class BattleVerification : Node
             atlasData with { IntervalSeconds = 0 }, atlasData with { IntervalSeconds = double.NaN },
             atlasData with { TexturePath = null }, atlasData with { TexturePath = "res://Assets/missing.png" },
             atlasData with { TexturePath = "res://Data/Bosses/Boss_01.tres" },
-            atlasData with { CircleColor = new Color(float.NaN, 0, 0) }
+            atlasData with { CircleColor = new Color(float.NaN, 0, 0) },
+            atlasData with { Position = new Vector2(float.NaN, 0) },
+            atlasData with { AngleRadians = float.NaN },
+            atlasData with { Behavior = null! }
         })
         {
             var beforeCount = battle.Bullets.ActiveCount;
@@ -582,7 +951,7 @@ public partial class BattleVerification : Node
         battle.Boss.Stop();
         battle.Player.Position = origin;
         var attack = new PlayerAttack();
-        attack.Initialize(battle.Player, battle.Bullets, battle.Boss);
+        attack.Initialize(battle.Player, battle.Bullets);
         battle.Timers.AdvanceByUnits(11400);
         Check(battle.Bullets.ActiveCount == 0, "玩家预设首发等待");
         battle.Timers.AdvanceByUnits(600);

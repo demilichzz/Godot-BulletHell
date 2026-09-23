@@ -29,11 +29,21 @@ public partial class StageVerification : Node
     {
         try
         {
+            if (Array.Exists(OS.GetCmdlineUserArgs(), argument => argument == "--targeted-new-bosses"))
+            {
+                await VerifyNewBosses();
+                GD.Print($"PASS: {_checks} targeted new boss assertions");
+                GetTree().Quit();
+                return;
+            }
             // 正式目录使用四帧图集，每帧仍为64像素。
             var production = GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
             production.Validate();
-            Check(production.Entries.Count == 1 && production.Entries[0].Id == "Boss_01"
-                && production.Entries[0].PhaseProfile == "Boss_01", "正式Boss命名迁移");
+            Check(production.Entries.Count == 5, "正式目录包含五个Boss");
+            for (int index = 0; index < production.Entries.Count; index++)
+                Check(production.Entries[index].Id == $"Boss_0{index + 1}"
+                    && production.Entries[index].PhaseProfile == $"Boss_0{index + 1}",
+                    "正式Boss目录按编号排序且阶段配置匹配");
             Check(production.Entries[0].Texture!.ResourcePath == "res://Assets/Units/Boss_01.png"
                 && production.Entries[0].Texture!.GetSize() == new Vector2(128, 128), "正式Boss四帧图集");
             VerifyAnimation(production.Entries[0]);
@@ -113,7 +123,7 @@ public partial class StageVerification : Node
             Input.ActionRelease("player_dodge");
             // Boss 在子弹终点外37像素判定范围内，独立半径应参与碰撞。
             battle.Bullets.Clear();
-            battle.Bullets.Spawn(new BulletSpawnData(BulletType.PlayerSet) { Position = battle.Boss.GlobalPosition + new Vector2(39, 0) })!.Velocity = Vector2.Zero;
+            battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.PlayerSet) with { Position = battle.Boss.GlobalPosition + new Vector2(39, 0) })!.Velocity = Vector2.Zero;
             battle.StepFixed( Vector2.Zero, false);
             Check(battle.Boss.Hp == 149, "碰撞使用独立Boss半径");
             var originalBoss = battle.Boss;
@@ -170,6 +180,64 @@ public partial class StageVerification : Node
             GD.PushError(error.ToString());
             GetTree().Quit(1);
         }
+    }
+    /// <summary>验证新增Boss的正式配置、选择入口和空战斗阶段。</summary>
+    /// <returns>全部场景切换完成后的任务。</returns>
+    private async Task VerifyNewBosses()
+    {
+        var catalog = GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
+        catalog.Validate();
+        Check(catalog.Entries.Count == 5, "正式选择目录包含Boss_01～05");
+        var game = new GameManager { Catalog = catalog };
+        AddChild(game);
+        await Settle();
+        for (int index = 1; index <= 4; index++)
+        {
+            // 逐项验证资源、卡片和进入战斗后的唯一阶段与空发射器。
+            var data = catalog.Entries[index];
+            string id = $"Boss_0{index + 1}";
+            Check(data.Id == id && data.PhaseProfile == id && data.DisplayName == $"Boss 0{index + 1}",
+                "新增Boss配置与目录顺序匹配");
+            Check(data.Texture!.ResourcePath == $"res://Assets/Units/{id}.png"
+                && data.Texture.GetSize() == new Vector2(128, 128)
+                && data.Hframes == 2 && data.Vframes == 2 && data.AnimationFps == 4,
+                "新增Boss使用对应四帧图集");
+            Check(data.GetSelectionTexture() is AtlasTexture atlas
+                && atlas.Region == new Rect2(0, 0, 64, 64), "新增Boss选择卡片显示首帧");
+            var select = (BossSelectStage)game.CurrentStage!;
+            Check(select.UI.FindChild($"BossItem{index}", true, false) is BossSelectItem,
+                "新增Boss有选择卡片");
+            select.UI.Select(index);
+            select.UI.Confirm();
+            await Settle();
+            var battle = ((BattleStage)game.CurrentStage!).View.Battle;
+            battle.SetPhysicsProcess(false);
+            battle.Player.Attack.Stop();
+            BossPhase phase = battle.Boss.CurrentPhase!;
+            Check(battle.Boss.DisplayName == data.DisplayName && battle.Boss.Hp == 300
+                && phase.GetType().Name == $"B0{index + 1}_Phase01"
+                && !battle.Boss.TrySwitchAdjacentPhase(1), "新Boss进入唯一基础阶段");
+            BulletEmitter emitter = phase switch
+            {
+                B02_Phase01 current => current.Emitter,
+                B03_Phase01 current => current.Emitter,
+                B04_Phase01 current => current.Emitter,
+                B05_Phase01 current => current.Emitter,
+                _ => throw new Exception("新增Boss阶段类型不匹配")
+            };
+            Check(emitter.GetType().Name == $"B0{index + 1}P01_Emitter01", "每个新阶段只有对应空发射器");
+            emitter.Emit(battle.Bullets, battle.Boss.GlobalPosition);
+            VerificationClock.BossSeconds(battle, 2);
+            Check(battle.Bullets.ActiveCount == 0 && emitter.Bullets.Count == 0
+                && battle.Timers.ActiveCount == 0 && battle.Boss.Position == new Vector2(640, 240),
+                "空发射器不产生弹幕且阶段沿用基类移动");
+            Check(game.RequestStage(GameManager.SelectStageId), "可返回选择界面");
+            await Settle();
+            Check(game.CurrentStage is BossSelectStage restored && restored.UI.SelectedIndex == index,
+                "返回后恢复新增Boss选中项");
+        }
+        game.QueueFree();
+        await Settle();
     }
     /// <summary>验证图集播放、结束冻结、重开复位及静态选择图片。</summary>
     /// <param name="data">正式Boss配置，使用2×2图集与每秒4帧。</param>

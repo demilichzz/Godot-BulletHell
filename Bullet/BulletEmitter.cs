@@ -39,17 +39,17 @@ public abstract class BulletEmitter
     protected abstract void Build(BulletManager manager, Vector2 origin);
     /// <summary>检查容量后初始化一颗子弹，并同时登记到管理器和批次。</summary>
     /// <param name="manager">接收节点的管理器。</param>
-    /// <param name="data">完整参数，位置使用全局逻辑像素。</param>
+    /// <param name="settings">完整参数，位置使用全局逻辑像素。</param>
     /// <returns>成功登记的实例，容量不足时为空。</returns>
-    protected Bullet? AddBullet(BulletManager manager, BulletSpawnData data)
+    protected Bullet? AddBullet(BulletManager manager, BulletDefaultSet settings)
     {
-        data.Validate();
+        Validate(settings);
         if (!manager.CanSpawn()) return null;
         // 入树前完成初始化，失败时释放尚未托管的节点。
         var bullet = new Bullet();
         try
         {
-            bullet.Configure(data);
+            bullet.Configure(settings);
             manager.Register(bullet, this);
             _bullets.Add(bullet);
             return bullet;
@@ -60,6 +60,27 @@ public abstract class BulletEmitter
             throw;
         }
     }
+    /// <summary>在创建节点前校验完整出生参数、图集索引和贴图资源。</summary>
+    /// <param name="settings">完整出生参数，位置为全局逻辑像素。</param>
+    private static void Validate(BulletDefaultSet settings)
+    {
+        if (!settings.Position.IsFinite() || !float.IsFinite(settings.AngleRadians) || !float.IsFinite(settings.Speed) || settings.Speed < 0
+            || !float.IsFinite(settings.LifetimeSeconds) || settings.LifetimeSeconds <= 0 || settings.Damage <= 0
+            || !float.IsFinite(settings.Radius) || settings.Radius <= 0 || settings.Hframes <= 0 || settings.Vframes <= 0
+            || (long)settings.Hframes * settings.Vframes > int.MaxValue || settings.ColorIndex < 0 || settings.ColorIndex >= (long)settings.Hframes * settings.Vframes
+            || !double.IsFinite(settings.IntervalSeconds) || settings.IntervalSeconds <= 0
+            || !float.IsFinite(settings.VisualScale) || settings.VisualScale <= 0 || !Enum.IsDefined(settings.Team) || settings.Behavior is null
+            || !ValidColorComponent(settings.CircleColor.R) || !ValidColorComponent(settings.CircleColor.G)
+            || !ValidColorComponent(settings.CircleColor.B) || !ValidColorComponent(settings.CircleColor.A))
+            throw new ArgumentOutOfRangeException(nameof(settings), "子弹参数无效。");
+        if (settings.UseSprite && (string.IsNullOrWhiteSpace(settings.TexturePath) || !ResourceLoader.Exists(settings.TexturePath, "Texture2D")
+            || ResourceLoader.Load(settings.TexturePath) is not Texture2D))
+            throw new ArgumentException("贴图模式需要有效Texture2D资源。", nameof(settings));
+    }
+    /// <summary>检查颜色分量是否有限且位于标准范围。</summary>
+    /// <param name="value">待检查的RGBA分量，范围应为0～1。</param>
+    /// <returns>是否为有效颜色分量。</returns>
+    private static bool ValidColorComponent(float value) => float.IsFinite(value) && value >= 0 && value <= 1;
     /// <summary>管理器销毁子弹时注销批次引用。</summary>
     /// <param name="bullet">即将释放的子弹。</param>
     internal void Unregister(Bullet bullet) => _bullets.Remove(bullet);
@@ -69,16 +90,16 @@ public abstract class BulletEmitter
 public sealed class SingleBulletEmitter : BulletEmitter
 {
     // 本次发射的参数快照，位置由 Emit 的全局起点覆盖。
-    private readonly BulletSpawnData _data;
+    private readonly BulletDefaultSet _settings;
     /// <summary>保存单颗子弹的初始化参数。</summary>
-    /// <param name="data">单颗参数，发射位置由 Emit 提供。</param>
-    public SingleBulletEmitter(BulletSpawnData data)
+    /// <param name="settings">单颗参数，发射位置由 Emit 提供。</param>
+    public SingleBulletEmitter(BulletDefaultSet settings)
     {
-        ArgumentNullException.ThrowIfNull(data);
-        _data = data with { };
+        ArgumentNullException.ThrowIfNull(settings);
+        _settings = settings;
     }
     /// <summary>在指定位置构造唯一子弹。</summary>
     /// <param name="manager">接收子弹的管理器。</param>
     /// <param name="origin">全局起点，单位为逻辑像素。</param>
-    protected override void Build(BulletManager manager, Vector2 origin) => AddBullet(manager, _data with { Position = origin });
+    protected override void Build(BulletManager manager, Vector2 origin) => AddBullet(manager, _settings with { Position = origin });
 }

@@ -46,6 +46,30 @@ public partial class DeterminismVerification : Node
         foreach (int value in expected) Check(VMath.getRandomInt(int.MinValue, int.MaxValue) == value, "固定算法样本");
         VMath.setRandomSeed();
         Check(VMath.getRandomDouble(0, 1) == (0xE220A8397B1DCDAFUL >> 11) / 9007199254740991.0, "固定53位小数样本");
+        VMath.setRandomSeed(91);
+        double forward = VMath.getRandomDouble(0, 100);
+        int forwardNext = VMath.getRandomInt(0, 1000);
+        VMath.setRandomSeed(91);
+        Check(VMath.getRandomDiff(100) == forward && VMath.getRandomInt(0, 1000) == forwardNext,
+            "Forward偏移保持原范围和抽样序列");
+        VMath.setRandomSeed(91);
+        double centered = VMath.getRandomDouble(-50, 50);
+        int centerNext = VMath.getRandomInt(0, 1000);
+        VMath.setRandomSeed(91);
+        Check(VMath.getRandomDiff(100, RandomDiffMode.Center) == centered
+            && VMath.getRandomInt(0, 1000) == centerNext, "Center偏移总宽度为diff并保持抽样序列");
+        VMath.setRandomSeed(91);
+        double oldAngleDiff = VMath.getRandomDouble(-Mathf.Tau / 24, Mathf.Tau / 24);
+        VMath.setRandomSeed(91);
+        Check(VMath.getRandomDiff(Mathf.Tau / 12, RandomDiffMode.Center) == oldAngleDiff,
+            "阶段02角度偏移重构保持原抽样结果");
+        VMath.setRandomSeed(91);
+        Check(VMath.getRandomDiff(0, RandomDiffMode.Center) == 0, "零偏移返回零");
+        Check(VMath.getRandomDouble(0, 100) == forward, "零偏移不消耗随机序列");
+        try { VMath.getRandomDiff(-1); Check(false, "负偏移未报错"); }
+        catch (ArgumentOutOfRangeException) { _checks++; }
+        try { VMath.getRandomDiff(1, (RandomDiffMode)99); Check(false, "非法偏移模式未报错"); }
+        catch (ArgumentOutOfRangeException) { _checks++; }
         VMath.setRandomSeed();
         Check(VMath.getRandomInt(-1, int.MaxValue) == 0x6E789E69, "拒绝首个不能均分的样本");
         // 混合调用在负种子下也必须按相同顺序完全复现。
@@ -182,21 +206,23 @@ public partial class DeterminismVerification : Node
         var boss = battle.Boss;
         var phase = (B01_Phase01)boss.CurrentPhase!;
         var center = new Vector2(640, 250);
-        VerificationClock.BossSeconds(boss, 4.99);
+        Check(Math.Abs(VMath.getB2PAngle() - VMath.GetAngleBetween2Points(boss.GlobalPosition,
+            battle.Player.GlobalPosition)) < 1e-12, "Boss到玩家方向使用全局坐标");
+        VerificationClock.BossSeconds(battle, 4.99);
         Check(boss.Position == center && !phase.IsMoving, "5秒前静止");
-        VerificationClock.BossSeconds(boss, 0.01);
+        VerificationClock.BossSeconds(battle, 0.01);
         Check(boss.Position == center && phase.IsMoving && Math.Abs(phase.MoveTarget.DistanceTo(center) - 200) < 0.001, "第5秒只选圆周目标");
         var target = phase.MoveTarget;
-        VerificationClock.BossSeconds(boss, 0.5);
+        VerificationClock.BossSeconds(battle, 0.5);
         Check(Math.Abs(boss.Position.DistanceTo(center) - 50) < 0.001, "100像素每秒");
-        VerificationClock.BossSeconds(boss, 1.5);
+        VerificationClock.BossSeconds(battle, 1.5);
         Check(boss.Position.DistanceTo(target) < 0.001, "第7秒在浮点容差内抵达");
         // 单精度圆周坐标可能略超出200像素，推进微秒后须精确停止。
-        VerificationClock.BossSeconds(boss, 1.0 / 60000);
+        VerificationClock.BossSeconds(battle, 1.0 / 60000);
         Check(boss.Position == target && !phase.IsMoving, "抵达后精确停止");
-        VerificationClock.BossSeconds(boss, 2.99 - 1.0 / 60000);
+        VerificationClock.BossSeconds(battle, 2.99 - 1.0 / 60000);
         Check(boss.Position == target && phase.MoveTarget == target, "到达后等待下一选点");
-        VerificationClock.BossSeconds(boss, 0.01);
+        VerificationClock.BossSeconds(battle, 0.01);
         Check(boss.Position == target && phase.MoveTarget != target && phase.IsMoving, "第10秒选择新目标但不提前移动");
         Check(Math.Abs(phase.MoveTarget.DistanceTo(center) - 200) < 0.001, "后续目标仍在固定圆周");
         // 直接退出阶段后调用也必须没有移动、发射或随机消耗。
@@ -207,7 +233,7 @@ public partial class DeterminismVerification : Node
         VMath.setRandomSeed(77);
         boss.Stop();
         phase.Advance(boss, 20);
-        VerificationClock.BossSeconds(boss, 20);
+        VerificationClock.BossSeconds(battle, 20);
         Check(boss.Position == stoppedPosition && !phase.IsMoving && battle.Bullets.ActiveCount == stoppedCount, "退出后停止所有事件");
         Check(VMath.getRandomInt(0, int.MaxValue) == expectedNext, "退出后不消耗随机数");
         world.Free();
@@ -216,10 +242,10 @@ public partial class DeterminismVerification : Node
         var fixedSteps = CaptureMovement(Enumerable.Repeat(1.0 / 60, 720));
         Check(large.Position.DistanceTo(fixedSteps.Position) < 0.002 && large.Target == fixedSteps.Target, "大小步长移动一致");
         Check(large.NextRandom == fixedSteps.NextRandom, "大小步长随机消耗一致");
-        Check(large.Origins.Length == 12 * 48 && large.Origins.Length == fixedSteps.Origins.Length, "大小步长射击次数一致");
+        Check(large.Origins.Length == 12 * 40 && large.Origins.Length == fixedSteps.Origins.Length, "大小步长射击次数一致");
         for (int index = 0; index < large.Origins.Length; index++)
             Check(large.Origins[index].DistanceTo(fixedSteps.Origins[index]) < 0.002, "逐批发射起点一致");
-        Check(large.Origins[4 * 48] == center && Math.Abs(large.Origins[5 * 48].DistanceTo(center) - 100) < 0.002, "移动中从当前起点发射");
+        Check(large.Origins[4 * 40] == center && Math.Abs(large.Origins[5 * 40].DistanceTo(center) - 100) < 0.002, "移动中从当前起点发射");
     }
     /// <summary>按给定步长记录Boss位置、目标和所有发射起点。</summary>
     /// <param name="steps">依次推进的非负秒数。</param>
@@ -228,7 +254,7 @@ public partial class DeterminismVerification : Node
     {
         var battle = CreateBattle(out var world);
         battle.Player.Attack.Stop();
-        foreach (double step in steps) VerificationClock.BossSeconds(battle.Boss, step);
+        foreach (double step in steps) VerificationClock.BossSeconds(battle, step);
         // 子弹未推进，SpawnPosition精确反映每个射击事件的起点。
         var result = (battle.Boss.Position, ((B01_Phase01)battle.Boss.CurrentPhase!).MoveTarget,
             battle.Bullets.ActiveBullets.Select(bullet => bullet.SpawnPosition).ToArray(), VMath.getRandomInt(0, int.MaxValue));

@@ -1,6 +1,6 @@
 using Godot;
 
-/// <summary>组装当前战场、活动区域轮廓、键盘操作和简易中文状态显示。</summary>
+/// <summary>组装当前战场、活动区域轮廓、键盘操作和显示阶段及Q/E提示的简易中文状态显示。</summary>
 public partial class Main : Node2D
 {
 	/// <summary>入树前指定的 Boss 配置；为空时保留独立演示行为。</summary>
@@ -58,8 +58,10 @@ public partial class Main : Node2D
 	{
 		// 结束状态提示，仅在胜负后显示重开键。
 		var result = _battle.State switch { BattleState.Victory => "胜利！按 R 重新开始", _ => "战斗中" };
-		_status.Text = $"玩家 HP {_battle.Player.Health.Hp}/{BattleConfig.PlayerHp}    Boss HP {_battle.Boss.Hp}/{_battle.Boss.MaxHp}\n"
+		// 显示当前阶段名称，战斗结束后显示结束状态。
+		var phaseName = _battle.Boss.CurrentPhase?.Name ?? "已结束";
+		_status.Text = $"玩家 HP {_battle.Player.Health.Hp}/{BattleConfig.PlayerHp}    Boss HP {_battle.Boss.Hp}/{_battle.Boss.MaxHp}    {phaseName}\n"
 			+ $"闪避冷却 {_battle.Player.Dodge.Cooldown:0.0} 秒    时间 {_battle.Elapsed:0.0} 秒\n"
-			+ "WASD / 方向键移动 · 空格闪避 · 自动攻击 · Esc 返回选择\n" + result;
+			+ "WASD / 方向键移动 · 空格闪避 · Q/E 切换阶段 · 自动攻击 · Esc 返回选择\n" + result;
 	}
 }

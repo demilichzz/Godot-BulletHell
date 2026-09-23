@@ -1,11 +1,11 @@
 using Godot;
+using System;
 
 /// <summary>使用战斗计时器管理闪避方向、持续时间与冷却。</summary>
 public sealed class PlayerDodge
 {
-    // 所属玩家、共享时钟及两份独立结束句柄。
+    // 所属玩家及两份独立结束句柄。
     private Node2D _owner = null!;
-    private VTimerProcessor _timers = null!;
     private VTimer? _duration, _cooldown;
     /// <summary>剩余闪避时间，秒，由计时器查询。</summary>
     public double Remaining => (_duration?.RemainingMs ?? 0) / 1000;
@@ -17,10 +17,9 @@ public sealed class PlayerDodge
     public Vector2 Direction { get; private set; } = Vector2.Up;
     /// <summary>绑定战斗实体及共享逻辑时钟。</summary>
     /// <param name="owner">存活玩家节点。</param>
-    /// <param name="timers">战斗计时器处理器。</param>
-    public void Initialize(Node2D owner, VTimerProcessor timers)
+    public void Initialize(Node2D owner)
     {
-        _owner = owner; _timers = timers;
+        _owner = owner ?? throw new ArgumentNullException(nameof(owner));
     }
     /// <summary>冷却结束时启动闪避和两份单次计时器。</summary>
     /// <param name="direction">屏幕方向，右下为正；零向量按向上。</param>
@@ -30,9 +29,9 @@ public sealed class PlayerDodge
         if (_cooldown?.State == VTimerState.Running) return false;
         Direction = direction.IsZeroApprox() ? Vector2.Up : direction.Normalized();
         IsActive = true;
-        _duration = _timers.Register(new VTimer(VTimerProcessor.SecondsToMilliseconds(BattleConfig.DodgeDuration),
+        _duration = GlobalEvent.RegisterTimer(new VTimer(VTimerProcessor.SecondsToMilliseconds(BattleConfig.DodgeDuration),
             0, 0, VTimerType.Once, new[] { _owner }, _ => IsActive = false));
-        _cooldown = _timers.Register(new VTimer(VTimerProcessor.SecondsToMilliseconds(BattleConfig.DodgeCooldown),
+        _cooldown = GlobalEvent.RegisterTimer(new VTimer(VTimerProcessor.SecondsToMilliseconds(BattleConfig.DodgeCooldown),
             0, 0, VTimerType.Once, new[] { _owner }, _ => { }));
         return true;
     }

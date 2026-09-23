@@ -16,13 +16,12 @@ public static class VerificationClock
         if (Math.Abs(steps - seconds * 60) > 1e-8) throw new ArgumentException("测试时间须为固定步整数倍。");
         for (int index = 0; index < steps; index++) battle.StepFixed(movement, dodge && index == 0);
     }
-    /// <summary>隔离推进Boss时钟及移动，不更新子弹或玩家。</summary>
-    /// <param name="boss">拥有真实弹幕容器的Boss。</param>
+    /// <summary>隔离推进Boss所属战斗的时钟及移动。</summary>
+    /// <param name="battle">拥有Boss、弹幕与共享计时器的战斗。</param>
     /// <param name="seconds">非负秒数，按内部1/60000秒时间精度换算。</param>
-    public static void BossSeconds(BossController boss, double seconds)
+    public static void BossSeconds(BattleManager battle, double seconds)
     {
-        // 隔离验证使用处理器推进，Boss本身不再维护周期时钟。
-        var manager = (BulletManager)boss.BulletParent;
-        manager.Timers.AdvanceByUnits(checked((long)Math.Round(seconds * VTimerProcessor.UnitsPerSecond)), boss.Advance);
+        // 隔离验证使用战斗处理器推进，Boss本身不再维护周期时钟。
+        battle.Timers.AdvanceByUnits(checked((long)Math.Round(seconds * VTimerProcessor.UnitsPerSecond)), battle.Boss.Advance);
     }
 }

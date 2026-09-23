@@ -16,6 +16,7 @@ public partial class BattleStage : Stage
         View = GD.Load<PackedScene>("res://Main.tscn").Instantiate<Main>();
         View.BossData = context.Boss;
         AddChild(View);
+        if (!View.Battle.IsInitialized) throw new InvalidOperationException("战斗初始化未完成。");
         View.Battle.WaitForConfirmRelease();
     }
     /// <summary>停止模拟并清理弹幕，节点随 Stage 整体销毁。</summary>

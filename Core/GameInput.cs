@@ -1,6 +1,6 @@
 using Godot;
 
-/// <summary>注册全游戏默认动作，保留用户已有的同名映射。</summary>
+/// <summary>注册全游戏默认动作及战斗Q/E阶段切换，保留用户已有的同名映射。</summary>
 public static class GameInput
 {
     /// <summary>配置战斗与场景导航所需的默认键位。</summary>
@@ -12,6 +12,8 @@ public static class GameInput
         Bind("move_down", Key.S, Key.Down);
         Bind("player_dodge", Key.Space);
         Bind("battle_restart", Key.R);
+        Bind("battle_previous_phase", Key.Q);
+        Bind("battle_next_phase", Key.E);
         Bind("stage_left", Key.Left);
         Bind("stage_right", Key.Right);
         Bind("stage_up", Key.Up);

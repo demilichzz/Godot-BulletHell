@@ -42,6 +42,7 @@ public partial class TimerVerification : Node
         try
         {
             VerifyTiming();
+            VerifyUnbound();
             VerifyTargets();
             VerifyMutation();
             VerifyBattle();
@@ -49,6 +50,32 @@ public partial class TimerVerification : Node
             GetTree().Quit();
         }
         catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+    }
+    /// <summary>验证无目标计时器的补发、顺序、取消和清场。</summary>
+    private void VerifyUnbound()
+    {
+        var clock = new VTimerProcessor();
+        var events = new List<string>();
+        var repeating = clock.Register(new VTimer(200, 200, 600, VTimerType.Repeat,
+            () => events.Add($"{clock.NowMs}:unbound")));
+        var target = Target();
+        clock.Register(new VTimer(200, 0, 0, VTimerType.Once, new[] { target },
+            _ => events.Add($"{clock.NowMs}:bound")));
+        clock.AdvanceByUnits(600 * VTimerProcessor.UnitsPerMillisecond);
+        Check(events.SequenceEqual(new[] { "200:unbound", "200:bound", "400:unbound", "600:unbound" })
+            && repeating.State == VTimerState.Completed, "无目标计时器按注册顺序执行并包含截止点");
+        var cancelled = clock.Register(new VTimer(10, 0, 0, VTimerType.Once,
+            () => Check(false, "主动取消的无目标计时器仍执行")));
+        cancelled.Cancel();
+        clock.AdvanceByUnits(10 * VTimerProcessor.UnitsPerMillisecond);
+        Check(cancelled.State == VTimerState.Cancelled && clock.ActiveCount == 0, "无目标计时器可主动取消");
+        var cleared = clock.Register(new VTimer(10, 10, 0, VTimerType.RepeatForever,
+            () => Check(false, "清场后的无目标计时器仍执行")));
+        clock.Clear(true);
+        clock.AdvanceByUnits(100 * VTimerProcessor.UnitsPerMillisecond);
+        Check(cleared.State == VTimerState.Cancelled && clock.ActiveCount == 0, "清场取消无目标计时器");
+        Throws<ArgumentNullException>(() => new VTimer(0, 0, 0, VTimerType.Once, (Action)null!));
+        target.Free();
     }
     /// <summary>验证三种类型、截止、注册时刻及参数边界。</summary>
     private void VerifyTiming()
@@ -197,7 +224,12 @@ public partial class TimerVerification : Node
         battle.Boss.Stop(); battle.Player.Attack.Stop();
         // 远离双方的长寿子弹，避免碰撞影响时间与位置验证。
         var origin = new Vector2(-1000, -1000);
-        var bullet = battle.Bullets.Spawn(new BulletSpawnData { Position = origin, Speed = 120, LifetimeSeconds = 10 })!;
+        var bullet = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        {
+            Position = origin,
+            Speed = 120,
+            LifetimeSeconds = 10
+        })!;
         var stop = battle.Timers.Register(new VTimer(25, 0, 0, VTimerType.Once, new[] { bullet }, nodes => ((Bullet)nodes[0]).SetSpeed(0)));
         battle.StepFixed(Vector2.Zero, false);
         battle.StepFixed(Vector2.Zero, false);
@@ -205,12 +237,22 @@ public partial class TimerVerification : Node
         battle.Bullets.Clear();
         // 回调中途发射，新子弹只运动出生后的半步。
         battle.Timers.Register(new VTimer(25, 0, 0, VTimerType.Once, new[] { battle.Player }, _ =>
-            bullet = battle.Bullets.Spawn(new BulletSpawnData { Position = origin, Speed = 120, LifetimeSeconds = 10 })!));
+            bullet = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+            {
+                Position = origin,
+                Speed = 120,
+                LifetimeSeconds = 10
+            })!));
         battle.StepFixed(Vector2.Zero, false); battle.StepFixed(Vector2.Zero, false);
         Check(bullet.Position.DistanceTo(origin + Vector2.Right) < 0.001, "新生子弹不多推进出生前时间");
         battle.Restart();
         battle.Player.Attack.Stop();
-        bullet = battle.Bullets.Spawn(new BulletSpawnData { Position = origin, Speed = 120, LifetimeSeconds = 10 })!;
+        bullet = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        {
+            Position = origin,
+            Speed = 120,
+            LifetimeSeconds = 10
+        })!;
         var nodes = new[] { bullet };
         battle.Timers.Register(new VTimer(2000, 0, 0, VTimerType.Once, nodes, alive => ((Bullet)alive[0]).SetSpeed(0)));
         var turn = battle.Timers.Register(new VTimer(2500, 0, 0, VTimerType.Once, nodes, alive =>
@@ -254,14 +296,19 @@ public partial class TimerVerification : Node
             && battle.Timers.ActiveCount == 1, "负血玩家继续保留无敌计时器");
         battle.Restart(); battle.Boss.Stop(); battle.Player.Attack.Stop();
         // 到期子弹先由管理器释放，其同刻参数动作不得再执行。
-        var expiring = battle.Bullets.Spawn(new BulletSpawnData { Position = origin, Speed = 0, LifetimeSeconds = 0.025f })!;
+        var expiring = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        {
+            Position = origin,
+            Speed = 0,
+            LifetimeSeconds = 0.025f
+        })!;
         var expiryTimer = battle.Timers.Register(new VTimer(25, 0, 0, VTimerType.Once, new[] { expiring }, _ => Check(false, "过期子弹动作执行")));
         battle.StepFixed(Vector2.Zero, false); battle.StepFixed(Vector2.Zero, false);
         Check(expiryTimer.IsFinished && battle.Bullets.ActiveCount == 0, "同刻寿命到期先注销");
         battle.Restart(); battle.Boss.Stop(); battle.Player.Attack.Stop();
         // 两段折线的转角经过玩家，起终点连线则远离玩家，确保不能合并检测。
         var playerPosition = battle.Player.Position;
-        var corner = battle.Bullets.Spawn(new BulletSpawnData
+        var corner = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
         {
             Position = playerPosition + new Vector2(-100, 0),
             Speed = 12000

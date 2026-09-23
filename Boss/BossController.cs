@@ -2,7 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
-/// <summary>管理 Boss 生命、图集动画、碰撞轮廓与顺序阶段，默认由战斗管理器更新。</summary>
+/// <summary>管理 Boss 生命、图集动画、碰撞轮廓与顺序阶段，支持切换相邻阶段，默认由战斗管理器更新。</summary>
 public partial class BossController : Node2D
 {
 	/// <summary>当前生命点数。</summary>
@@ -51,6 +51,30 @@ public partial class BossController : Node2D
 	private int _phaseIndex;
 	// 独立贴图，缩放不影响碰撞半径。
 	private readonly Sprite2D _sprite = new() { Name = "Sprite" };
+	// 防止节点生命周期重复启动阶段。
+	private bool _phasesStarted;
+	/// <summary>切换到相邻阶段并设置该阶段初始生命。</summary>
+	/// <param name="direction">阶段方向，-1为上一阶段，1为下一阶段。</param>
+	/// <returns>成功切换时为真；首尾阶段或已结束时为假，无效方向抛出异常。</returns>
+	public bool TrySwitchAdjacentPhase(int direction)
+	{
+		if (direction != -1 && direction != 1) throw new ArgumentOutOfRangeException(nameof(direction));
+		if (CurrentPhase is null || Hp == 0) return false;
+		// 计算目标阶段索引并检查首尾边界。
+		int targetIndex = _phaseIndex + direction;
+		if (targetIndex < 0 || targetIndex >= _phases.Count) return false;
+		// 读取目标阶段及其相对最大生命的初始值。
+		var targetPhase = _phases[targetIndex];
+		// 校验目标阶段初始生命位于合法范围。
+		int targetHp = targetPhase.GetInitialHp(this);
+		if (targetHp < 1 || targetHp > MaxHp) throw new InvalidOperationException("阶段初始生命超出Boss范围。");
+		Stop();
+		_phaseIndex = targetIndex;
+		Hp = targetHp;
+		HealthChanged?.Invoke(Hp);
+		EnterPhase();
+		return true;
+	}
 	/// <summary>初始化容器与外观，保留旧版签名。</summary>
 	/// <param name="bulletParent">接收子弹的独立父节点。</param>
 	/// <param name="visualScale">正数有限贴图倍率，默认3。</param>
@@ -70,7 +94,7 @@ public partial class BossController : Node2D
 		if (configured.Count == 0 || configured.Exists(phase => phase is null)) throw new ArgumentException("阶段不可为空。", nameof(phases));
 		_phases = configured;
 	}
-	/// <summary>加载图像并进入首个阶段。</summary>
+	/// <summary>加载图像；阶段由战斗管理器在双方实体就绪后启动。</summary>
 	public override void _Ready()
 	{
 		_sprite.Texture = _texture ?? GD.Load<Texture2D>("res://Assets/Units/Boss_01.png");
@@ -83,6 +107,12 @@ public partial class BossController : Node2D
 		_sprite.ShowBehindParent = true;
 		_sprite.TextureFilter = TextureFilterEnum.Nearest;
 		AddChild(_sprite);
+	}
+	/// <summary>在双方实体和全局战斗服务准备后启动首个阶段。</summary>
+	internal void StartPhases()
+	{
+		if (_phasesStarted) return;
+		_phasesStarted = true;
 		EnterPhase();
 	}
 	/// <summary>按实际碰撞半径绘制橙红色圆形轮廓，线宽为2逻辑像素，不受贴图倍率影响。</summary>
@@ -139,7 +169,7 @@ public partial class BossController : Node2D
 		if (Hp == 0 || damage <= 0) return false;
 		Hp = Math.Max(0, Hp - damage);
 		HealthChanged?.Invoke(Hp);
-		if (Hp == 0) { (BulletParent as BulletManager)?.Timers.NotifyTargetDestroyed(this); Stop(); Died?.Invoke(); }
+		if (Hp == 0) { GlobalEvent.TryNotifyTargetDestroyed(this); Stop(); Died?.Invoke(); }
         else UpdatePhase();
 		return true;
 	}

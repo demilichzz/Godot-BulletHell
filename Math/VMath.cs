@@ -1,9 +1,22 @@
 using System;
 using Godot;
 
+/// <summary>指定随机偏移区间从零起算或以零为中心。</summary>
+public enum RandomDiffMode
+{
+    /// <summary>偏移位于零至总偏差值之间。</summary>
+    Forward,
+    /// <summary>偏移位于总偏差值一半的正负范围内。</summary>
+    Center
+}
+
 /// <summary>提供统一弧度的坐标数学工具及固定算法的可重现随机序列。</summary>
 public static class VMath
 {
+    /// <summary>取得当前 Boss 指向玩家的标准弧度。</summary>
+    /// <returns>[0,2π)内的弧度，使用双方全局逻辑像素坐标。</returns>
+    public static double getB2PAngle()
+        => GetAngleBetween2Points(GlobalEvent.GetBoss().GlobalPosition, GlobalEvent.GetPlayer().GlobalPosition);
     /// <summary>计算同一坐标系中两点的欧氏距离。</summary>
     /// <param name="x">起点横坐标，有限逻辑像素。</param>
     /// <param name="y">起点纵坐标，有限逻辑像素。</param>
@@ -160,6 +173,20 @@ public static class VMath
         double fraction = (NextUInt64() >> 11) / 9007199254740991.0;
         // 加权插值避免max-min在跨越双精度两极时溢出，夹紧舍入误差。
         return Math.Clamp(min * (1 - fraction) + max * fraction, min, max);
+    }
+    /// <summary>按给定总宽度获取随机偏移，沿用现有双精度随机序列。</summary>
+    /// <param name="diff">非负有限总偏差值；零不消耗随机序列。</param>
+    /// <param name="mode">Forward为[0,diff]，Center为[-diff/2,diff/2]；默认Forward。</param>
+    /// <returns>指定区间内的随机偏移。</returns>
+    public static double getRandomDiff(double diff, RandomDiffMode mode = RandomDiffMode.Forward)
+    {
+        if (!double.IsFinite(diff) || diff < 0) throw new ArgumentOutOfRangeException(nameof(diff));
+        return mode switch
+        {
+            RandomDiffMode.Forward => getRandomDouble(0, diff),
+            RandomDiffMode.Center => getRandomDouble(-diff / 2, diff / 2),
+            _ => throw new ArgumentOutOfRangeException(nameof(mode))
+        };
     }
     /// <summary>按固定SplitMix64常量产生下一份64位样本。</summary>
     /// <returns>覆盖64位空间的无符号随机整数。</returns>

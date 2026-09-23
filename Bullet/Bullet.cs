@@ -46,27 +46,26 @@ public partial class Bullet : Node2D
     /// <summary>初始化时复制的圆点颜色，不跟随外部数据修改。</summary>
     public Color CircleColor { get; private set; }
     /// <summary>入树前按完整参数初始化，初始位置稍后由管理器转换。</summary>
-    /// <param name="data">完整配置，位置为全局逻辑像素。</param>
-    public void Configure(BulletSpawnData data)
+    /// <param name="settings">完整配置，位置为全局逻辑像素。</param>
+    internal void Configure(BulletDefaultSet settings)
     {
         if (IsInsideTree()) throw new InvalidOperationException("子弹须在入树前初始化。");
-        data.Validate();
-        SpawnPosition = Position = data.Position;
-        LifetimeSeconds = data.LifetimeSeconds;
-        Team = data.Team;
-        Damage = data.Damage;
-        Radius = data.Radius;
-        Behavior = data.Behavior;
+        SpawnPosition = Position = settings.Position;
+        LifetimeSeconds = settings.LifetimeSeconds;
+        Team = settings.Team;
+        Damage = settings.Damage;
+        Radius = settings.Radius;
+        Behavior = settings.Behavior;
         Age = 0;
-        _sprite.Texture = data.UseSprite ? GD.Load<Texture2D>(data.TexturePath!) : null;
-        _sprite.Hframes = data.Hframes;
-        _sprite.Vframes = data.Vframes;
-        _sprite.Frame = data.ColorIndex;
-        _sprite.Scale = Vector2.One * data.VisualScale;
-        _sprite.Visible = data.UseSprite;
-        CircleColor = data.CircleColor;
-        AngleRadians = data.AngleRadians;
-        SetSpeed(data.Speed);
+        _sprite.Texture = settings.UseSprite ? GD.Load<Texture2D>(settings.TexturePath!) : null;
+        _sprite.Hframes = settings.Hframes;
+        _sprite.Vframes = settings.Vframes;
+        _sprite.Frame = settings.ColorIndex;
+        _sprite.Scale = Vector2.One * settings.VisualScale;
+        _sprite.Visible = settings.UseSprite;
+        CircleColor = settings.CircleColor;
+        AngleRadians = settings.AngleRadians;
+        SetSpeed(settings.Speed);
     }
     /// <summary>改变运动方向并保留速度，同步贴图朝向。</summary>
     /// <param name="angleRadians">有限角度，单位为弧度，0向右、π/2向下。</param>

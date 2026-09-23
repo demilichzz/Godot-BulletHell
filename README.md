@@ -7,11 +7,11 @@ Godot 4.7.2 .NET / C# 2D Boss 战原型。启动后进入Boss选择场景，可�
 使用 `.tools/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64.exe` 导入 `project.godot`，按 F5。需要 .NET 8 或更高版本 SDK。
 
 - Boss选择界面：鼠标点击只改变选中项，方向键按四列网格导航，空格进入战斗。边缘不环绕，末行缺项时向下选择最后一项。
-- 战斗中：WASD 或方向键移动，斜向速度归一化。
+- 战斗中：WASD 或方向键移动，斜向速度归一化；Q 切换到上一阶段，E 切换到下一阶段。
 - Esc：从战斗返回Boss选择，保留上次选择。
 - 空格：沿输入方向闪避；静止时沿最近一次移动方向，初始向上。按住不会重复闪避。
 - 自动瞄准 Boss 射击，无需攻击键。
-- 击败Boss后按 R：重建战斗。
+- 击败Boss后按 R：重建战斗；Q/E 仅在战斗运行中生效，首尾阶段不会切换。
 
 左上角显示双方 HP、闪避冷却、战斗时间和结果。玩家以蓝色几何图形表示，白色中心为判定区域，闪避变为金色，受击后闪烁。
 
@@ -22,14 +22,14 @@ Godot 4.7.2 .NET / C# 2D Boss 战原型。启动后进入Boss选择场景，可�
 | 对象 | 参数 |
 |---|---|
 | Boss | 位置(640,250)，300 HP，碰撞半径32，图片倍率3 |
-| 敌弹 | 每阶段2个发射器，每1秒各24发完整圆环（合计48发），首发在进入阶段后1秒，速度180，寿命4秒，半径6，伤害1，颜色索引0，图片倍率3 |
+| 敌弹 | 每阶段2个发射器，每1秒发射一次；阶段01为24+16发（合计40发），阶段02、03各为24+24发（合计48发），首发在进入阶段后1秒；默认速度180，寿命4秒，半径6，伤害1，颜色索引0，图片倍率3；阶段01发射器02覆盖速度240、颜色索引3 |
 | 玩家 | 出生(640,600)，3 HP，速度240，半径5，中心限制在圆心(640,400)、半径395的圆内，保证判定圆完整位于直径800的活动区域 |
 | 闪避 | 速度720，持续0.15秒且无敌，触发起冷却1秒 |
 | 受击 | 无敌1秒，无敌时敌弹穿过，不销毁 |
 | 玩家弹 | 每0.2秒单发，首发在0.2秒，速度600，寿命2秒，半径3，伤害1 |
 | 容量 | 活动弹幕最多2048颗，满额跳过新弹并输出调试提示 |
 
-Boss进入战斗后先静止，第5秒首次选点，此后每5秒在圆心(640,250)、半径200的圆周上选取随机目标，以100像素/秒直线移动，到达后停止等待下一目标；移动中继续环形射击。`Assets/Units/Boss_01.png`为128×128透明像素图集，按左上、右上、左下、右下排列四张64×64帧，战斗以4 FPS循环挥臂（每帧0.25秒），结束冻结、重开复位；选择界面仅显示首帧；`Assets/Sprite_02.png`为160×16的十色图集，每格16×16，颜色从左至右为0～9。Boss与敌弹实际默认倍率均为3（旧README中的2已纠正）。贴图居中且最近邻过滤，弹幕按发射角度旋转，外观缩放不改变移动或碰撞。
+Boss进入战斗后先静止，第5秒首次选点，此后每5秒在圆心(640,250)、半径200的圆周上选取随机目标，以100像素/秒直线移动，到达后停止等待下一目标；移动中继续环形射击。`Assets/Units/Boss_01.png`为128×128透明像素图集，按左上、右上、左下、右下排列四张64×64帧，战斗以4 FPS循环挥臂（每帧0.25秒），结束冻结、重开复位；选择界面仅显示首帧；`Assets/Sprites/Sprite_scale.png`为160×16的十色图集，每格16×16，颜色从左至右为0～9。Boss与敌弹实际默认倍率均为3（旧README中的2已纠正）。贴图居中且最近邻过滤，弹幕按发射角度旋转，外观缩放不改变移动或碰撞。
 
 没有Boss接触伤害。敌弹只伤玩家，玩家弹只伤Boss；有效命中销毁。弹幕不因出屏提前释放。Boss生命归零后清理全部弹幕并停止模拟。玩家生命可降至0及负数，仍可移动、闪避、自动攻击和继续受伤，保留正常受击无敌，不触发死亡注销或失败结算；即使玩家为负血，击败Boss仍正常胜利。
 
@@ -37,32 +37,35 @@ Boss进入战斗后先静止，第5秒首次选点，此后每5秒在圆心(640,
 
 ## 模块与扩展
 
-- `Core`：BattleManager通过StepFixed接收一个60Hz逻辑步的移动与闪避输入，按计时事件分段推进玩家、Boss、弹幕和胜负；BattleConfig保存场地、角色及全场容量参数。
+- `Core`：BattleManager通过StepFixed接收一个60Hz逻辑步的移动、闪避及可选Q/E阶段切换输入，按计时事件分段推进玩家、Boss、弹幕和胜负；GlobalEvent提供当前战斗实体和计时器注册入口；BattleConfig保存场地、角色及全场容量参数。
 - `Player`：PlayerController协调PlayerMovement、PlayerDodge、PlayerHealth、PlayerAttack。生命变化使用C#事件，零血及负血不触发玩家死亡。
-- `Boss`：BossController管理HP与阶段；BossPhase定义Enter、Advance、ShouldEnd和Exit。通过入树前SetPhases配置有序阶段；Boss_01使用B01_Phase01、B01_Phase02、B01_Phase03；每损失100点生命立即进入下一阶段（300血时为剩余200、100两条血线），最后阶段持续至Boss被击败。单次伤害跨多个阈值时同刻顺序切换。
-- `Bullet`：BulletEmitter是一次性发射批次，按BulletSpawnData初始化每颗子弹，再登记到管理器与批次两个列表。BulletManager独占运动推进、连续碰撞、容量与释放，并同步注销批次引用；Emitter不控制计时、转向或变速。BulletBehavior负责生成后的运动。
-- `Bullet/Bullet.cs`通过Configure(BulletSpawnData)接收完整参数；BulletManager.Spawn(BulletSpawnData)也仅接收完整参数。子弹禁止自行物理更新。通过SetDirection、SetSpeed或Velocity改变运动时同步方向、速度及贴图朝向；外部逻辑可通过Emitter.Bullets只读视图选择本批次活动子弹。
-- `Boss/Boss.cs`保留入口名称及继承关系；正式发射流程使用BulletManager容器，由BattleManager统一驱动。三个阶段分别使用独立的B01P01_Emitter01/02、B01P02_Emitter01/02和B01P03_Emitter01/02。每阶段每秒创建两个批次，每批通过循环直接生成24颗环形子弹，不调用BulletPattern；目前两个批次方向相同，所以会重叠。阶段退出停止移动、射击及随机抽样并释放批次索引，已有子弹继续飞行；重开和离场统一清场。
-- `Main.cs`装配场景、默认InputMap及简单中文HUD。默认绑定同时兼容物理键和辅助输入设备的逻辑键码；已有同名输入动作不会被覆盖。
+- `Boss`：BossController管理HP与阶段；BossPhase定义Enter、Advance、ShouldEnd、GetInitialHp和Exit。通过入树前SetPhases配置有序阶段；Boss_01使用B01_Phase01、B01_Phase02、B01_Phase03；每损失100点生命立即进入下一阶段（300血时为剩余200、100两条血线），最后阶段持续至Boss被击败。战斗运行中Q/E可切换相邻阶段，阶段初始HP按目标阶段能力设置，位置、动画、玩家和旧子弹保留，首尾阶段无效；单次伤害跨多个阈值时同刻顺序切换。
+- `Bullet`：BulletEmitter是一次性发射批次，按BulletDefaultSet初始化每颗子弹，再登记到管理器与批次两个列表。BulletManager独占运动推进、连续碰撞、容量与释放，并同步注销批次引用；Emitter不控制计时、转向或变速。BulletBehavior负责生成后的运动。
+- `Bullet/Bullet.cs`通过Configure(BulletDefaultSet)接收完整参数；BulletManager.Spawn(BulletDefaultSet)也仅接收完整参数。子弹禁止自行物理更新。通过SetDirection、SetSpeed或Velocity改变运动时同步方向、速度及贴图朝向；外部逻辑可通过Emitter.Bullets只读视图选择本批次活动子弹。
+- `Boss/Boss.cs`保留入口名称及继承关系；正式发射流程使用BulletManager容器，由BattleManager统一驱动。三个阶段分别使用独立的B01P01_Emitter01/02、B01P02_Emitter01/02和B01P03_Emitter01/02。每阶段每秒创建两个批次，Emitter01通过循环生成24颗环形子弹，Emitter02按阶段配置生成环形子弹（阶段01为16颗并覆盖速度300、颜色索引3），不调用BulletPattern；阶段01发射器02按Boss到玩家的当前方向排列，并在生成2秒后将仍存活子弹降速为100；阶段02、03的两个批次参数相同，会重叠；阶段02进入后以200像素/秒移动到局部坐标(640,250)。阶段退出停止移动、射击及释放阶段计时器，已有子弹继续飞行；重开和离场统一清场。
+- `Main.cs`装配场景、默认InputMap及简单中文HUD，显示当前阶段并提示Q/E切换。默认绑定同时兼容物理键和辅助输入设备的逻辑键码；已有同名输入动作不会被覆盖。
 
 碰撞使用子弹相对目标运动线段与双方半径之和判定，包含高速穿越与静止重叠。每个固定步按计时事件切段：先运动、碰撞并注销失效目标，再执行同刻动作；伤害计时起点取检测段终点。闪避结束影响后续运动段，Boss归零时结算胜利，玩家零血及负血不结束战斗。项目显式固定60Hz。固定种子与同样固定步输入已验证可重现当前战斗过程；尚未实现录像存储、输入回放或跨版本兼容机制。
 
 ### 枚举默认参数集
 
-`BulletType.ScaleSet`保留当前敌弹参数，`BulletType.PlayerSet`保留当前玩家弹参数；新增枚举成员统一使用`XXXSet`命名。`BulletDefaultSet.Get(type)`返回不可修改的公共预设，贴图以资源路径保存。参数包括贴图路径、图集行列数、按行排列的零基贴图索引、速度、寿命、碰撞半径、发射间隔、阵营、伤害、贴图倍率、贴图/圆点显示方式及圆点颜色。
+`BulletType.ScaleSet`保留当前敌弹参数；`DotSet`、`DropSet`、`StarSet`分别使用圆形、水滴、星形贴图，除TexturePath外所有参数与ScaleSet一致。四张十色图集位于`Assets/Sprites/`，其中水滴和星形的每个16×16区块已顺时针旋转90°，颜色索引顺序不变。`BulletType.PlayerSet`保留当前玩家弹参数；新增枚举成员统一使用`XXXSet`命名。`BulletDefaultSet.Get(type)`返回不可修改的公共预设，贴图以资源路径保存。参数包括位置、角度、运动行为、贴图路径、图集行列数、按行排列的零基贴图索引、速度、寿命、碰撞半径、发射间隔、阵营、伤害、贴图倍率、贴图/圆点显示方式及圆点颜色。
 
-`new BulletSpawnData()`默认应用ScaleSet；也可使用带BulletType的构造函数。`setPattern(type)`只批量复制上述字段，保留位置、角度和运动行为；后续赋值覆盖预设。未知枚举立即抛错，不会部分修改数据。生成前校验参数范围、贴图类型及图集索引，避免产生无效节点。
+`BulletDefaultSet`为不可变sealed record，使用`BulletDefaultSet.Get(type) with { ... }`取得参数副本并覆盖本次发射的字段。位置和角度属于settings，由Emitter的循环逻辑逐颗通过with设置；未知枚举立即抛错。生成前由BulletEmitter统一校验参数范围、贴图类型及图集索引，避免产生无效节点。
 
 ```csharp
-// 先应用整组参数，再设置本次发射的独立参数。
-var data = new BulletSpawnData();
-data.setPattern(BulletType.ScaleSet);
-data.Position = origin;
-data.AngleRadians = angleRadians;
-data.Speed = 240; // 逻辑像素/秒。
+// 从预设取得副本，再设置本次发射的独立参数。
+var settings = BulletDefaultSet.Get(BulletType.ScaleSet) with
+{
+    Position = origin,
+    AngleRadians = angleRadians,
+    Speed = 240 // 逻辑像素/秒。
+};
+// 发射器入口只接收管理器和完整参数；批量发射时由循环逐颗覆盖位置和角度。
+AddBullet(manager, settings);
 ```
 
-Boss_01三个阶段和PlayerAttack分别持有ScaleSet、PlayerSet模板，将模板的IntervalSeconds转换为毫秒注册永久重复VTimer，并传递同一模板生成子弹。Emitter不计时；六个具体Emitter均直接循环生成24颗弹。SingleBulletEmitter与B01P01_Emitter01接收参数时复制快照，之后修改源数据不会改变待发射参数或已生成子弹。运动行为对象不做深拷贝；有状态行为须为每颗子弹单独创建。圆点按碰撞半径绘制，VisualScale仅用于贴图显示。
+Boss_01三个阶段和PlayerAttack分别持有ScaleSet、PlayerSet模板，将模板的IntervalSeconds转换为毫秒注册永久重复VTimer，并传递同一模板生成子弹。Emitter不计时；六个具体Emitter直接循环生成各自配置数量的环形弹，阶段01发射器02额外覆盖速度240与颜色索引3。AddBullet严格接收manager和settings两项参数，具体Emitter用with逐颗覆盖位置和角度，SingleBulletEmitter只覆盖Emit提供的位置。运动行为对象不做深拷贝；有状态行为须为每颗子弹单独创建。圆点按碰撞半径绘制，VisualScale仅用于贴图显示。
 
 ### 可选排列模式
 
@@ -74,7 +77,7 @@ Emitter只保存仍有效的子弹，命中、过期和清场时同步移除。�
 
 `Math/VMath.cs`是所有业务随机数的唯一入口。`randomSeed`只读；`setRandomSeed(int seed = 0)`重置固定SplitMix64序列，负种子按无符号32位位模式扩展。`getRandomInt(min,max)`支持完整int闭区间，使用拒绝采样避免取模偏差；`getRandomDouble(min,max)`用53位样本生成包含两端的小数。相等端点直接返回、不消耗随机序列；非法范围和非有限小数端点抛错。
 
-BattleManager的BattleRandomSeed常量默认为0，每次进入战斗及R重开均在创建对象前重置。Boss_01每个阶段在进入后的5、10、15秒等时刻各抽取一次随机角度，目标采用战场局部坐标，移动速度为100逻辑像素/秒。共享处理器在固定步内按射击或选点时刻分段；同刻先移动和选点，再从当前全局位置发射。渲染帧和UI不抽取战斗随机数。
+BattleManager的BattleRandomSeed常量默认为0，每次进入战斗及R重开均在创建对象前重置。共享处理器由BattleManager持有并在固定步内按动作时刻分段；渲染帧和UI不抽取战斗随机数。
 
 未来录像仍需保存一致的初始状态、种子与逐物理步输入，保持随机调用顺序及算法版本；较复杂的通用数学计算优先提出扩展VMath的方案。
 
@@ -155,7 +158,7 @@ dotnet build
 
 ### VTimer与固定逻辑时间
 
-`Timer/VTimer.cs`定义毫秒接口、VTimerType和VTimerState；`VTimerProcessor`管理整数时钟、稳定注册序号以及目标关联。每秒60000单位，每毫秒60单位，每个60Hz固定步1000单位。物理回调只推进固定步，不累计渲染delta或墙上时间。
+`Timer/VTimer.cs`定义毫秒接口、VTimerType和VTimerState；`VTimerProcessor`管理整数时钟、稳定注册序号以及目标关联，由BattleManager持有并推进。业务类通过`GlobalEvent.RegisterTimer`注册，不保存处理器引用。每秒60000单位，每毫秒60单位，每个60Hz固定步1000单位。物理回调只推进固定步，不累计渲染delta或墙上时间。
 
 构造参数依次为`startTimeMs, intervalMs, endTimeMs, type, targetList, action`。构造不执行动作，`Register`固定目标快照并开始计时；起始0在当前时刻的调度轮执行。Once执行一次，忽略间隔和结束；Repeat在包含终点的期限内重复；RepeatForever忽略结束。忽略的参数填写0，不使用特殊负数。所有时间非负，重复间隔必须正数，有限结束不能早于起始，换算溢出明确报错。
 
@@ -194,6 +197,6 @@ battle.Timers.Register(stopTimer);
 
 ### Boss_01三阶段与负血量
 
-Boss_01初始300血：阶段01覆盖300～201血，阶段02覆盖200～101血，阶段03覆盖100～1血，0血胜利。各阶段分别继承BossPhase，拥有独立的两个Emitter类，便于后续分别设计攻击。进入新阶段时重新等待1000毫秒发射和5000毫秒选点，Boss位置和动画保持连续；旧阶段的移动状态及计时器退出，已发子弹继续存活。碰撞造成切阶段时先取消旧计时器，再处理同刻事件，避免血线边界多发旧弹幕。
+Boss_01初始300血：阶段01覆盖300～201血，阶段02覆盖200～101血，阶段03覆盖100～1血，0血胜利。各阶段分别继承BossPhase，拥有独立的两个Emitter类，便于后续分别设计攻击。进入新阶段时重新等待1000毫秒发射和5000毫秒选点，Boss位置和动画保持连续；旧阶段的移动状态及计时器退出，已发子弹继续存活。战斗中Q/E切换相邻阶段时，Boss HP设置为目标阶段初始值；首尾阶段无效，胜利后不可复活。碰撞造成切阶段时先取消旧计时器，再处理同刻事件，避免血线边界多发旧弹幕。
 
-玩家HP为有符号整数，归零或降为负数都继续参与战斗；仅在int最小值处防止算术回绕。有效受伤仍有1000毫秒保护，闪避和自动攻击不因血量停用。重开恢复玩家3血、Boss300血及阶段01。测试覆盖六个Emitter的24颗等角参数、200/100阈值、跨阶段大伤害、同刻发射交接、负血操作和正常胜利。
+玩家HP为有符号整数，归零或降为负数都继续参与战斗；仅在int最小值处防止算术回绕。有效受伤仍有1000毫秒保护，闪避和自动攻击不因血量停用。重开恢复玩家3血、Boss300血及阶段01。测试覆盖六个Emitter的等角参数、200/100阈值、跨阶段大伤害、同刻发射交接、负血操作和正常胜利。

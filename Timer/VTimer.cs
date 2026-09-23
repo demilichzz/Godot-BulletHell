@@ -24,9 +24,11 @@ public enum VTimerState
     // 已主动或自动取消。
     Cancelled
 }
-/// <summary>保存毫秒配置和固定目标，向回调提供仍存活的节点。</summary>
+/// <summary>保存毫秒配置，支持无目标回调或绑定存活节点的回调。</summary>
 public sealed class VTimer
 {
+    /// <summary>是否要求至少一个存活目标，内部用于自动取消。</summary>
+    internal bool RequiresTargets { get; private set; } = true;
     // 注册前的目标来源与行为，终止后清除引用。
     private IEnumerable<Node2D>? _source;
     private Action<IReadOnlyList<Node2D>>? _action;
@@ -73,6 +75,18 @@ public sealed class VTimer
         StartTimeMs = startTimeMs; IntervalMs = intervalMs; EndTimeMs = endTimeMs; Type = type;
         _source = targetList ?? throw new ArgumentNullException(nameof(targetList));
         _action = action ?? throw new ArgumentNullException(nameof(action));
+    }
+    /// <summary>定义无需绑定节点的行为与时间参数，注册后才开始计时。</summary>
+    /// <param name="startTimeMs">首次执行偏移，非负整数毫秒。</param>
+    /// <param name="intervalMs">重复间隔，正整数毫秒；单次填写0。</param>
+    /// <param name="endTimeMs">有限重复截止偏移，毫秒；其他类型填写0。</param>
+    /// <param name="type">单次、有限重复或永久重复。</param>
+    /// <param name="action">到期执行的无目标行为。</param>
+    public VTimer(long startTimeMs, long intervalMs, long endTimeMs, VTimerType type, Action action)
+        : this(startTimeMs, intervalMs, endTimeMs, type, Array.Empty<Node2D>(), _ => action())
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        RequiresTargets = false;
     }
     /// <summary>幂等取消，立即禁止后续回调并解除引用。</summary>
     public void Cancel() => Finish(VTimerState.Cancelled);
