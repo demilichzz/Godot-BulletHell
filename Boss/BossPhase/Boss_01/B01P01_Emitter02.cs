@@ -1,44 +1,33 @@
 using Godot;
-using System.Collections.Generic;
+using System;
 
-/// <summary>为Boss_01阶段01的发射器02构造一次16颗等角环形弹幕，并覆盖速度与颜色。</summary>
+/// <summary>每秒构造16颗瞄准环形弹幕，并在出生两秒后降速。</summary>
 public sealed class B01P01_Emitter02 : BulletEmitter
 {
-	// 本批次参数快照，阶段用同一份模板决定发射间隔。
-	private readonly BulletDefaultSet _template;
-	/// <summary>保存阶段提供的参数快照；未传入时使用鳞弹预设。</summary>
-	/// <param name="template">完整子弹参数，默认空时创建ScaleSet；位置和角度由本批次覆盖。</param>
-	public B01P01_Emitter02(BulletDefaultSet? template = null)
-	{
-		_template = template ?? BulletDefaultSet.Get(BulletType.ScaleSet);
-	}
-	/// <summary>逐颗初始化环形敌弹，不依赖排列模式。</summary>
+	/// <summary>首发等待一秒，随后每秒生成一圈并安排子弹变速。</summary>
 	/// <param name="manager">统一管理子弹生命周期的容器。</param>
-	/// <param name="origin">本批次全局起点，单位为逻辑像素。</param>
-	protected override void Build(BulletManager manager, Vector2 origin)
+	/// <param name="owner">提供发射时全局起点的Boss。</param>
+	protected override void Build(BulletManager manager, BossController owner)
 	{
-        int ringCount = 16;
-        float baseAngle = VMath.StandardizationAngleFloat(VMath.getB2PAngle());
-        // 零基索引决定方向；16颗弹的角度间隔为π/8弧度，顺时针排列。
-        for (int index = 0; index < ringCount; index++)
+		var template = BulletDefaultSet.Get(BulletType.ScaleSet);
+		Timeline!.Repeat(1000, 1000, null, () =>
 		{
-			if (AddBullet(manager, _template with
+			// 每轮重新读取当前瞄准角和Boss位置。
+			double baseAngle = VMath.getB2PAngle();
+			var queue = new BulletQueue(owner.GlobalPosition, template with
 			{
-				Position = origin,
-				AngleRadians = baseAngle + index * Mathf.Tau / ringCount,
+				AngleRadians = baseAngle,
 				ColorIndex = 3,
 				Speed = 300
-			}) is null) break;
-		}
-		if (Bullets.Count > 0)
-		{
-			var targets = new List<Bullet>(Bullets);
-			GlobalEvent.RegisterTimer(new VTimer(2000, 0, 0, VTimerType.Once, targets,
-				aliveTargets =>
-				{
-					foreach (var target in aliveTargets)
-						if (target is Bullet bullet) bullet.SetSpeed(100);
-				}));
-		}
+			}, new BulletQueueSet
+			{
+				Amount = 16,
+				AngleAdd = Math.Tau / 16
+			});
+			AddQueue(manager, queue);
+			// 已出生子弹的动作独立于发射器继续运行。
+			foreach (var bullet in queue.BulletList)
+				bullet.Timeline!.After(2000, () => bullet.SetSpeed(100));
+		});
 	}
 }

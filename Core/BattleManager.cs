@@ -9,7 +9,7 @@ public enum BattleState
 	// Boss 被击败，不受玩家当前生命影响。
 	Victory
 }
-/// <summary>以60Hz固定步和计时事件分段驱动战斗，管理种子、结束与重开。</summary>
+/// <summary>以60Hz固定步在步末派发计时事件，管理种子、结束与重开。</summary>
 public partial class BattleManager : Node
 {
     // 每次进入与重开使用相同种子，保证随机序列从固定起点开始。
@@ -24,7 +24,7 @@ public partial class BattleManager : Node
 	public BulletManager Bullets { get; private set; } = null!;
 	/// <summary>已进行的战斗时间，单位为秒。</summary>
 	public double Elapsed => Timers.NowUnits / (double)VTimerProcessor.UnitsPerSecond;
-	/// <summary>本场战斗共享的计时器处理器。</summary>
+	/// <summary>本场战斗共享的时间线处理器。</summary>
 	public VTimerProcessor Timers { get; private set; } = new();
 	/// <summary>本场战斗是否已完成节点、阶段和攻击初始化。</summary>
 	public bool IsInitialized { get; private set; }
@@ -42,7 +42,7 @@ public partial class BattleManager : Node
 	private bool _stopped;
 	/// <summary>绑定战场并开始第一场战斗。</summary>
 	/// <param name="world">容纳玩家、Boss 和独立弹幕节点的战场。</param>
-	/// <param name="bossData">当前 Boss 配置；默认空时使用旧版 Boss 参数。</param>
+	/// <param name="bossData">当前 Boss 配置；默认空时使用Boss_01参数。</param>
 	public void Initialize(Node2D world, BossData? bossData = null)
 	{
 		_world = world;
@@ -65,14 +65,15 @@ public partial class BattleManager : Node
 			_world.AddChild(Bullets);
 			if (_bossData is null)
 			{
-				Boss = new Boss { Name = "Boss", Position = BattleConfig.BossSpawn };
-				Boss.Initialize(Bullets);
+				Boss = new BossController { Name = "Boss", Position = BattleConfig.BossSpawn };
+				Boss.Initialize();
 			}
-			else Boss = BossFactory.Create(_bossData, Bullets);
+			else Boss = BossFactory.Create(_bossData);
 			Player = new PlayerController { Name = "Player", Position = BattleConfig.PlayerSpawn };
 			// 先建立双方字段与节点，再显式启动Boss阶段，保证阶段可查询玩家。
 			_world.AddChild(Player);
 			_world.AddChild(Boss);
+			Player.StartTimeline();
 			Player.Dodge.Initialize(Player);
 			Player.Health.Initialize(Player);
 			Boss.StartPhases();
@@ -142,7 +143,7 @@ public partial class BattleManager : Node
         using var scope = GlobalEvent.UseBattle(this);
         try
         {
-            // 同刻到期状态先完成，再接受本步按键。
+            // 当前边界的零延迟动作先完成，再接受本步按键。
             var clock = Timers;
             clock.AdvanceByUnits(0);
             if (_stopped || State != BattleState.Running || !ReferenceEquals(clock, Timers)) return;
@@ -155,7 +156,7 @@ public partial class BattleManager : Node
                 Player.Advance(seconds, movement);
                 Boss.Advance(seconds);
 				Bullets.Advance(seconds, Player, Boss);
-                // 每段碰撞后只检查Boss是否被击败，玩家零血和负血继续战斗。
+                // 运动碰撞完成后才派发本步计时动作；玩家零血和负血继续战斗。
                 if (Boss.Hp == 0) Finish(BattleState.Victory);
             });
             Player.FinishStep();

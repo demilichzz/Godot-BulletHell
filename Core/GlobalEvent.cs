@@ -27,15 +27,14 @@ public static class GlobalEvent
     /// <returns>实例存在且未停止时为真。</returns>
     internal static bool IsValidBattle(BattleManager? battle) => battle is not null && !battle.IsStopped && GodotObject.IsInstanceValid(battle);
 
-    /// <summary>注册到当前战斗的共享计时器处理器。</summary>
-    /// <param name="timer">尚未注册的计时器。</param>
-    /// <returns>已注册的同一个计时器。</returns>
-    public static VTimer RegisterTimer(VTimer timer)
+    /// <summary>为当前战斗实体创建由其自身更新推进的时间线。</summary>
+    /// <param name="owner">持有并推进时间线的实体。</param>
+    /// <returns>从当前逻辑时刻开始的时间线。</returns>
+    internal static VTimeline CreateTimeline(IVTimelineOwner owner)
     {
-        ArgumentNullException.ThrowIfNull(timer);
         var battle = RequireBattle();
-        if (battle.State != BattleState.Running) throw new InvalidOperationException("当前战斗未处于运行状态，不能注册计时器。");
-        return battle.Timers.Register(timer);
+        if (battle.State != BattleState.Running) throw new InvalidOperationException("当前战斗未处于运行状态，不能创建时间线。");
+        return new VTimeline(battle.Timers, owner);
     }
     /// <summary>取得当前 Boss。</summary>
     /// <returns>当前战斗中的 Boss 实体。</returns>
@@ -55,9 +54,6 @@ public static class GlobalEvent
         if (battle is null || battle.IsStopped || !OwnsNode(battle, node)) return;
         battle.Timers.NotifyTargetDestroyed(node);
     }
-    /// <summary>当前绑定战斗是否仍可接受业务活动。</summary>
-    internal static bool HasActiveBattle => IsValidBattle(ResolveBattle());
-
     /// <summary>临时切换全局战斗上下文的可释放作用域。</summary>
     internal sealed class Scope : IDisposable
     {

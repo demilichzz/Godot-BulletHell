@@ -30,18 +30,17 @@ public static class BossFactory
     }
     /// <summary>创建尚未入树的 Boss。</summary>
     /// <param name="data">独立 Boss 配置。</param>
-    /// <param name="bullets">战斗独立弹幕容器。</param>
     /// <returns>可直接加入战场的新控制器。</returns>
-    public static BossController Create(BossData data, BulletManager bullets)
+    public static BossController Create(BossData data)
     {
         data.Validate();
         ValidateProfile(data.PhaseProfile);
         // 构造前获取阶段列表，让阶段工厂失败时不产生孤立节点。
         var phases = new List<BossPhase>(Profiles[data.PhaseProfile]());
         if (phases.Count == 0 || phases.Exists(phase => phase is null)) throw new ArgumentException("阶段组合不可为空。");
-        var boss = new Boss { Name = "Boss", Position = data.SpawnPosition };
+        var boss = new BossController { Name = "Boss", Position = data.SpawnPosition };
         boss.Configure(data);
-        boss.Initialize(bullets, data.VisualScale);
+        boss.Initialize(data.VisualScale);
         boss.SetPhases(phases);
         return boss;
     }

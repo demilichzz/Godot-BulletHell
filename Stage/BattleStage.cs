@@ -12,9 +12,9 @@ public partial class BattleStage : Stage
     /// <param name="context">必须携带有效 Boss 配置的进入参数。</param>
     protected override void OnEnter(StageContext context)
     {
-        if (context.Boss is null) throw new ArgumentException("战斗场景需要 Boss 配置。");
+        if (context.BossData is null) throw new ArgumentException("战斗场景需要 Boss 配置。");
         View = GD.Load<PackedScene>("res://Main.tscn").Instantiate<Main>();
-        View.BossData = context.Boss;
+        View.BossData = context.BossData;
         AddChild(View);
         if (!View.Battle.IsInitialized) throw new InvalidOperationException("战斗初始化未完成。");
         View.Battle.WaitForConfirmRelease();

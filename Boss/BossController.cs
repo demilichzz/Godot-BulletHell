@@ -2,9 +2,11 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
-/// <summary>管理 Boss 生命、图集动画、碰撞轮廓与顺序阶段，支持切换相邻阶段，默认由战斗管理器更新。</summary>
-public partial class BossController : Node2D
+/// <summary>管理 Boss 生命、图集动画、跨阶段时间线与顺序阶段，由战斗管理器更新。</summary>
+public partial class BossController : Node2D, IVTimelineOwner
 {
+	/// <summary>从首次启动阶段起持续到战斗结束的 Boss 时间线。</summary>
+	public VTimeline? Timeline { get; private set; }
 	/// <summary>当前生命点数。</summary>
 	public int Hp { get; private set; } = BattleConfig.BossHp;
 	/// <summary>当前 Boss 的最大生命点数。</summary>
@@ -13,9 +15,9 @@ public partial class BossController : Node2D
 	public float CollisionRadius { get; private set; } = BattleConfig.BossRadius;
 	/// <summary>当前 Boss 的显示名称。</summary>
 	public string DisplayName { get; private set; } = "环形守卫";
-	// 独立配置的战斗贴图；旧接口未配置时加载原图。
+	// 独立配置的战斗贴图；未配置时加载Boss_01原图。
 	private Texture2D? _texture;
-	// 图集行列及每秒帧数；未配置入口使用 Boss_01 的四帧默认值。
+	// 图集行列及每秒帧数；未配置时使用Boss_01四帧默认值。
 	private int _hframes = 2, _vframes = 2;
 	private double _animationFps = 4;
 	// 当前循环内已经过的秒数，重建实例时归零。
@@ -34,8 +36,6 @@ public partial class BossController : Node2D
 		_vframes = data.Vframes;
 		_animationFps = data.AnimationFps;
 	}
-	/// <summary>独立弹幕容器。</summary>
-	public Node2D BulletParent { get; private set; } = null!;
 	/// <summary>当前阶段，尚未进入或已结束时为空。</summary>
 	public BossPhase? CurrentPhase { get; private set; }
 	/// <summary>本物理步开始时的全局位置，单位为像素。</summary>
@@ -68,20 +68,18 @@ public partial class BossController : Node2D
 		// 校验目标阶段初始生命位于合法范围。
 		int targetHp = targetPhase.GetInitialHp(this);
 		if (targetHp < 1 || targetHp > MaxHp) throw new InvalidOperationException("阶段初始生命超出Boss范围。");
-		Stop();
+		ExitCurrentPhase();
 		_phaseIndex = targetIndex;
 		Hp = targetHp;
 		HealthChanged?.Invoke(Hp);
 		EnterPhase();
 		return true;
 	}
-	/// <summary>初始化容器与外观，保留旧版签名。</summary>
-	/// <param name="bulletParent">接收子弹的独立父节点。</param>
+	/// <summary>在入树前配置 Boss 的贴图倍率。</summary>
 	/// <param name="visualScale">正数有限贴图倍率，默认3。</param>
-	public void Initialize(Node2D bulletParent, float visualScale = BattleConfig.BossScale)
+	public void Initialize(float visualScale = BattleConfig.BossScale)
 	{
 		if (!float.IsFinite(visualScale) || visualScale <= 0) throw new ArgumentOutOfRangeException(nameof(visualScale));
-		BulletParent = bulletParent ?? throw new ArgumentNullException(nameof(bulletParent));
 		_sprite.Scale = Vector2.One * visualScale;
 	}
 	/// <summary>在入树前设置非空有序阶段列表。</summary>
@@ -113,6 +111,7 @@ public partial class BossController : Node2D
 	{
 		if (_phasesStarted) return;
 		_phasesStarted = true;
+		Timeline = GlobalEvent.CreateTimeline(this);
 		EnterPhase();
 	}
 	/// <summary>按实际碰撞半径绘制橙红色圆形轮廓，线宽为2逻辑像素，不受贴图倍率影响。</summary>
@@ -136,15 +135,16 @@ public partial class BossController : Node2D
 		if (Hp == 0 || CurrentPhase is null) return;
 		AdvanceAnimation(delta);
 		UpdatePhase();
+		Timeline?.AdvanceUnits(VTimeline.SecondsToUnits(delta));
 		CurrentPhase!.Advance(this, delta);
 	}
     /// <summary>立即处理满足条件的阶段切换，单次伤害可跨过多个阈值。</summary>
     private void UpdatePhase()
     {
-        // 保持阶段有序进入和退出，旧计时器在同刻发射前取消。
+        // 保持阶段有序进入和退出，旧阶段时间线在步末发射前取消。
         while (Hp > 0 && CurrentPhase is not null && _phaseIndex + 1 < _phases.Count && CurrentPhase.ShouldEnd(this))
         {
-            Stop();
+			ExitCurrentPhase();
             _phaseIndex++;
             EnterPhase();
         }
@@ -173,13 +173,20 @@ public partial class BossController : Node2D
         else UpdatePhase();
 		return true;
 	}
-	/// <summary>终止当前阶段，允许重复调用。</summary>
-	public void Stop()
+	/// <summary>只退出当前阶段，切换阶段时保留 Boss 自身的时间线。</summary>
+	private void ExitCurrentPhase()
 	{
 		// 清空引用后回调，避免重入时重复退出。
 		var phase = CurrentPhase;
 		CurrentPhase = null;
 		phase?.Exit(this);
+	}
+	/// <summary>结束 Boss 生命周期及当前阶段，允许重复调用。</summary>
+	public void Stop()
+	{
+		ExitCurrentPhase();
+		Timeline?.Cancel();
+		Timeline = null;
 	}
 	/// <summary>离开场景时结束尚未退出的阶段。</summary>
 	public override void _ExitTree() => Stop();

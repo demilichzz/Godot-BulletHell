@@ -7,11 +7,11 @@ public sealed class StageContext
     /// <summary>提供切换入口和共享选择数据的常驻管理器。</summary>
     public GameManager Game { get; }
     /// <summary>本次战斗 Boss 配置，非战斗场景可为空。</summary>
-    public BossData? Boss { get; }
+    public BossData? BossData { get; }
     /// <summary>构造场景进入参数。</summary>
     /// <param name="game">当前游戏管理器。</param>
-    /// <param name="boss">可选 Boss 配置，默认空。</param>
-    public StageContext(GameManager game, BossData? boss = null) { Game = game; Boss = boss; }
+    /// <param name="bossData">可选 Boss 配置，默认空。</param>
+    public StageContext(GameManager game, BossData? bossData = null) { Game = game; BossData = bossData; }
 }
 /// <summary>游戏内场景的统一生命周期；同一时刻只激活一个实例。</summary>
 public abstract partial class Stage : Node

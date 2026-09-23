@@ -5,5 +5,11 @@ public sealed class B04_Phase01 : BossPhase
     public override string Name => "Boss 04 · 阶段01";
 
     /// <summary>本阶段预留的唯一空发射器。</summary>
-    public B04P01_Emitter01 Emitter { get; } = new();
+    /// <summary>绑定本阶段保留的空发射器。</summary>
+    /// <param name="boss">所属Boss，提供发射位置。</param>
+    public override void Enter(BossController boss)
+    {
+        base.Enter(boss);
+        BindEmitter(new B04P01_Emitter01(), boss);
+    }
 }

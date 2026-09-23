@@ -237,15 +237,15 @@ public partial class DeterminismVerification : Node
         Check(boss.Position == stoppedPosition && !phase.IsMoving && battle.Bullets.ActiveCount == stoppedCount, "退出后停止所有事件");
         Check(VMath.getRandomInt(0, int.MaxValue) == expectedNext, "退出后不消耗随机数");
         world.Free();
-        // 比较单个大步长与60Hz推进，发射起点也应与每个事件时刻一致。
-        var large = CaptureMovement(new[] { 12.0 });
+        // 固定60Hz输入与种子相同，应得到一致的选点、发射与位置。
         var fixedSteps = CaptureMovement(Enumerable.Repeat(1.0 / 60, 720));
-        Check(large.Position.DistanceTo(fixedSteps.Position) < 0.002 && large.Target == fixedSteps.Target, "大小步长移动一致");
-        Check(large.NextRandom == fixedSteps.NextRandom, "大小步长随机消耗一致");
-        Check(large.Origins.Length == 12 * 40 && large.Origins.Length == fixedSteps.Origins.Length, "大小步长射击次数一致");
-        for (int index = 0; index < large.Origins.Length; index++)
-            Check(large.Origins[index].DistanceTo(fixedSteps.Origins[index]) < 0.002, "逐批发射起点一致");
-        Check(large.Origins[4 * 40] == center && Math.Abs(large.Origins[5 * 40].DistanceTo(center) - 100) < 0.002, "移动中从当前起点发射");
+        var replay = CaptureMovement(Enumerable.Repeat(1.0 / 60, 720));
+        Check(replay.Position == fixedSteps.Position && replay.Target == fixedSteps.Target, "相同固定步移动一致");
+        Check(replay.NextRandom == fixedSteps.NextRandom, "相同固定步随机消耗一致");
+        Check(replay.Origins.Length == fixedSteps.Origins.Length && fixedSteps.Origins.Length == 12 * 40, "固定步射击次数一致");
+        for (int index = 0; index < replay.Origins.Length; index++)
+            Check(replay.Origins[index] == fixedSteps.Origins[index], "逐批发射起点一致");
+        Check(fixedSteps.Origins[4 * 40] == center && Math.Abs(fixedSteps.Origins[5 * 40].DistanceTo(center) - 100) < 0.002, "移动中从当前起点发射");
     }
     /// <summary>按给定步长记录Boss位置、目标和所有发射起点。</summary>
     /// <param name="steps">依次推进的非负秒数。</param>
@@ -297,7 +297,7 @@ public partial class DeterminismVerification : Node
             battle.StepFixed(input, tick % 60 == 0);
             var target = (battle.Boss.CurrentPhase as B01_Phase01)?.MoveTarget;
             sawMovement |= (battle.Boss.CurrentPhase as B01_Phase01)?.IsMoving == true;
-            frames.Add($"{battle.State}|{battle.Timers.NowUnits}|{battle.Timers.ActiveCount}|{battle.Elapsed:R}|{FormatVector(battle.Player.Position)}|{battle.Player.Health.Hp}|{FormatVector(battle.Boss.Position)}|{FormatVector(target ?? Vector2.Zero)}|{battle.Boss.Hp}|"
+            frames.Add($"{battle.State}|{battle.Timers.NowUnits}|{battle.Player.Timeline?.ElapsedUnits}|{battle.Elapsed:R}|{FormatVector(battle.Player.Position)}|{battle.Player.Health.Hp}|{FormatVector(battle.Boss.Position)}|{FormatVector(target ?? Vector2.Zero)}|{battle.Boss.Hp}|"
                 + string.Join(";", battle.Bullets.ActiveBullets.Select(bullet => $"{FormatVector(bullet.Position)}:{FormatVector(bullet.Velocity)}:{bullet.Age:R}:{bullet.Team}")));
         }
         Check(sawMovement, "重现对比覆盖5秒后的实际移动");

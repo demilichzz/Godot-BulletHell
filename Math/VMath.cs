@@ -104,7 +104,7 @@ public static class VMath
             throw new OverflowException("极坐标结果超出Vector2范围。");
         return new Vector2((float)x, (float)y);
     }
-    /// <summary>将度转换为弧度，保留正负与圈数，不自动标准化。</summary>
+    /// <summary>仅转换度数单位，保留旋转量的正负与圈数；方向由取角函数标准化。</summary>
     /// <param name="degrees">有限度数。</param>
     /// <returns>对应弧度。</returns>
     public static double DegreesToRadians(double degrees)
@@ -112,7 +112,7 @@ public static class VMath
         ValidateFinite(degrees, nameof(degrees));
         return FiniteResult(degrees * (Math.PI / 180));
     }
-    /// <summary>将弧度转换为度，保留正负与圈数，不自动标准化。</summary>
+    /// <summary>仅转换弧度单位，保留旋转量的正负与圈数；方向由取角函数标准化。</summary>
     /// <param name="radians">有限弧度。</param>
     /// <returns>对应度数；超出double有限范围时抛错。</returns>
     public static double RadiansToDegrees(double radians)

@@ -1,34 +1,29 @@
 using Godot;
 using System.Collections.Generic;
 
-/// <summary>管理Boss阶段的移动、初始生命、活动批次及阶段计时器。</summary>
-public abstract class BossPhase
+/// <summary>管理Boss阶段的移动、初始生命、绑定发射器及阶段时间线。</summary>
+public abstract class BossPhase : IVTimelineOwner
 {
     // 当前路段起点、累计秒数和阶段活动标记。
     private Vector2 _travelStart;
     private double _travelSeconds;
-    private bool _active;
     // 仅保留仍有活动子弹的发射批次。
     private readonly List<BulletEmitter> _emitters = new();
-    // 阶段退出时取消的计时器，不包含子弹自身行为。
-    private readonly List<VTimer> _timers = new();
-    /// <summary>记录需要随阶段退出取消的计时器。</summary>
-    /// <param name="timer">已注册的阶段计时器。</param>
-    protected void TrackTimer(VTimer timer)
+    /// <summary>阶段激活时创建的逻辑时间线。</summary>
+    public VTimeline? Timeline { get; private set; }
+    /// <summary>阶段绑定的可重复发射器只读视图。</summary>
+    public IReadOnlyList<BulletEmitter> Emitters { get; }
+    /// <summary>缓存阶段发射器的只读视图。</summary>
+    protected BossPhase() => Emitters = _emitters.AsReadOnly();
+    /// <summary>绑定发射器并启动其独立发射时间线。</summary>
+    /// <param name="emitter">本阶段使用的发射器。</param>
+    /// <param name="boss">提供发射位置的Boss。</param>
+    protected void BindEmitter(BulletEmitter emitter, BossController boss)
     {
-        _timers.RemoveAll(existing => existing.IsFinished);
-        _timers.Add(timer);
+        if (_emitters.Contains(emitter)) throw new System.InvalidOperationException("发射器不能重复绑定。");
+        emitter.Start(boss, GlobalEvent.GetBulletManager());
+        _emitters.Add(emitter);
     }
-    /// <summary>阶段持有的活动批次只读视图。</summary>
-    public IReadOnlyList<BulletEmitter> Emitters => _emitters.AsReadOnly();
-    /// <summary>记录一次成功产生子弹的批次。</summary>
-    /// <param name="emitter">已完成发射的批次。</param>
-    protected void TrackEmitter(BulletEmitter emitter)
-    {
-        if (emitter.Bullets.Count > 0 && !_emitters.Contains(emitter)) _emitters.Add(emitter);
-    }
-    /// <summary>移除已无活动子弹的批次，避免历史对象积累。</summary>
-    protected void PruneEmitters() => _emitters.RemoveAll(emitter => emitter.Bullets.Count == 0);
 	/// <summary>阶段名称，用于状态显示。</summary>
 	public abstract string Name { get; }
 	/// <summary>当前移动目标，战场局部逻辑像素。</summary>
@@ -60,7 +55,7 @@ public abstract class BossPhase
 	public virtual void Enter(BossController boss)
 	{
 		_emitters.Clear();
-		_active = true;
+		Timeline = GlobalEvent.CreateTimeline(this);
 		SetMoveTarget(boss, GetInitialMoveTarget(boss));
 	}
 	/// <summary>推进阶段行为。</summary>
@@ -69,8 +64,10 @@ public abstract class BossPhase
 	public virtual void Advance(BossController boss, double delta)
 	{
 		if (!double.IsFinite(delta) || delta < 0) throw new System.ArgumentOutOfRangeException(nameof(delta));
-		if (!_active || boss.Hp == 0) return;
-		PruneEmitters();
+		if (Timeline is null || boss.Hp == 0) return;
+		long units = VTimeline.SecondsToUnits(delta);
+		Timeline.AdvanceUnits(units);
+		foreach (var emitter in _emitters) emitter.AdvanceUnits(units);
 		if (!IsMoving) return;
 		_travelSeconds += delta;
 		boss.Position = _travelStart.MoveToward(MoveTarget, (float)(_travelSeconds * MoveSpeed));
@@ -84,10 +81,10 @@ public abstract class BossPhase
 	/// <param name="boss">所属 Boss。</param>
 	public virtual void Exit(BossController boss)
     {
-        _active = false;
         IsMoving = false;
-        foreach (var timer in _timers) timer.Cancel();
-        _timers.Clear();
+        Timeline?.Cancel();
+        Timeline = null;
+        foreach (var emitter in _emitters) emitter.Stop();
         _emitters.Clear();
     }
 }

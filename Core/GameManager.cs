@@ -87,7 +87,7 @@ public partial class GameManager : Node
             previous?.Exit();
             if (previous is not null) { StageHost.RemoveChild(previous); previous.QueueFree(); }
             CurrentStage = next;
-            if (context.Boss is not null) SelectedBossId = context.Boss.Id;
+            if (context.BossData is not null) SelectedBossId = context.BossData.Id;
             LastError = "";
         }
         catch (Exception error)

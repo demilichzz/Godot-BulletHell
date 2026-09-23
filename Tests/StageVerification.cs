@@ -123,7 +123,7 @@ public partial class StageVerification : Node
             Input.ActionRelease("player_dodge");
             // Boss 在子弹终点外37像素判定范围内，独立半径应参与碰撞。
             battle.Bullets.Clear();
-            battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.PlayerSet) with { Position = battle.Boss.GlobalPosition + new Vector2(39, 0) })!.Velocity = Vector2.Zero;
+            battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.PlayerSet) with { Position = battle.Boss.GlobalPosition + new Vector2(39, 0) })!.SetSpeed(0);
             battle.StepFixed( Vector2.Zero, false);
             Check(battle.Boss.Hp == 149, "碰撞使用独立Boss半径");
             var originalBoss = battle.Boss;
@@ -217,20 +217,13 @@ public partial class StageVerification : Node
             Check(battle.Boss.DisplayName == data.DisplayName && battle.Boss.Hp == 300
                 && phase.GetType().Name == $"B0{index + 1}_Phase01"
                 && !battle.Boss.TrySwitchAdjacentPhase(1), "新Boss进入唯一基础阶段");
-            BulletEmitter emitter = phase switch
-            {
-                B02_Phase01 current => current.Emitter,
-                B03_Phase01 current => current.Emitter,
-                B04_Phase01 current => current.Emitter,
-                B05_Phase01 current => current.Emitter,
-                _ => throw new Exception("新增Boss阶段类型不匹配")
-            };
+            BulletEmitter emitter = phase.Emitters[0];
             Check(emitter.GetType().Name == $"B0{index + 1}P01_Emitter01", "每个新阶段只有对应空发射器");
-            emitter.Emit(battle.Bullets, battle.Boss.GlobalPosition);
             VerificationClock.BossSeconds(battle, 2);
             Check(battle.Bullets.ActiveCount == 0 && emitter.Bullets.Count == 0
-                && battle.Timers.ActiveCount == 0 && battle.Boss.Position == new Vector2(640, 240),
-                "空发射器不产生弹幕且阶段沿用基类移动");
+                && battle.Timers.TimelineActionCount == 1
+                && battle.Boss.Position == new Vector2(640, 240),
+                "未定义时间线动作的空发射器不产生弹幕且阶段沿用基类移动");
             Check(game.RequestStage(GameManager.SelectStageId), "可返回选择界面");
             await Settle();
             Check(game.CurrentStage is BossSelectStage restored && restored.UI.SelectedIndex == index,
@@ -288,7 +281,7 @@ public partial class StageVerification : Node
         single.Validate();
         Check(single.GetSelectionTexture() == single.Texture, "单帧选择贴图兼容");
         battle.StopBattle();
-        var staticBoss = BossFactory.Create(single, battle.Bullets);
+        var staticBoss = BossFactory.Create(single);
         world.AddChild(staticBoss);
         staticBoss.Advance(0.75);
         Check(staticBoss.GetNode<Sprite2D>("Sprite").Frame == 0, "单帧战斗静态");

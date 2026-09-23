@@ -1,7 +1,7 @@
 using Godot;
 using System;
 
-/// <summary>为隔离验证提供固定战斗步及事件分段推进辅助。</summary>
+/// <summary>为隔离验证提供固定战斗步及仅推进指定实体年龄的辅助。</summary>
 public static class VerificationClock
 {
     /// <summary>重复固定物理步，不向正式战斗传入任意步长。</summary>
@@ -16,12 +16,30 @@ public static class VerificationClock
         if (Math.Abs(steps - seconds * 60) > 1e-8) throw new ArgumentException("测试时间须为固定步整数倍。");
         for (int index = 0; index < steps; index++) battle.StepFixed(movement, dodge && index == 0);
     }
-    /// <summary>隔离推进Boss所属战斗的时钟及移动。</summary>
+    /// <summary>隔离推进Boss移动、活动子弹时间线及所属战斗时钟，不执行子弹运动。</summary>
     /// <param name="battle">拥有Boss、弹幕与共享计时器的战斗。</param>
     /// <param name="seconds">非负秒数，按内部1/60000秒时间精度换算。</param>
     public static void BossSeconds(BattleManager battle, double seconds)
     {
-        // 隔离验证使用战斗处理器推进，Boss本身不再维护周期时钟。
-        battle.Timers.AdvanceByUnits(checked((long)Math.Round(seconds * VTimerProcessor.UnitsPerSecond)), battle.Boss.Advance);
+        long units = VTimeline.SecondsToUnits(seconds);
+        battle.Timers.AdvanceByUnits(units, elapsed =>
+        {
+            battle.Boss.Advance(elapsed);
+            foreach (var bullet in battle.Bullets.ActiveBullets) bullet.Timeline?.AdvanceUnits(units);
+        });
+    }
+    /// <summary>隔离推进未绑定阶段的发射器及现存子弹时间线。</summary>
+    /// <param name="battle">拥有处理器与子弹的战斗。</param>
+    /// <param name="seconds">非负逻辑秒数。</param>
+    /// <param name="emitters">此次需要推进的独立发射器。</param>
+    public static void EmitterSeconds(BattleManager battle, double seconds, params BulletEmitter[] emitters)
+    {
+        long units = VTimeline.SecondsToUnits(seconds);
+        battle.Timers.AdvanceByUnits(units, elapsed =>
+        {
+            battle.Boss.Advance(elapsed);
+            foreach (var emitter in emitters) emitter.AdvanceUnits(units);
+            foreach (var bullet in battle.Bullets.ActiveBullets) bullet.Timeline?.AdvanceUnits(units);
+        });
     }
 }

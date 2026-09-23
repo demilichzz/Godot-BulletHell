@@ -1,26 +1,46 @@
 using Godot;
 using System.Collections.Generic;
 
-/// <summary>持有战斗计时器，统一推进弹幕与碰撞，释放时注销批次和目标关联。</summary>
+/// <summary>统一推进弹幕与碰撞，释放时注销发射器、队列和时间线引用。</summary>
 public partial class BulletManager : Node2D
 {
 	// 活动弹幕列表；待释放节点立即移出，避免重复命中。
 	private readonly List<Bullet> _active = new();
+	// 全场活动子弹的固定只读视图。
+	private readonly IReadOnlyList<Bullet> _activeView;
+	/// <summary>缓存只读视图，不在每次读取时重新包装列表。</summary>
+	public BulletManager() => _activeView = _active.AsReadOnly();
 	// 满额提示只输出一次，恢复容量后允许再次提示。
 	private bool _limitReported;
 	/// <summary>当前活动弹幕数量，不包含待释放节点。</summary>
 	public int ActiveCount => _active.Count;
 	/// <summary>全场活动子弹的只读视图。</summary>
-	public IReadOnlyList<Bullet> ActiveBullets => _active.AsReadOnly();
-	/// <summary>通过单发批次生成一颗采用完整初始化参数的弹幕。</summary>
+	public IReadOnlyList<Bullet> ActiveBullets => _activeView;
+	/// <summary>直接生成一颗采用完整初始化参数的弹幕。</summary>
 	/// <param name="settings">完整初始化参数，位置为全局逻辑像素。</param>
 	/// <returns>生成的子弹，容量不足时为空。</returns>
-	public Bullet? Spawn(BulletDefaultSet settings)
+	public Bullet? Spawn(BulletDefaultSet settings) => Spawn(settings, null);
+	/// <summary>统一创建、配置并登记单颗子弹，可关联发射器。</summary>
+	/// <param name="settings">完整出生参数，位置为全局逻辑像素。</param>
+	/// <param name="emitter">所属发射器；玩家直接生成时为空。</param>
+	/// <returns>成功生成的子弹；容量不足时为空。</returns>
+	internal Bullet? Spawn(BulletDefaultSet settings, BulletEmitter? emitter)
 	{
-		// 保存本次参数快照，所有子弹仍经过统一登记流程。
-		var emitter = new SingleBulletEmitter(settings);
-		emitter.Emit(this, settings.Position);
-		return emitter.Bullets.Count == 0 ? null : emitter.Bullets[0];
+		Bullet.Validate(settings);
+		if (!CanSpawn()) return null;
+		// 直接生成仍经过统一初始化、登记和释放流程。
+		var bullet = new Bullet();
+		try
+		{
+			bullet.Configure(settings);
+			Register(bullet, emitter);
+			return bullet;
+		}
+		catch
+		{
+			bullet.Free();
+			throw;
+		}
 	}
 	/// <summary>在构造节点前检查容量，满额提示仅输出一次。</summary>
 	/// <returns>是否仍可登记一颗子弹。</returns>
@@ -37,9 +57,11 @@ public partial class BulletManager : Node2D
 	}
 	/// <summary>登记已初始化的节点，将全局起点转换为容器局部坐标。</summary>
 	/// <param name="bullet">由发射器初始化且尚未入树的子弹。</param>
-	/// <param name="emitter">所属单次发射批次。</param>
-	internal void Register(Bullet bullet, BulletEmitter emitter)
+	/// <param name="emitter">所属发射器；直接生成的单颗子弹为空。</param>
+	internal void Register(Bullet bullet, BulletEmitter? emitter)
 	{
+		// 先建立出生时钟，失败时尚未把节点交给管理器。
+		bullet.Timeline = GlobalEvent.CreateTimeline(bullet);
 		bullet.SpawnPosition = bullet.Position = ToLocal(bullet.Position);
 		bullet.Emitter = emitter;
 		AddChild(bullet);
@@ -77,7 +99,7 @@ public partial class BulletManager : Node2D
 	/// <param name="end">相对终点，单位为像素。</param>
 	/// <param name="radius">双方半径之和，单位为非负像素。</param>
 	/// <returns>线段接触或穿过圆时为真。</returns>
-	public static bool SweptHit(Vector2 start, Vector2 end, float radius)
+	public static bool SweptHit(Vector2 start, Vector2 end, double radius)
 	{
 		// 将原点投影到有限线段，退化线段按点处理。
 		var movement = end - start;
@@ -99,8 +121,12 @@ public partial class BulletManager : Node2D
 		// 先移除引用，再释放，避免同一步重复命中。
 		var bullet = _active[index];
 		GlobalEvent.TryNotifyTargetDestroyed(bullet);
+		bullet.Timeline?.Cancel();
+		bullet.Timeline = null;
 		_active.RemoveAt(index);
 		bullet.Emitter?.Unregister(bullet);
+		bullet.Queue?.Unregister(bullet);
+		bullet.Queue = null;
 		bullet.Emitter = null;
 		RemoveChild(bullet);
 		bullet.QueueFree();

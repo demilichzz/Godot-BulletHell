@@ -22,7 +22,7 @@ public sealed record BulletDefaultSet
     /// <summary>全局起点，逻辑像素，右和下为正，默认原点。</summary>
     public Vector2 Position { get; init; }
     /// <summary>有限发射角度，单位为弧度，0向右、π/2向下，默认0。</summary>
-    public float AngleRadians { get; init; }
+    public double AngleRadians { get; init; }
     /// <summary>贴图资源路径；圆点模式可为空。</summary>
     public string? TexturePath { get; init; }
     /// <summary>图集列数，正整数。</summary>
@@ -31,20 +31,18 @@ public sealed record BulletDefaultSet
     public int Vframes { get; init; }
     /// <summary>从0开始按行排列的贴图索引。</summary>
     public int ColorIndex { get; init; }
-    /// <summary>非负弹速，逻辑像素/秒。</summary>
-    public float Speed { get; init; }
+    /// <summary>有符号弹速，逻辑像素/秒；负值沿角度反向移动。</summary>
+    public double Speed { get; init; }
     /// <summary>正数寿命，单位为秒。</summary>
-    public float LifetimeSeconds { get; init; }
+    public double LifetimeSeconds { get; init; }
     /// <summary>正数碰撞半径，单位为逻辑像素。</summary>
-    public float Radius { get; init; }
-    /// <summary>正数发射间隔，单位为秒，仅供攻击调度方计时。</summary>
-    public double IntervalSeconds { get; init; }
+    public double Radius { get; init; }
     /// <summary>子弹所属阵营。</summary>
     public BulletTeam Team { get; init; }
     /// <summary>正整数伤害点数。</summary>
     public int Damage { get; init; }
     /// <summary>正数贴图倍率，不改变碰撞半径；圆点按半径绘制。</summary>
-    public float VisualScale { get; init; }
+    public double VisualScale { get; init; }
     /// <summary>true使用贴图，false使用圆点。</summary>
     public bool UseSprite { get; init; }
     /// <summary>圆点模式的显示颜色，含透明度。</summary>
@@ -53,11 +51,11 @@ public sealed record BulletDefaultSet
     public BulletBehavior Behavior { get; init; } = new StraightBehavior();
     /// <summary>仅供静态默认预设初始化。</summary>
     private BulletDefaultSet() { }
-    // 现有敌弹的完整参数，贴图10列1行，首发由阶段等待1秒。
+    // 现有敌弹的完整参数，贴图10列1行。
     private static readonly BulletDefaultSet Scale = new()
     {
         TexturePath = "res://Assets/Sprites/Sprite_scale.png", Hframes = 10, Vframes = 1, ColorIndex = 0,
-        Speed = 180, LifetimeSeconds = 4, Radius = 6, IntervalSeconds = 1,
+        Speed = 180, LifetimeSeconds = 4, Radius = 6,
         Team = BulletTeam.Enemy, Damage = 1, VisualScale = 3, UseSprite = true, CircleColor = Colors.Cyan
     };
     // 三种贴图各为10列1行；复用鳞弹全部非贴图参数及无状态直线行为。
@@ -68,7 +66,7 @@ public sealed record BulletDefaultSet
     private static readonly BulletDefaultSet Player = new()
     {
         TexturePath = null, Hframes = 1, Vframes = 1, ColorIndex = 0,
-        Speed = 600, LifetimeSeconds = 2, Radius = 3, IntervalSeconds = 0.2,
+        Speed = 600, LifetimeSeconds = 2, Radius = 3,
         Team = BulletTeam.Player, Damage = 1, VisualScale = 3, UseSprite = false, CircleColor = Colors.Cyan
     };
     /// <summary>按枚举取得不可变预设，未知枚举立即报错。</summary>
