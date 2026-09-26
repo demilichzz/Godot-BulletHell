@@ -67,11 +67,14 @@ public abstract class BossPhase : IVTimelineOwner
 		if (Timeline is null || boss.Hp == 0) return;
 		long units = VTimeline.SecondsToUnits(delta);
 		Timeline.AdvanceUnits(units);
-		foreach (var emitter in _emitters) emitter.AdvanceUnits(units);
-		if (!IsMoving) return;
-		_travelSeconds += delta;
-		boss.Position = _travelStart.MoveToward(MoveTarget, (float)(_travelSeconds * MoveSpeed));
-		if (boss.Position == MoveTarget) IsMoving = false;
+        // Boss先完成本步移动，再推进跟随它的VNode树。
+        if (IsMoving)
+        {
+            _travelSeconds += delta;
+            boss.Position = _travelStart.MoveToward(MoveTarget, (float)(_travelSeconds * MoveSpeed));
+            if (boss.Position == MoveTarget) IsMoving = false;
+        }
+        foreach (var emitter in _emitters) emitter.AdvanceUnits(units);
 	}
 	/// <summary>判断是否转入列表中的下一阶段。</summary>
 	/// <param name="boss">所属 Boss。</param>

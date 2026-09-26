@@ -33,6 +33,12 @@ public sealed record BulletDefaultSet
     public int ColorIndex { get; init; }
     /// <summary>有符号弹速，逻辑像素/秒；负值沿角度反向移动。</summary>
     public double Speed { get; init; }
+    /// <summary>加速度方向，弧度，0向右且顺时针为正。</summary>
+    public double AAngle { get; init; }
+    /// <summary>有符号加速度，逻辑像素每平方秒，默认零。</summary>
+    public double ASpeed { get; init; }
+    /// <summary>为真时忽略AAngle，沿外部运动方向施加加速度。</summary>
+    public bool AAngleIsSameAsAngle { get; init; } = true;
     /// <summary>正数寿命，单位为秒。</summary>
     public double LifetimeSeconds { get; init; }
     /// <summary>正数碰撞半径，单位为逻辑像素。</summary>

@@ -1,0 +1,48 @@
+{
+  "Core": {
+    "Id": "B01P01_Emitter01",
+    "Version": 2,
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "KeepBullets"
+  },
+  "VNodes": [],
+  "BulletQueues": [
+    {
+      "Core": {
+        "Id": "Rings",
+        "Version": 2,
+        "Amount": 24,
+        "LifeTimeS": 4,
+        "Radius": 6,
+        "VisualScale": 3,
+        "AAngleIsSameAsAngle": true,
+        "AngleMode": "Fixed"
+      },
+      "Display": {
+        "TextureName": "Scale",
+        "TextureIndex": 0
+      },
+      "BaseAttributes": {
+        "Angle": 0,
+        "Speed": 180,
+        "AAngle": 0,
+        "ASpeed": 0
+      },
+      "AddAttributes": {
+        "Angle": "TAU/24"
+      },
+      "PositionAttributes": {
+        "RefObject": "Emitter",
+        "Mode": "Snapshot"
+      },
+      "Timeline": [
+        {
+          "StartMs": 1000,
+          "IntervalMs": 1000
+        }
+      ]
+    }
+  ]
+}

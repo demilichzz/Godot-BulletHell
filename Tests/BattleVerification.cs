@@ -37,7 +37,24 @@ public partial class BattleVerification : Node
         try
         {
             var userArgs = OS.GetCmdlineUserArgs();
-            if (userArgs.Contains("--targeted-sprites"))
+            if (userArgs.Contains("--targeted-vnode"))
+            {
+                VerifyVNodeModel();
+                VerifyVNodeSchedules();
+                VerifyVNodeLifecycle();
+                VerifyVNodeValidation();
+                VerifyVNodeReplay();
+                GD.Print($"PASS: {_checks} targeted VNode assertions");
+            }
+            else if (userArgs.Contains("--targeted-data"))
+            {
+                VerifyBulletData();
+                VerifyOriginal();
+                VerifyBatches();
+                VerifyDefaultSets();
+                GD.Print($"PASS: {_checks} targeted data and bullet assertions");
+            }
+            else if (userArgs.Contains("--targeted-sprites"))
             {
                 VerifySpriteSets();
                 GD.Print($"PASS: {_checks} targeted sprite assertions");
@@ -719,7 +736,7 @@ public partial class BattleVerification : Node
         VerificationClock.BossSeconds(battle, 1.999);
         Check(delayed.Bullets.All(bullet => bullet.Speed == 300), "发射器02两秒前保持初速");
         VerificationClock.BossSeconds(battle, 0.001);
-        Check(delayed.Bullets.All(bullet => bullet.Speed == 100), "发射器02两秒后降速100");
+        Check(delayed.Bullets.All(bullet => bullet.Speed == 300), "发射器02两秒后仍保持出生速度300");
         var first = new B01P01_Emitter01();
         var second = new B01P01_Emitter01();
         first.Start(battle.Boss, manager);
@@ -903,8 +920,8 @@ public partial class BattleVerification : Node
         battle.Bullets.Advance(0.5, battle.Player, battle.Boss);
         Check(reverseMotion.GlobalPosition.DistanceTo(origin + Vector2.Left * 20) < 0.001
             && reverseMotion.AngleRadians == 0 && reverseMotion.Speed == -40
-            && reverseMotion.GetNode<Sprite2D>("Sprite").Rotation == 0,
-            "负速度实际反向位移且贴图仍朝原角度");
+            && Mathf.IsEqualApprox(reverseMotion.GetNode<Sprite2D>("Sprite").Rotation, Mathf.Pi),
+            "负速度实际反向位移且贴图跟随实际方向");
         world.Free();
     }
     /// <summary>验证四种弹幕贴图的资源路径、非贴图参数一致性及十色图集生成。</summary>

@@ -1,0 +1,94 @@
+{
+  "Core": {
+    "Id": "B01P02_Emitter01",
+    "Version": 2,
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "KeepBullets"
+  },
+  "VNodes": [
+    {
+      "Core": {
+        "Id": "Centers",
+        "Version": 2,
+        "Amount": 6,
+        "LifeTimeS": 0.1
+      },
+      "BaseAttributes": {
+        "Speed": 0
+      },
+      "PositionAttributes": {
+        "RefObject": "Emitter",
+        "Mode": "Snapshot",
+        "RefMoveQueue": [
+          {
+            "Type": "PMove",
+            "Angle": {
+              "Value": 0,
+              "ValueAdd": "TAU/6",
+              "RandDiffAdd": "TAU/12"
+            },
+            "Dist": {
+              "Value": 250,
+              "RandDiffAdd": 100
+            }
+          }
+        ]
+      },
+      "Timeline": [
+        {
+          "StartMs": 1000,
+          "IntervalMs": 1000
+        }
+      ]
+    }
+  ],
+  "BulletQueues": [
+    {
+      "Core": {
+        "Id": "Rings",
+        "Version": 2,
+        "Amount": 12,
+        "LifeTimeS": 4,
+        "Radius": 4,
+        "VisualScale": 2,
+        "AAngleIsSameAsAngle": true,
+        "AngleMode": "Fixed"
+      },
+      "Display": {
+        "TextureName": "Scale",
+        "TextureIndex": 1
+      },
+      "BaseAttributes": {
+        "Angle": 0,
+        "Speed": 180
+      },
+      "AddAttributes": {
+        "Angle": "TAU/12"
+      },
+      "PositionAttributes": {
+        "RefObject": "Centers",
+        "Mode": "Snapshot",
+        "RefMoveQueue": [
+          {
+            "Type": "PMove",
+            "Angle": {
+              "Value": 0,
+              "ValueAdd": "TAU/12"
+            },
+            "Dist": {
+              "Value": -20
+            }
+          }
+        ]
+      },
+      "Timeline": [
+        {
+          "StartMs": 0,
+          "StartMsAdd": 0
+        }
+      ]
+    }
+  ]
+}

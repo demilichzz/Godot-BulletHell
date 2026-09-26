@@ -21,12 +21,7 @@ public static class VerificationClock
     /// <param name="seconds">非负秒数，按内部1/60000秒时间精度换算。</param>
     public static void BossSeconds(BattleManager battle, double seconds)
     {
-        long units = VTimeline.SecondsToUnits(seconds);
-        battle.Timers.AdvanceByUnits(units, elapsed =>
-        {
-            battle.Boss.Advance(elapsed);
-            foreach (var bullet in battle.Bullets.ActiveBullets) bullet.Timeline?.AdvanceUnits(units);
-        });
+        AdvanceEntities(battle, seconds, Array.Empty<BulletEmitter>());
     }
     /// <summary>隔离推进未绑定阶段的发射器及现存子弹时间线。</summary>
     /// <param name="battle">拥有处理器与子弹的战斗。</param>
@@ -34,12 +29,28 @@ public static class VerificationClock
     /// <param name="emitters">此次需要推进的独立发射器。</param>
     public static void EmitterSeconds(BattleManager battle, double seconds, params BulletEmitter[] emitters)
     {
-        long units = VTimeline.SecondsToUnits(seconds);
-        battle.Timers.AdvanceByUnits(units, elapsed =>
+        AdvanceEntities(battle, seconds, emitters);
+    }
+
+    /// <summary>将隔离推进切为不超过一个固定步的片段，保证步中新生节点从正确时刻计龄。</summary>
+    /// <param name="battle">所属战斗。</param>
+    /// <param name="seconds">非负秒数，最后片段保留原边界精度。</param>
+    /// <param name="emitters">额外推进的未绑定阶段发射器。</param>
+    private static void AdvanceEntities(BattleManager battle, double seconds, BulletEmitter[] emitters)
+    {
+        // 零龄动作先按现有边界语义派发，子弹仍只计龄而不运动。
+        long remaining = VTimeline.SecondsToUnits(seconds);
+        battle.Timers.AdvanceByUnits(0);
+        while (remaining > 0)
         {
-            battle.Boss.Advance(elapsed);
-            foreach (var emitter in emitters) emitter.AdvanceUnits(units);
-            foreach (var bullet in battle.Bullets.ActiveBullets) bullet.Timeline?.AdvanceUnits(units);
-        });
+            long units = Math.Min(remaining, VTimerProcessor.FixedStepUnits);
+            battle.Timers.AdvanceByUnits(units, elapsed =>
+            {
+                battle.Boss.Advance(elapsed);
+                foreach (var emitter in emitters) emitter.AdvanceUnits(units);
+                foreach (var bullet in battle.Bullets.ActiveBullets) bullet.Timeline?.AdvanceUnits(units);
+            });
+            remaining -= units;
+        }
     }
 }

@@ -1,0 +1,29 @@
+{
+  "Core": {
+    "Id": "B01P01_Emitter01_Queue",
+    "Version": 2,
+    "Amount": 24,
+    "LifeTimeS": 4,
+    "Radius": 6,
+    "VisualScale": 3,
+    "AAngleIsSameAsAngle": true,
+    "AngleMode": "Fixed"
+  },
+  "Display": {
+    "TextureName": "Scale",
+    "TextureIndex": 0
+  },
+  "BaseAttributes": {
+    "Angle": 0,
+    "Speed": 180,
+    "AAngle": 0,
+    "ASpeed": 0
+  },
+  "AddAttributes": {
+    "Angle": "TAU/24"
+  },
+  "PositionAttributes": {
+    "RefObject": "Emitter",
+    "RefMoveQueue": []
+  }
+}

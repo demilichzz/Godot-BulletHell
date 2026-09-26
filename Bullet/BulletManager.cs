@@ -114,19 +114,24 @@ public partial class BulletManager : Node2D
 		for (int index = _active.Count - 1; index >= 0; index--) ReleaseAt(index);
 		_limitReported = false;
 	}
+
+    /// <summary>仅清除指定发射器的存活子弹，沿用统一注销入口。</summary>
+    /// <param name="emitter">需要清弹的所属发射器。</param>
+    public void ClearEmitter(BulletEmitter emitter)
+    {
+        // 倒序删除不改变其余子弹的相对顺序。
+        for (int index = _active.Count - 1; index >= 0; index--)
+            if (ReferenceEquals(_active[index].Emitter, emitter)) ReleaseAt(index);
+    }
 	/// <summary>从两个活动列表注销并延迟释放节点。</summary>
 	/// <param name="index">全场活动列表的有效零基索引。</param>
 	private void ReleaseAt(int index)
 	{
 		// 先移除引用，再释放，避免同一步重复命中。
 		var bullet = _active[index];
-		GlobalEvent.TryNotifyTargetDestroyed(bullet);
-		bullet.Timeline?.Cancel();
-		bullet.Timeline = null;
+		bullet.Deactivate();
 		_active.RemoveAt(index);
 		bullet.Emitter?.Unregister(bullet);
-		bullet.Queue?.Unregister(bullet);
-		bullet.Queue = null;
 		bullet.Emitter = null;
 		RemoveChild(bullet);
 		bullet.QueueFree();

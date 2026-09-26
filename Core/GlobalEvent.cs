@@ -90,6 +90,7 @@ public static class GlobalEvent
     private static bool OwnsNode(BattleManager battle, Node2D node)
     {
         if (ReferenceEquals(node, battle.Boss) || ReferenceEquals(node, battle.Player)) return true;
+        if (node is VNode vnode && ReferenceEquals(vnode.Emitter?.Manager, battle.Bullets)) return true;
         var bullets = battle.Bullets;
         return IsLiveNode(bullets) && (ReferenceEquals(node, bullets) || bullets.IsAncestorOf(node));
     }

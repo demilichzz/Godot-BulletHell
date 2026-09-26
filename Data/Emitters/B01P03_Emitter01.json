@@ -1,0 +1,103 @@
+{
+  "Core": {
+    "Id": "B01P03_Emitter01",
+    "Version": 2,
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "KeepBullets"
+  },
+  "VNodes": [
+    {
+      "Core": {
+        "Id": "Centers",
+        "Version": 2,
+        "Amount": 6,
+        "LifeTimeS": 1.2
+      },
+      "BaseAttributes": {
+        "Speed": 0
+      },
+      "PositionAttributes": {
+        "RefObject": "Emitter",
+        "Mode": "Snapshot",
+        "RefMoveQueue": [
+          {
+            "Type": "XYMove",
+            "X": {
+              "Value": -346.4101615137755,
+              "ValueAdd": 138.5640646055102
+            },
+            "Y": {
+              "Value": 200,
+              "ValueAdd": -20
+            }
+          }
+        ]
+      },
+      "Timeline": [
+        {
+          "StartMs": 1000,
+          "IntervalMs": 2000
+        }
+      ]
+    }
+  ],
+  "BulletQueues": [
+    {
+      "Core": {
+        "Id": "Rings",
+        "Version": 2,
+        "Amount": 12,
+        "LifeTimeS": 10,
+        "Radius": 4,
+        "VisualScale": 2,
+        "AAngleIsSameAsAngle": true,
+        "AngleMode": "Fixed"
+      },
+      "Display": {
+        "TextureName": "Scale",
+        "TextureIndex": 2
+      },
+      "BaseAttributes": {
+        "Angle": 0,
+        "Speed": 0
+      },
+      "AddAttributes": {
+        "Angle": "TAU/12"
+      },
+      "PositionAttributes": {
+        "RefObject": "Centers",
+        "Mode": "Snapshot",
+        "RefMoveQueue": [
+          {
+            "Type": "PMove",
+            "Angle": {
+              "Value": 0,
+              "ValueAdd": "TAU/12"
+            },
+            "Dist": {
+              "Value": 70
+            }
+          }
+        ]
+      },
+      "Timeline": [
+        {
+          "StartMs": 0,
+          "StartMsAdd": 200
+        }
+      ],
+      "MemberTimeline": [
+        {
+          "StartMs": 2000,
+          "Set": {
+            "AngleSource": "AimPlayer",
+            "Angle": 0,
+            "Speed": 150
+          }
+        }
+      ]
+    }
+  ]
+}
