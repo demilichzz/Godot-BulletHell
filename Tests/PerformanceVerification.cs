@@ -15,6 +15,9 @@ public partial class PerformanceVerification : Node
     private double _seconds = 30, _warmup = 12;
     // 当前战场及场景索引，场景切换时暂时停测。
     private Main? _scene;
+    // 可选树压力场景每颗一批，覆盖2000个活批次的遍历开销。
+    private VBulletEmitter? _pressureEmitter;
+    private VBulletCreator? _pressureCreator;
     private int _caseIndex, _birthIndex, _steps;
     // 墙钟只用于基准统计，战斗仍然调用固定60Hz入口。
     private long _started, _previous, _allocated;
@@ -72,6 +75,8 @@ public partial class PerformanceVerification : Node
         // 每组全新战斗及默认种子，关闭玩家攻击以免提前切阶段。
         long before = Stopwatch.GetTimestamp();
         _fillMs = 0;
+        _pressureEmitter = null;
+        _pressureCreator = null;
         _scene = GD.Load<PackedScene>("res://Main.tscn").Instantiate<Main>();
         AddChild(_scene);
         var battle = _scene.Battle;
@@ -81,12 +86,44 @@ public partial class PerformanceVerification : Node
         if (name == "phase02") battle.Boss.TrySwitchAdjacentPhase(1);
         else if (name == "phase03") { battle.Boss.TrySwitchAdjacentPhase(1); battle.Boss.TrySwitchAdjacentPhase(1); }
         else if (name == "idle") battle.Boss.Stop();
-        else if (name is "moving2000" or "churn2000")
+        else if (name == "delayed2000")
         {
             battle.Boss.Stop();
             battle.Player.Position = new Vector2(640, 780);
+            // 2000个基础点按1ms错开出生，2秒寿命与2秒周期维持约2000颗。
+            var definition = new
+            {
+                Core = new { RefObject = (string?)null },
+                VNodes = new
+                {
+                    Core = new { Type = "VBullet", Amount = 1, LifeTimeMs = 2000, Radius = 4, VisualScale = 2 },
+                    Display = new { TextureName = "Scale", TextureIndex = 0 },
+                    BaseAttributes = Enumerable.Range(0, 2000).Select(index => new
+                    {
+                        Speed = 60, SpawnDelayMs = index + 1,
+                        RefMoveQueue = new[] { new { Type = "XYMove", X = 100 + index % 50 * 20, Y = 80 + index / 50 * 14 } }
+                    }).ToArray(),
+                    Timeline = new[] { new { StartMs = 0, IntervalMs = 2000 } },
+                    MemberTimeline = new[] { new { StartMs = 1000, Set = new { Angle = 0, Speed = 60 } } }
+                }
+            };
+            _pressureEmitter = VBulletEmitter.FromJson(JsonSerializer.Serialize(definition));
+            _pressureEmitter.Start(battle.Boss, battle.Bullets);
+        }
+        else if (name is "moving2000" or "churn2000" or "tree2000" or "treechurn2000")
+        {
+            battle.Boss.Stop();
+            battle.Player.Position = new Vector2(640, 780);
+            if (name is "tree2000" or "treechurn2000")
+            {
+                _pressureEmitter = VBulletEmitter.FromJson("""
+        {"Core": {"RefObject": null}, "VNodes": {"Core": {"Type": "VBullet", "LifeTimeMs": 10000000, "Radius": 4, "VisualScale": 2}, "Display": {}, "BaseAttributes": [{"Speed": 60}], "AddAttributes": {}}}
+        """);
+                _pressureEmitter.Start(battle.Boss, battle.Bullets);
+                _pressureCreator = (VBulletCreator)_pressureEmitter.Root;
+            }
             long fillStarted = Stopwatch.GetTimestamp();
-            for (int index = 0; index < 2000; index++) SpawnPressure(name == "churn2000" ? (index + 1) / 1000.0 : 10000);
+            for (int index = 0; index < 2000; index++) SpawnPressure(name is "churn2000" or "treechurn2000" ? (index + 1) / 1000.0 : 10000);
             _fillMs = Stopwatch.GetElapsedTime(fillStarted).TotalMilliseconds;
         }
         else if (name != "phase01") throw new ArgumentException("未知性能场景：" + name);
@@ -107,15 +144,24 @@ public partial class PerformanceVerification : Node
     {
         // 50×40格点跨越画面；横向运动出界后由基准绕回，避免离屏剔除降低负载。
         int index = _birthIndex++ % 2000;
-        var bullet = _scene!.Battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        VBullet bullet;
+        if (_pressureCreator is not null)
+        {
+            // 和直接创建场景相同格点、寿命、速度，只改变运行存储及遍历入口。
+            _pressureCreator.Emit(_pressureEmitter!, _scene!.Battle.Bullets, null, null,
+                new Vector2(100 + index % 50 * 20, 80 + index / 50 * 14));
+            bullet = (VBullet)_pressureCreator.Batches[^1][0];
+            bullet.ApplyParameters(new ParameterActionAttribute { LifeTimeMs = VTimerProcessor.SecondsToMilliseconds(life) });
+        }
+        else bullet = _scene!.Battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = new Vector2(100 + index % 50 * 20, 80 + index / 50 * 14),
             Speed = 60,
-            LifetimeSeconds = life,
+            LifeTimeMs = VTimerProcessor.SecondsToMilliseconds(life),
             VisualScale = 2,
             Radius = 4
         })!;
-        if (_cases[_caseIndex] == "churn2000" && life > 1)
+        if ((_cases[_caseIndex] is "churn2000" or "treechurn2000") && life > 1)
             bullet.Timeline!.At(1000, () => bullet.ApplyParameters(new ParameterActionAttribute { Speed = 60, Angle = 0 }));
     }
 
@@ -130,11 +176,11 @@ public partial class PerformanceVerification : Node
         var battle = _scene.Battle;
         battle.StepFixed(Vector2.Zero, false);
         double logic = Stopwatch.GetElapsedTime(begin).TotalMilliseconds;
-        if (_cases[_caseIndex] is "moving2000" or "churn2000")
+        if (_cases[_caseIndex] is "moving2000" or "churn2000" or "tree2000" or "treechurn2000")
         {
             foreach (var bullet in battle.Bullets.ActiveBullets)
                 if (bullet.Position.X > 1180) bullet.Position = new Vector2(100, bullet.Position.Y);
-            while (battle.Bullets.ActiveCount < 2000) SpawnPressure(_cases[_caseIndex] == "churn2000" ? 2 : 10000);
+            while (battle.Bullets.ActiveCount < 2000) SpawnPressure(_cases[_caseIndex] is "churn2000" or "treechurn2000" ? 2 : 10000);
         }
         double work = Stopwatch.GetElapsedTime(begin).TotalMilliseconds;
         long bytes = GC.GetAllocatedBytesForCurrentThread() - allocated;

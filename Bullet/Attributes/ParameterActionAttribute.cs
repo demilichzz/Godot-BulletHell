@@ -20,18 +20,19 @@ public sealed record ParameterActionAttribute
     public double? X { get; init; }
     /// <summary>纵坐标，坐标系与X相同，逻辑像素。</summary>
     public double? Y { get; init; }
-    /// <summary>出生后的总寿命上限，有限正数秒，不是剩余时间。</summary>
-    public double? LifeTimeS { get; init; }
+    /// <summary>出生后的总寿命上限，正整数毫秒，不是剩余时间。</summary>
+    public long? LifeTimeMs { get; init; }
 
     /// <summary>在应用前校验所有字段，不产生运行状态修改。</summary>
     internal void Validate()
     {
         if (AngleSource is not ("Fixed" or "AimPlayer")) throw new JsonException("AngleSource只支持Fixed或AimPlayer。");
         // 所有待设置值先检查，避免半更新。
-        foreach (double? value in new[] { Angle, Speed, AAngle, ASpeed, X, Y, LifeTimeS })
+        foreach (double? value in new[] { Angle, Speed, AAngle, ASpeed, X, Y })
             if (value.HasValue && !double.IsFinite(value.Value)) throw new JsonException("参数动作需要有限数值。");
         foreach (double? value in new[] { Speed, ASpeed, X, Y })
             if (value.HasValue && Math.Abs(value.Value) > float.MaxValue) throw new JsonException("运行参数超出坐标或速度范围。");
-        if (LifeTimeS <= 0) throw new JsonException("LifeTimeS必须为正数。");
+        if (LifeTimeMs.HasValue) _ = checked(LifeTimeMs.Value * VTimerProcessor.UnitsPerMillisecond);
+        if (LifeTimeMs <= 0) throw new JsonException("LifeTimeMs必须为正数。");
     }
 }

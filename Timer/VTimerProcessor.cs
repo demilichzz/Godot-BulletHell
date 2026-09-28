@@ -13,6 +13,11 @@ public sealed class VTimerProcessor
     private const int MaxActionsPerTimestamp = 10000;
     // 时间线只在所有者中保存动作；适配器的目标由此反向索引。
     private readonly List<IVTimelineOwner> _timelineOwners = new();
+    // 本地时间线只用于清理与统计，绝不按哈希集合顺序派发。
+    private readonly HashSet<IVTimelineOwner> _localOwners = new();
+    // 全场控制动作及本地动作共用一次派发预算和清场代次。
+    private int _dispatchCount;
+    private long _dispatchGeneration;
     private readonly Dictionary<Node2D, HashSet<VTimelineAdapter>> _targets = new();
     private readonly Dictionary<Node2D, Action> _exitHandlers = new();
     // 弱关联逻辑死亡标记不持有历史弹幕。
@@ -26,7 +31,8 @@ public sealed class VTimerProcessor
     /// <summary>当前战斗逻辑时刻，单位为毫秒。</summary>
     public double NowMs => NowUnits / (double)UnitsPerMillisecond;
     /// <summary>所有已登记时间线中尚未完成的动作数量。</summary>
-    public int TimelineActionCount => _timelineOwners.Sum(owner => owner.Timeline?.ActionCount ?? 0);
+    public int TimelineActionCount => _timelineOwners.Sum(owner => owner.Timeline?.ActionCount ?? 0)
+        + _localOwners.Sum(owner => owner.Timeline?.ActionCount ?? 0);
 
     /// <summary>为时间线动作分配全场稳定序号。</summary>
     /// <returns>唯一递增的序号。</returns>
@@ -38,9 +44,15 @@ public sealed class VTimerProcessor
 
     /// <summary>登记一个持有独立年龄的所有者。</summary>
     /// <param name="owner">新激活的时间线所有者。</param>
-    internal void RegisterTimelineOwner(IVTimelineOwner owner)
+    /// <param name="local">是否只接受局部派发。</param>
+    internal void RegisterTimelineOwner(IVTimelineOwner owner, bool local = false)
     {
         if (_faulted) throw new InvalidOperationException("调度异常后须清场重置。");
+        if (local)
+        {
+            if (!_localOwners.Add(owner)) throw new InvalidOperationException("实体时间线已登记。");
+            return;
+        }
         if (_timelineOwners.Contains(owner)) throw new InvalidOperationException("实体时间线已登记。");
         _timelineOwners.Add(owner);
     }
@@ -49,7 +61,7 @@ public sealed class VTimerProcessor
     /// <param name="owner">已取消时间线的所有者。</param>
     internal void UnregisterTimelineOwner(IVTimelineOwner owner)
     {
-        _timelineOwners.Remove(owner);
+        if (!_localOwners.Remove(owner)) _timelineOwners.Remove(owner);
         if (owner is VTimelineAdapter adapter) DetachAdapter(adapter);
     }
 
@@ -139,14 +151,16 @@ public sealed class VTimerProcessor
     /// <summary>推进逻辑时钟和运动碰撞，并按原定时间与登记序号派发到期动作。</summary>
     /// <param name="units">非负整数时间增量；0会派发当前时刻的动作。</param>
     /// <param name="advanceSegment">可选运动碰撞回调，接收本次完整秒数。</param>
-    public void AdvanceByUnits(long units, Action<double>? advanceSegment = null)
+    /// <param name="dispatchLocal">控制动作结束后执行的本地树派发入口。</param>
+    public void AdvanceByUnits(long units, Action<double>? advanceSegment = null, Action? dispatchLocal = null)
     {
         if (units < 0) throw new ArgumentOutOfRangeException(nameof(units));
         if (_advancing || _faulted) throw new InvalidOperationException("禁止重入或继续推进异常调度器。");
         // 只给本步开始前存在的适配器计龄；步内新建者从步末零龄开始。
         var adapters = _timelineOwners.OfType<VTimelineAdapter>().ToArray();
         long end = checked(NowUnits + units), generation = _generation;
-        int count = 0;
+        _dispatchCount = 0;
+        _dispatchGeneration = generation;
         _advancing = true;
         try
         {
@@ -170,9 +184,10 @@ public sealed class VTimerProcessor
                     { nextAction = candidate; actionDue = candidateDue; }
                 }
                 if (nextAction is null) break;
-                if (++count > MaxActionsPerTimestamp) throw new InvalidOperationException("同刻计时动作超过上限，可能存在零延迟递归。");
+                if (++_dispatchCount > MaxActionsPerTimestamp) throw new InvalidOperationException("同刻计时动作超过上限，可能存在零延迟递归。");
                 nextAction.Fire();
             }
+            if (generation == _generation) dispatchLocal?.Invoke();
             // 已自然完成的独立适配器不再占用所有者列表或节点订阅。
             if (generation == _generation)
                 foreach (var adapter in _timelineOwners.OfType<VTimelineAdapter>().ToArray())
@@ -186,6 +201,20 @@ public sealed class VTimerProcessor
         finally { _advancing = false; }
     }
 
+    /// <summary>派发单个本地时间线，保留取消、清场和重入保护。</summary>
+    /// <param name="timeline">由树遍历选中的本地时间线。</param>
+    internal void DispatchLocal(VTimeline timeline)
+    {
+        if (!_advancing || !timeline.IsLocal) throw new InvalidOperationException("本地动作只能在战斗派发阶段执行。");
+        while (_dispatchGeneration == _generation)
+        {
+            var action = timeline.NextDue();
+            if (action is null) return;
+            if (++_dispatchCount > MaxActionsPerTimestamp) throw new InvalidOperationException("同刻计时动作超过上限，可能存在零延迟递归。");
+            action.Fire();
+        }
+    }
+
     /// <summary>取消所有时间线；可选重置战斗时钟和序号。</summary>
     /// <param name="resetClock">为真时重置逻辑时钟与异常状态。</param>
     public void Clear(bool resetClock = false)
@@ -196,6 +225,8 @@ public sealed class VTimerProcessor
             else owner.Timeline?.Cancel();
         }
         _timelineOwners.Clear();
+        foreach (var owner in _localOwners.ToArray()) owner.Timeline?.Cancel();
+        _localOwners.Clear();
         _dead.Clear();
         _generation++;
         if (resetClock) { NowUnits = 0; _sequence = 0; _faulted = false; }

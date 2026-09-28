@@ -1,14 +1,19 @@
 /// <summary>节点队列共用的标识、数量、寿命与运动模式。</summary>
 public record VNodeCoreAttribute
 {
-    /// <summary>Emitter内唯一的非空定义标识。</summary>
-    public string Id { get; init; } = "";
-    /// <summary>数据格式版本，当前为2。</summary>
-    public int Version { get; init; } = 2;
-    /// <summary>每批生成的正整数数量。</summary>
+    /// <summary>树建立时按路径分配的只读标识，不属于JSON。</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Id { get; internal set; } = "";
+    /// <summary>可选名称，同一Emitter内非空名称唯一。</summary>
+    public string? Name { get; init; }
+    /// <summary>生成对象类型，JSON必须显式填写VNode或VBullet。</summary>
+    public string Type { get; init; } = "VNode";
+    /// <summary>基础列表的正整数生成轮数。</summary>
     public int Amount { get; init; } = 1;
-    /// <summary>正数寿命秒数；节点省略表示持续至父对象结束。</summary>
-    public double? LifeTimeS { get; init; }
+    /// <summary>正整数寿命毫秒数；节点省略表示持续至父对象结束。</summary>
+    public long? LifeTimeMs { get; init; }
+    /// <summary>Follow或Snapshot；省略时VNode跟随、VBullet快照。</summary>
+    public string? CreatePositionMode { get; init; }
     /// <summary>为真时沿外部Angle施加加速度。</summary>
     public bool AAngleIsSameAsAngle { get; init; } = true;
     /// <summary>出生角度来源，Fixed或AimPlayer。</summary>

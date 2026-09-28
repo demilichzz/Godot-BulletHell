@@ -19,12 +19,15 @@ public partial class VNode : Node2D, IVTimelineOwner
     public double ASpeed { get; private set; }
     /// <summary>是否沿外部Angle施加加速度。</summary>
     public bool AAngleIsSameAsAngle { get; private set; }
-    /// <summary>总寿命秒数，持久节点为正无穷。</summary>
-    public double LifetimeSeconds { get; private set; } = double.PositiveInfinity;
+    /// <summary>总寿命整数毫秒数，持久节点为null。</summary>
+    public long? LifeTimeMs { get; private set; }
+    // 与固定步时间线同单位的年龄和寿命阈值。
+    private long _ageUnits;
+    private long? _lifeTimeUnits;
     /// <summary>已存活秒数，与自身时间线同龄。</summary>
     public double Age { get; private set; }
     /// <summary>是否已达到总寿命上限。</summary>
-    public bool Expired => Age + 1e-9 >= LifetimeSeconds;
+    public bool Expired => _lifeTimeUnits.HasValue && _ageUnits >= _lifeTimeUnits.Value;
     /// <summary>是否仍为有效运行对象。</summary>
     public bool IsAlive { get; private set; } = true;
     /// <summary>实际速度向量，逻辑像素每秒，不包含父对象平移速度。</summary>
@@ -32,7 +35,7 @@ public partial class VNode : Node2D, IVTimelineOwner
     /// <summary>出生位置，登记后为物理容器局部逻辑像素。</summary>
     public Vector2 SpawnPosition { get; internal set; }
     /// <summary>运动策略，默认按实际速度直线位移。</summary>
-    public BulletBehavior Behavior { get; private set; } = new StraightBehavior();
+    public VNodeBehavior Behavior { get; private set; } = new StraightBehavior();
     /// <summary>逻辑父节点，仅用于树生命周期，不表示场景父节点。</summary>
     public VNode? ParentVNode { get; internal set; }
     /// <summary>所在批次的固定零基出生索引，成员移除不改变此值。</summary>
@@ -42,8 +45,35 @@ public partial class VNode : Node2D, IVTimelineOwner
     /// <summary>读取时解析参考链，立即反映父节点的参数修改。</summary>
     public Vector2 WorldPosition => _reference is null ? GlobalPosition : ReferencePosition(_reference) + _offset;
     // 运行对象所属发射器和生成批次。
-    internal BulletEmitter? Emitter;
-    internal VNodeQueue? Queue;
+    internal VBulletEmitter? Emitter;
+    /// <summary>所属生成器；直接生成的子弹为空。</summary>
+    public VNodeCreator? Creator { get; internal set; }
+    // 批次存储和只读包装用于常数路径注销，不向外暴露可写列表。
+    internal List<VNode>? Batch;
+    internal IReadOnlyList<VNode>? BatchView;
+    // 新生零龄动作尚未派发时不能参加常规更新。
+    internal bool PendingBirth;
+    // 父链失效或Emitter停止后只允许成员动作，不再生成后代。
+    internal bool CanGenerate = true;
+    // 仅有子生成规则的对象分配回调引用，取消生成不影响成员动作。
+    private List<Action>? _generationActions;
+
+    /// <summary>记录随父链生命周期单独取消的生成规则。</summary>
+    /// <param name="action">已登记到自身时间线的生成回调。</param>
+    internal void TrackGeneration(Action action) => (_generationActions ??= new()).Add(action);
+
+    /// <summary>一次性生成任务完成后解除引用，避免父节点长期持有批次。</summary>
+    /// <param name="action">已执行的生成回调。</param>
+    internal void UntrackGeneration(Action action) => _generationActions?.Remove(action);
+
+    /// <summary>立即移除未来生成动作，保留成员动作。</summary>
+    internal void CancelGeneration()
+    {
+        CanGenerate = false;
+        if (_generationActions is null) return;
+        foreach (var action in _generationActions) Timeline?.CancelAction(action);
+        _generationActions.Clear();
+    }
     // 实际速度与最后一次非零方向，不反写外部参数。
     private Vector2 _velocity;
     private double _actualAngle;
@@ -55,15 +85,17 @@ public partial class VNode : Node2D, IVTimelineOwner
     /// <summary>初始化公共运动状态，不创建显示或碰撞。</summary>
     /// <param name="position">登记前的全局逻辑像素位置。</param>
     /// <param name="move">外部运动参数，弧度和逻辑像素每秒。</param>
-    /// <param name="lifeTimeS">正数寿命秒数；null为持久节点。</param>
+    /// <param name="lifeTimeMs">正整数寿命毫秒数；null为持久节点。</param>
     /// <param name="sameAngle">是否沿外部Angle加速。</param>
     /// <param name="behavior">可选无状态运动策略，默认直线。</param>
-    internal void ConfigureMotion(Vector2 position, BulletMoveAttribute move, double? lifeTimeS, bool sameAngle, BulletBehavior? behavior = null)
+    internal void ConfigureMotion(Vector2 position, VNodeMoveAttribute move, long? lifeTimeMs, bool sameAngle, VNodeBehavior? behavior = null)
     {
         if (IsInsideTree()) throw new InvalidOperationException("对象必须在入树前初始化。");
-        ValidateMotion(position, move, lifeTimeS);
+        ValidateMotion(position, move, lifeTimeMs);
         SpawnPosition = Position = position;
-        LifetimeSeconds = lifeTimeS ?? double.PositiveInfinity;
+        LifeTimeMs = lifeTimeMs;
+        _lifeTimeUnits = lifeTimeMs.HasValue ? checked(lifeTimeMs.Value * VTimerProcessor.UnitsPerMillisecond) : null;
+        _ageUnits = 0;
         Age = 0;
         AngleRadians = VMath.StandardizationAngle(move.Angle);
         Speed = move.Speed;
@@ -78,14 +110,15 @@ public partial class VNode : Node2D, IVTimelineOwner
     /// <summary>验证两种运行对象共用的完整运动参数。</summary>
     /// <param name="position">有限全局逻辑像素坐标。</param>
     /// <param name="move">弧度方向及有符号速度、加速度。</param>
-    /// <param name="lifeTimeS">正数有限秒数或持久节点的null。</param>
-    internal static void ValidateMotion(Vector2 position, BulletMoveAttribute move, double? lifeTimeS)
+    /// <param name="lifeTimeMs">正整数毫秒数或持久节点的null。</param>
+    internal static void ValidateMotion(Vector2 position, VNodeMoveAttribute move, long? lifeTimeMs)
     {
         ArgumentNullException.ThrowIfNull(move);
+        if (lifeTimeMs.HasValue) _ = checked(lifeTimeMs.Value * VTimerProcessor.UnitsPerMillisecond);
         if (!position.IsFinite() || !double.IsFinite(move.Angle) || !double.IsFinite(move.AAngle)
             || !double.IsFinite(move.Speed) || Math.Abs(move.Speed) > float.MaxValue
             || !double.IsFinite(move.ASpeed) || Math.Abs(move.ASpeed) > float.MaxValue
-            || (lifeTimeS.HasValue && (!double.IsFinite(lifeTimeS.Value) || lifeTimeS <= 0)))
+            || (lifeTimeMs.HasValue && lifeTimeMs <= 0))
             throw new ArgumentOutOfRangeException(nameof(move), "公共运动参数无效。");
     }
 
@@ -136,7 +169,7 @@ public partial class VNode : Node2D, IVTimelineOwner
         double speed = parameters.Speed ?? Speed;
         bool rebuild = parameters.Angle.HasValue || parameters.AngleSource == "AimPlayer" || parameters.Speed.HasValue;
         // 先验证完整目标值，失败不能留下部分更新。
-        var move = new BulletMoveAttribute
+        var move = new VNodeMoveAttribute
         {
             Angle = angle,
             Speed = speed,
@@ -146,14 +179,15 @@ public partial class VNode : Node2D, IVTimelineOwner
         Vector2 coordinates = _reference is null ? oldWorld : _offset;
         coordinates = new Vector2((float)(parameters.X ?? coordinates.X), (float)(parameters.Y ?? coordinates.Y));
         Vector2 world = _reference is null ? coordinates : ReferencePosition(_reference) + coordinates;
-        double? life = parameters.LifeTimeS ?? (double.IsPositiveInfinity(LifetimeSeconds) ? null : LifetimeSeconds);
+        long? life = parameters.LifeTimeMs ?? LifeTimeMs;
         ValidateMotion(world, move, life);
         AngleRadians = VMath.StandardizationAngle(move.Angle);
         Speed = move.Speed;
         AAngle = VMath.StandardizationAngle(move.AAngle);
         ASpeed = move.ASpeed;
         AAngleIsSameAsAngle = parameters.AAngleIsSameAsAngle ?? AAngleIsSameAsAngle;
-        LifetimeSeconds = life ?? double.PositiveInfinity;
+        LifeTimeMs = life;
+        _lifeTimeUnits = life.HasValue ? checked(life.Value * VTimerProcessor.UnitsPerMillisecond) : null;
         if (_reference is not null) _offset = coordinates;
         GlobalPosition = world;
         if (rebuild) RebuildVelocity();
@@ -180,7 +214,8 @@ public partial class VNode : Node2D, IVTimelineOwner
         if (!Position.IsFinite()) throw new OverflowException("运行位置超出有限范围。");
         if (_reference is not null) _offset = GlobalPosition - ReferencePosition(_reference);
         Timeline?.AdvanceUnits(VTimeline.SecondsToUnits(delta));
-        Age = Timeline is null ? Age + delta : Timeline.ElapsedUnits / (double)VTimerProcessor.UnitsPerSecond;
+        _ageUnits = Timeline?.ElapsedUnits ?? checked(_ageUnits + VTimeline.SecondsToUnits(delta));
+        Age = _ageUnits / (double)VTimerProcessor.UnitsPerSecond;
     }
 
     /// <summary>逻辑注销时解除跟随引用、时间线及所属队列。</summary>
@@ -191,11 +226,13 @@ public partial class VNode : Node2D, IVTimelineOwner
         foreach (var follower in _followers.ToArray()) follower.DetachReference();
         DetachReference();
         GlobalEvent.TryNotifyTargetDestroyed(this);
+        CancelGeneration();
         Timeline?.Cancel();
         Timeline = null;
         IsAlive = false;
-        Queue?.Unregister(this);
-        Queue = null;
+        Creator?.Unregister(this);
+        Creator = null;
+        CanGenerate = false;
         ParentVNode = null;
     }
 
@@ -210,7 +247,7 @@ public partial class VNode : Node2D, IVTimelineOwner
     public override void _ExitTree()
     {
         if (!IsAlive) return;
-        if (this is not Bullet && Emitter is not null) Emitter.ReleaseNode(this, false);
+        if (this is not VBullet && Emitter is not null) Emitter.ReleaseNode(this, false);
         else Deactivate();
     }
 

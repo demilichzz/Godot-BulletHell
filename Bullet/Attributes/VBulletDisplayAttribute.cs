@@ -1,5 +1,5 @@
 /// <summary>整队共用的贴图名称与图集索引。</summary>
-public sealed record BulletDisplayAttribute
+public sealed record VBulletDisplayAttribute
 {
     /// <summary>贴图名称，Scale、Dot、Drop或Star。</summary>
     public string TextureName { get; init; } = "Scale";

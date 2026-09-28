@@ -7,16 +7,14 @@ using System.Collections.Generic;
 /// <summary>验证共用节点模型、树引用、数据时间规则和发射器生命周期。</summary>
 public partial class BattleVerification
 {
-    /// <summary>将节点和子弹数组包装为版本2发射器。</summary>
-    /// <param name="nodes">VNodeQueue数组文本。</param>
-    /// <param name="bullets">BulletQueue数组文本，默认空。</param>
-    /// <param name="stop">停止策略，默认保留子弹。</param>
-    /// <param name="reference">根参考对象JSON值，默认世界原点。</param>
-    /// <returns>可加载的完整Emitter JSON。</returns>
-    private static string EmitterJson(string nodes, string bullets = "[]", string stop = "KeepBullets", string reference = "null")
+    /// <summary>将单根Creator包装为当前发射器格式。</summary>
+    /// <param name="nodes">单个根Creator对象。</param>
+    /// <param name="stop">停止策略。</param>
+    /// <param name="reference">Boss或null的JSON值。</param>
+    /// <returns>完整Emitter JSON。</returns>
+    private static string EmitterJson(string nodes, string stop = "KeepBullets", string reference = "null")
         => $$"""
-        { "Core": { "Id": "test", "Version": 2, "RefObject": {{reference}}, "Team": "Enemy", "Damage": 3, "StopMode": "{{stop}}" },
-          "VNodes": {{nodes}}, "BulletQueues": {{bullets}} }
+        { "Core": { "RefObject": {{reference}}, "Team": "Enemy", "Damage": 3, "StopMode": "{{stop}}" }, "VNodes": {{nodes}} }
         """;
 
     /// <summary>验证两种实际对象共用运动、原子设置及坐标参考。</summary>
@@ -29,31 +27,18 @@ public partial class BattleVerification
         battle.Boss.GlobalPosition = new Vector2(100, 100);
         battle.Bullets.Position = new Vector2(25, 40);
         const string nodes = """
-        [
-          { "Core": { "Id": "Parent" }, "BaseAttributes": { "Speed": 0 },
-            "PositionAttributes": { "RefObject": "Emitter", "RefMoveQueue": [ { "Type": "XYMove", "X": { "Value": 10 }, "Y": {} } ] },
-            "Timeline": [ { "StartMs": 0 } ] },
-          { "Core": { "Id": "Child" }, "BaseAttributes": {},
-            "PositionAttributes": { "RefObject": "Parent", "RefMoveQueue": [ { "Type": "XYMove", "X": {}, "Y": { "Value": 20 } } ] },
-            "Timeline": [ { "StartMs": 0 } ] },
-          { "Core": { "Id": "Snapshot" }, "BaseAttributes": {},
-            "PositionAttributes": { "RefObject": "Parent", "Mode": "Snapshot" }, "Timeline": [ { "StartMs": 0 } ] }
-        ]
+        {"Core": {"Name": "Parent", "Type": "VNode"}, "BaseAttributes": [{"Speed": 0, "RefMoveQueue": [{"Type": "XYMove", "X": 10, "Y": 0}]}], "Timeline": [{"StartMs": 0}], "Children": [{"Core": {"Name": "Child", "Type": "VNode"}, "BaseAttributes": [{"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 20}]}], "Timeline": [{"StartMs": 0}], "Children": [{"Core": {"LifeTimeMs": 10000, "Name": "Ball", "Type": "VBullet", "CreatePositionMode": "Follow"}, "Display": {}, "BaseAttributes": [{"Speed": 0}], "Timeline": [{"StartMs": 0}], "AddAttributes": {}}], "AddAttributes": {"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}, "RandDiffAttributes": {"Batch": {"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}, "Member": {"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}}}, {"Core": {"Name": "Snapshot", "Type": "VNode", "CreatePositionMode": "Snapshot"}, "BaseAttributes": [{}], "Timeline": [{"StartMs": 0}], "AddAttributes": {}}], "AddAttributes": {"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}, "RandDiffAttributes": {"Batch": {"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}, "Member": {"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}}}
         """;
-        const string bullets = """
-        [ { "Core": { "Id": "Ball", "LifeTimeS": 10 }, "Display": {}, "BaseAttributes": { "Speed": 0 },
-            "PositionAttributes": { "RefObject": "Child", "Mode": "Follow" }, "Timeline": [ { "StartMs": 0 } ] } ]
-        """;
-        var emitter = BulletEmitter.FromJson(EmitterJson(nodes, bullets, reference: "\"Boss\""));
+        var emitter = VBulletEmitter.FromJson(EmitterJson(nodes, reference: "\"Boss\""));
         emitter.Start(battle.Boss, battle.Bullets);
-        battle.Timers.AdvanceByUnits(0);
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         VNode parent = emitter.Nodes[0];
-        VNode child = emitter.Nodes.Single(node => node.Queue!.Core.Id == "Child");
-        VNode snapshot = emitter.Nodes.Single(node => node.Queue!.Core.Id == "Snapshot");
-        Bullet bullet = emitter.Bullets.Single();
+        VNode child = emitter.Nodes.Single(node => node.Creator!.Core.Name == "Child");
+        VNode snapshot = emitter.Nodes.Single(node => node.Creator!.Core.Name == "Snapshot");
+        VBullet bullet = emitter.Bullets.Single();
         Check(emitter.Nodes.Count == 3 && battle.Bullets.ActiveCount == 1, "VNode不计入子弹容量");
         Check(parent.GetChildCount() == 0 && child.GetChildCount() == 0 && !parent.IsPhysicsProcessing(), "纯节点无显示子节点且不自行物理更新");
-        Check(bullet.Damage == 3 && bullet.Team == BulletTeam.Enemy, "子弹继承Emitter共通参数");
+        Check(bullet.Damage == 3 && bullet.Team == VBulletTeam.Enemy, "子弹继承Emitter共通参数");
         Check(child.WorldPosition == new Vector2(110, 120) && bullet.GlobalPosition == child.WorldPosition, "树局部偏移及不同容器全局坐标一致");
         Check(!ReferenceEquals(child.GetParent(), parent) && !ReferenceEquals(bullet.GetParent(), child), "逻辑树与场景父子关系独立");
         battle.Boss.GlobalPosition = new Vector2(200, 200);
@@ -68,22 +53,20 @@ public partial class BattleVerification
         battle.Bullets.Clear();
 
         // 相同运动参数，两种对象逐步得到相同实际速度和全局位置。
-        var motionEmitter = BulletEmitter.FromJson(EmitterJson("""
-        [{ "Core": { "Id": "Mover", "LifeTimeS": 10, "AAngleIsSameAsAngle": false },
-           "BaseAttributes": { "Speed": 20, "ASpeed": 30, "AAngle": "PI/2" },
-           "PositionAttributes": { "RefObject": "Emitter", "Mode": "Snapshot" }, "Timeline": [{ "StartMs": 0 }] }]
+        var motionEmitter = VBulletEmitter.FromJson(EmitterJson("""
+        {"Core": {"LifeTimeMs": 10000, "AAngleIsSameAsAngle": false, "Name": "Mover", "Type": "VNode", "CreatePositionMode": "Snapshot"}, "BaseAttributes": [{"Speed": 20, "ASpeed": 30, "AAngle": "PI/2"}], "Timeline": [{"StartMs": 0}], "AddAttributes": {}}
         """));
         motionEmitter.Start(battle.Boss, battle.Bullets);
-        battle.Timers.AdvanceByUnits(0);
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         VNode mover = motionEmitter.Nodes[0];
-        Bullet equivalent = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        VBullet equivalent = battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = Vector2.Zero,
             Speed = 20,
             ASpeed = 30,
             AAngle = Math.PI / 2,
             AAngleIsSameAsAngle = false,
-            LifetimeSeconds = 10
+            LifeTimeMs = 10000
         })!;
         for (int step = 0; step < 120; step++)
         {
@@ -98,7 +81,7 @@ public partial class BattleVerification
         mover.ApplyParameters(new ParameterActionAttribute { Angle = Math.PI, Speed = 50, ASpeed = 10 });
         Check(mover.Velocity.DistanceTo(Vector2.Left * 50) < 0.001, "多字段动作一次性重建速度");
         double oldSpeed = mover.Speed;
-        try { mover.ApplyParameters(new ParameterActionAttribute { Speed = 999, LifeTimeS = -1 }); Check(false, "无效原子动作须拒绝"); }
+        try { mover.ApplyParameters(new ParameterActionAttribute { Speed = 999, LifeTimeMs = -1 }); Check(false, "无效原子动作须拒绝"); }
         catch (JsonException) { Check(mover.Speed == oldSpeed, "无效动作不留下部分修改"); }
         motionEmitter.Stop();
         world.Free();
@@ -111,19 +94,12 @@ public partial class BattleVerification
         battle.Boss.Stop();
         battle.Player.Attack.Stop();
         const string nodes = """
-        [{ "Core": { "Id": "Roots", "Amount": 2, "LifeTimeS": 2 }, "BaseAttributes": {},
-           "PositionAttributes": { "RefObject": "Emitter", "Mode": "Snapshot", "RefMoveQueue": [ { "Type": "XYMove", "X": { "ValueAdd": 100 }, "Y": {} } ] },
-           "Timeline": [{ "AtMs": [0, 100] }] }]
+        {"Core": {"Amount": 2, "LifeTimeMs": 2000, "Name": "Roots", "Type": "VNode", "CreatePositionMode": "Snapshot"}, "BaseAttributes": [{"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}], "Timeline": [{"AtMs": [0, 100]}], "Children": [{"Core": {"LifeTimeMs": 10000, "Name": "Balls", "Type": "VBullet"}, "Display": {}, "BaseAttributes": [{"Speed": 0}], "Timeline": [{"StartMs": 0, "StartMsAdd": 50, "IntervalMs": 100, "IntervalMsAdd": 100, "EndMs": 200, "EndMsAdd": 50}], "AddAttributes": {}}], "AddAttributes": {"RefMoveQueue": [{"Type": "XYMove", "X": 100, "Y": 0}]}, "RandDiffAttributes": {"Batch": {"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}, "Member": {"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}}}
         """;
-        const string bullets = """
-        [{ "Core": { "Id": "Balls", "LifeTimeS": 10 }, "Display": {}, "BaseAttributes": { "Speed": 0 },
-           "PositionAttributes": { "RefObject": "Roots" },
-           "Timeline": [{ "StartMs": 0, "StartMsAdd": 50, "IntervalMs": 100, "IntervalMsAdd": 100, "EndMs": 200, "EndMsAdd": 50 }] }]
-        """;
-        var emitter = BulletEmitter.FromJson(EmitterJson(nodes, bullets, reference: "\"Boss\""));
+        var emitter = VBulletEmitter.FromJson(EmitterJson(nodes, reference: "\"Boss\""));
         battle.Boss.Position = Vector2.Zero;
         emitter.Start(battle.Boss, battle.Bullets);
-        battle.Timers.AdvanceByUnits(0);
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         Check(emitter.Nodes.Count == 2 && emitter.Bullets.Count == 1, "首批父节点零龄生成子弹");
         VerificationClock.EmitterSeconds(battle, 0.05, emitter);
         Check(emitter.Bullets.Count == 2 && emitter.Bullets[1].WorldPosition.X == 100, "父索引决定不同首次延迟");
@@ -140,15 +116,11 @@ public partial class BattleVerification
         battle.Bullets.Clear();
 
         // 同刻参数修改按声明顺序，多个字段读取同一旧状态。
-        var actions = BulletEmitter.FromJson(EmitterJson("""
-        [{ "Core": { "Id": "Point" }, "BaseAttributes": {}, "PositionAttributes": {}, "Timeline": [{ "StartMs": 0 }],
-           "MemberTimeline": [
-             { "AtMs": [100, 100], "Set": { "Speed": 10 } },
-             { "StartMs": 100, "Set": { "Speed": 20 } }
-           ] }]
+        var actions = VBulletEmitter.FromJson(EmitterJson("""
+        {"Core": {"Name": "Point", "Type": "VNode"}, "BaseAttributes": [{}], "Timeline": [{"StartMs": 0}], "MemberTimeline": [{"AtMs": [100, 100], "Set": {"Speed": 10}}, {"StartMs": 100, "Set": {"Speed": 20}}], "AddAttributes": {}}
         """));
         actions.Start(battle.Boss, battle.Bullets);
-        battle.Timers.AdvanceByUnits(0);
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         VerificationClock.EmitterSeconds(battle, 0.1, actions);
         Check(actions.Nodes[0].Speed == 20, "重复固定时刻不去重，最后登记动作确定最终值");
         actions.Stop();
@@ -162,18 +134,12 @@ public partial class BattleVerification
         battle.Boss.Stop();
         battle.Player.Attack.Stop();
         const string nodes = """
-        [{ "Core": { "Id": "Parent", "LifeTimeS": 0.1 }, "BaseAttributes": {}, "PositionAttributes": {}, "Timeline": [{ "StartMs": 0 }] },
-         { "Core": { "Id": "Child" }, "BaseAttributes": {}, "PositionAttributes": { "RefObject": "Parent", "Mode": "Snapshot" }, "Timeline": [{ "StartMs": 0 }] }]
+        {"Core": {"LifeTimeMs": 100, "Name": "Parent", "Type": "VNode"}, "BaseAttributes": [{}], "Timeline": [{"StartMs": 0}], "Children": [{"Core": {"Name": "Child", "Type": "VNode", "CreatePositionMode": "Snapshot"}, "BaseAttributes": [{}], "Timeline": [{"StartMs": 0}], "Children": [{"Core": {"LifeTimeMs": 10000, "Name": "Balls", "Type": "VBullet", "CreatePositionMode": "Follow"}, "Display": {}, "BaseAttributes": [{"Speed": 0}], "Timeline": [{"StartMs": 0, "IntervalMs": 200}], "MemberTimeline": [{"StartMs": 200, "Set": {"AngleSource": "AimPlayer", "Speed": 150}}], "AddAttributes": {}}], "AddAttributes": {}}], "AddAttributes": {}}
         """;
-        const string bullets = """
-        [{ "Core": { "Id": "Balls", "LifeTimeS": 10 }, "Display": {}, "BaseAttributes": { "Speed": 0 },
-           "PositionAttributes": { "RefObject": "Child", "Mode": "Follow" }, "Timeline": [{ "StartMs": 0, "IntervalMs": 200 }],
-           "MemberTimeline": [{ "StartMs": 200, "Set": { "AngleSource": "AimPlayer", "Speed": 150 } }] }]
-        """;
-        var emitter = BulletEmitter.FromJson(EmitterJson(nodes, bullets));
+        var emitter = VBulletEmitter.FromJson(EmitterJson(nodes));
         emitter.Start(battle.Boss, battle.Bullets);
-        battle.Timers.AdvanceByUnits(0);
-        Bullet survivor = emitter.Bullets.Single();
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
+        VBullet survivor = emitter.Bullets.Single();
         VerificationClock.EmitterSeconds(battle, 0.1, emitter);
         Check(emitter.Nodes.Count == 0 && emitter.Bullets.Count == 1 && !survivor.IsFollowing && survivor.ParentVNode is null,
             "父到期取消Snapshot后代和未来生成，已发子弹脱离引用继续运行");
@@ -182,10 +148,10 @@ public partial class BattleVerification
         VerificationClock.BossSeconds(battle, 0.1);
         Check(survivor.Speed == 150 && Math.Abs(survivor.Angle - Math.Atan2(400, 300)) < 0.00001,
             "Emitter停止后已发子弹仍按自身年龄瞄准当前玩家");
-        var clearing = BulletEmitter.FromJson(EmitterJson(nodes, bullets, "ClearBullets"));
+        var clearing = VBulletEmitter.FromJson(EmitterJson(nodes, "ClearBullets"));
         clearing.Start(battle.Boss, battle.Bullets);
-        battle.Timers.AdvanceByUnits(0);
-        Bullet removed = clearing.Bullets.Single();
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
+        VBullet removed = clearing.Bullets.Single();
         VerificationClock.EmitterSeconds(battle, 0.1, clearing);
         Check(clearing.Nodes.Count == 0 && removed.IsAlive, "ClearBullets只在Emitter停止时生效，节点到期不清弹");
         clearing.Stop();
@@ -195,27 +161,23 @@ public partial class BattleVerification
 
         // 子弹满额不阻止节点生成、随机、运动和到期。
         for (int index = 0; index < BattleConfig.MaxBullets; index++)
-            battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { Position = new Vector2(-10000, -10000) });
-        var full = BulletEmitter.FromJson(EmitterJson("""
-        [{ "Core": { "Id": "Point", "LifeTimeS": 0.1 }, "BaseAttributes": { "Speed": 60 },
-           "AddAttributesRandDiff": { "Angle": 1 }, "PositionAttributes": {}, "Timeline": [{ "StartMs": 0 }] }]
-        """, """
-        [{ "Core": { "Id": "Blocked" }, "Display": {}, "BaseAttributes": {}, "AddAttributesRandDiff": { "Speed": 100 },
-           "PositionAttributes": { "RefObject": "Point" }, "Timeline": [{ "StartMs": 0 }] }]
+            battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with { Position = new Vector2(-10000, -10000) });
+        var full = VBulletEmitter.FromJson(EmitterJson("""
+        {"Core": {"LifeTimeMs": 100, "Name": "Point", "Type": "VNode"}, "BaseAttributes": [{"Speed": 60}], "Timeline": [{"StartMs": 0}], "Children": [{"Core": {"Name": "Blocked", "Type": "VBullet"}, "Display": {}, "BaseAttributes": [{}], "Timeline": [{"StartMs": 0}], "AddAttributes": {}, "RandDiffAttributes": {"Batch": {}, "Member": {"Speed": 100}}}], "AddAttributes": {}, "RandDiffAttributes": {"Batch": {}, "Member": {"Angle": 1}}}
         """));
         VMath.setRandomSeed(41);
         double expectedAngle = VMath.getRandomDiff(1, RandomDiffMode.Center);
         double expectedNext = VMath.getRandomDouble(0, 1);
         VMath.setRandomSeed(41);
         full.Start(battle.Boss, battle.Bullets);
-        battle.Timers.AdvanceByUnits(0);
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         Check(full.Nodes.Count == 1 && full.Bullets.Count == 0 && VMath.getRandomDouble(0, 1) == expectedNext,
             "满额仍抽节点随机，但子弹随机不消耗");
         VNode point = full.Nodes[0];
         VerificationClock.EmitterSeconds(battle, 1.0 / 60, full);
         Check(point.WorldPosition.DistanceTo(VMath.PolarMove(Vector2.Zero, expectedAngle, 1)) < 0.001,
             "满额节点仍按固定步运动");
-        point.ApplyParameters(new ParameterActionAttribute { LifeTimeS = 0.001 });
+        point.ApplyParameters(new ParameterActionAttribute { LifeTimeMs = 1 });
         Check(point.IsAlive, "寿命修改不在回调中立即释放");
         VerificationClock.EmitterSeconds(battle, 1.0 / 60, full);
         Check(full.Nodes.Count == 0, "缩短寿命在下一次固定步检查中释放");
@@ -223,19 +185,20 @@ public partial class BattleVerification
         world.Free();
     }
 
-    /// <summary>验证图引用、专用属性隔离、版本及时间边界。</summary>
+    /// <summary>验证路径身份、可选名称、旧字段拒绝及时间边界。</summary>
     private void VerifyVNodeValidation()
     {
+        // 当前最小定义不含Version或Id，名称也可省略。
         const string minimal = """
-        [{ "Core": { "Id": "A" }, "BaseAttributes": {}, "PositionAttributes": {}, "Timeline": [{ "StartMs": 0 }] }]
+        {"Core": {"Type": "VNode"}, "BaseAttributes": [{}], "Timeline": [{"StartMs": 0}], "AddAttributes": {}}
         """;
         string[] invalid =
         {
-            EmitterJson(minimal).Replace("\"Version\": 2", "\"Version\": 1"),
-            EmitterJson(minimal).Replace("\"RefObject\": null", "\"RefObject\": \"Other\""),
-            EmitterJson(minimal.Replace("\"Id\": \"A\"", "\"Id\": \"A\", \"Radius\": 6")),
-            EmitterJson(minimal.Replace("\"PositionAttributes\": {}", "\"PositionAttributes\": { \"RefObject\": \"A\" }")),
-            EmitterJson(minimal.Replace("\"PositionAttributes\": {}", "\"PositionAttributes\": { \"RefObject\": \"Missing\" }")),
+            EmitterJson(minimal.Replace("\"Type\": \"VNode\"", "\"Type\": \"VNode\", \"Version\": 2")),
+            EmitterJson(minimal.Replace("\"Type\": \"VNode\"", "\"Type\": \"VNode\", \"Id\": \"A\"")),
+            EmitterJson(minimal.Replace("\"VNode\"", "\"Bullet\"")),
+            EmitterJson(minimal.Replace("\"Type\": \"VNode\"", "\"Type\": \"VNode\", \"Radius\": 6")),
+            EmitterJson(minimal.Replace("\"Core\":", "\"PositionAttributes\": {}, \"Core\":")),
             EmitterJson(minimal.Replace("\"StartMs\": 0", "\"StartMs\": 0, \"IntervalMs\": 100")),
             EmitterJson(minimal.Replace("\"StartMs\": 0", "\"AtMs\": [0, 100]")),
             EmitterJson(minimal.Replace("\"StartMs\": 0", "\"StartMs\": -1")),
@@ -245,25 +208,15 @@ public partial class BattleVerification
             EmitterJson(minimal.Replace("\"StartMs\": 0", "\"StartMs\": 0, \"AtMs\": [0]")),
             EmitterJson(minimal.Replace("\"StartMs\": 0", "\"StartMs\": 9223372036854775807")),
             EmitterJson(minimal.Replace("\"StartMs\": 0", "\"StartMs\": 0, \"Set\": { \"Speed\": 1 }")),
-            EmitterJson(minimal, """
-            [{ "Core": { "Id": "A" }, "Display": {}, "BaseAttributes": {}, "PositionAttributes": {} }]
-            """),
-            EmitterJson(minimal, """
-            [{ "Core": { "Id": "B", "Damage": 2 }, "Display": {}, "BaseAttributes": {}, "PositionAttributes": {} }]
-            """)
+            EmitterJson("[" + minimal + "]"),
+            EmitterJson(minimal).Replace("\"VNodes\":", "\"BulletQueues\": [], \"VNodes\":")
         };
         foreach (string json in invalid)
         {
-            try { BulletEmitter.FromJson(json, "invalid-emitter.json"); Check(false, "非法Emitter必须在加载时拒绝"); }
-            catch (JsonException error) { Check(error.Message.Contains("invalid-emitter.json"), "错误包含来源文件"); }
+            try { VBulletEmitter.FromJson(json, "invalid-tree"); Check(false, "无效树必须拒绝"); }
+            catch (JsonException error) { Check(error.Message.Contains("invalid-tree"), "树错误包含来源"); }
         }
-        // 父索引端点验证，不能只检查第零个成员。
-        string indexed = EmitterJson(minimal.Replace("\"Id\": \"A\"", "\"Id\": \"A\", \"Amount\": 3"), """
-        [{ "Core": { "Id": "B" }, "Display": {}, "BaseAttributes": {}, "PositionAttributes": { "RefObject": "A" },
-           "Timeline": [{ "StartMs": 0, "IntervalMs": 100, "IntervalMsAdd": -60 }] }]
-        """);
-        try { BulletEmitter.FromJson(indexed); Check(false, "末索引负周期必须拒绝"); }
-        catch (JsonException) { _checks++; }
+        VerifyCreatorIdentityAndDispatch();
     }
 
     /// <summary>对四个迁移发射器逐固定步重放并比较节点、子弹与后续随机值。</summary>
@@ -278,7 +231,7 @@ public partial class BattleVerification
                 battle.Boss.Stop();
                 battle.Player.Attack.Stop();
                 VMath.setRandomSeed(2026);
-                var emitter = BulletEmitter.Load("res://Data/Emitters/" + name + ".json");
+                var emitter = VBulletEmitter.Load("res://Data/Emitters/" + name + ".json");
                 emitter.Start(battle.Boss, battle.Bullets);
                 var frames = new List<string>();
                 for (int step = 0; step < 240; step++)
@@ -287,9 +240,8 @@ public partial class BattleVerification
                     battle.Player.GlobalPosition = new Vector2(600, 500 + step % 20);
                     battle.Timers.AdvanceByUnits(VTimerProcessor.FixedStepUnits, delta =>
                     {
-                        emitter.AdvanceUnits(VTimerProcessor.FixedStepUnits);
                         battle.Bullets.Advance(delta, battle.Player, battle.Boss);
-                    });
+                    }, battle.Bullets.DispatchTimelines);
                     frames.Add(string.Join(";", emitter.Nodes.Concat<VNode>(emitter.Bullets)
                         .Select(node => $"{node.WorldPosition}|{node.Velocity}|{node.Angle:R}|{node.Age:R}|{node.BirthIndex}")));
                 }

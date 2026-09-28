@@ -17,19 +17,25 @@ public sealed class VTimeline
     private readonly long _origin;
     private readonly List<VTimelineEvent> _events = new();
     private bool _cancelled;
+    /// <summary>为真时仅由树遍历派发，不参与全场候选排序。</summary>
+    internal bool IsLocal { get; }
     // 本实体实际经过的整数逻辑时间单位。
     private long _elapsedUnits;
 
     /// <summary>创建从当前逻辑时刻开始、由实体自行推进的时间线。</summary>
     /// <param name="clock">所属战斗的唯一逻辑时钟。</param>
     /// <param name="owner">持有此时间线的实体。</param>
-    public VTimeline(VTimerProcessor clock, IVTimelineOwner owner)
+    public VTimeline(VTimerProcessor clock, IVTimelineOwner owner, bool local = false)
     {
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _owner = owner ?? throw new ArgumentNullException(nameof(owner));
         _origin = clock.NowUnits;
-        _clock.RegisterTimelineOwner(owner);
+        IsLocal = local;
+        _clock.RegisterTimelineOwner(owner, local);
     }
+
+    /// <summary>在战斗处理器的受保护派发阶段执行本对象到期动作。</summary>
+    internal void DispatchDue() => _clock.DispatchLocal(this);
 
     /// <summary>从激活时刻起经过的整数逻辑时间单位。</summary>
     public long ElapsedUnits => _elapsedUnits;
@@ -92,6 +98,15 @@ public sealed class VTimeline
         _events.Remove(item);
     }
 
+    /// <summary>取消指定生成回调，保留同一对象的成员参数动作。</summary>
+    /// <param name="action">登记生成规则时保存的回调引用。</param>
+    internal void CancelAction(Action action)
+    {
+        // 同一规则可有多个固定时刻，倒序移除全部匹配项。
+        for (int index = _events.Count - 1; index >= 0; index--)
+            if (_events[index].Matches(action)) _events[index].Cancel();
+    }
+
     /// <summary>返回该实体已到期且原定时间最早的动作。</summary>
     /// <returns>待派发动作；没有到期动作时为空。</returns>
     internal VTimelineEvent? NextDue()
@@ -151,6 +166,11 @@ internal sealed class VTimelineEvent
     internal long Sequence { get; set; }
     /// <summary>动作是否已结束。</summary>
     internal bool Cancelled { get; private set; }
+
+    /// <summary>按回调引用匹配需要单独取消的生成动作。</summary>
+    /// <param name="action">原登记回调。</param>
+    /// <returns>引用相同时为真。</returns>
+    internal bool Matches(Action action) => ReferenceEquals(_action, action);
 
     /// <summary>保存一个时间点或周期动作。</summary>
     /// <param name="owner">所属实体时间线。</param>

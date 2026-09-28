@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Linq;
 
 /// <summary>为隔离验证提供固定战斗步及仅推进指定实体年龄的辅助。</summary>
 public static class VerificationClock
@@ -21,13 +22,13 @@ public static class VerificationClock
     /// <param name="seconds">非负秒数，按内部1/60000秒时间精度换算。</param>
     public static void BossSeconds(BattleManager battle, double seconds)
     {
-        AdvanceEntities(battle, seconds, Array.Empty<BulletEmitter>());
+        AdvanceEntities(battle, seconds, Array.Empty<VBulletEmitter>());
     }
     /// <summary>隔离推进未绑定阶段的发射器及现存子弹时间线。</summary>
     /// <param name="battle">拥有处理器与子弹的战斗。</param>
     /// <param name="seconds">非负逻辑秒数。</param>
     /// <param name="emitters">此次需要推进的独立发射器。</param>
-    public static void EmitterSeconds(BattleManager battle, double seconds, params BulletEmitter[] emitters)
+    public static void EmitterSeconds(BattleManager battle, double seconds, params VBulletEmitter[] emitters)
     {
         AdvanceEntities(battle, seconds, emitters);
     }
@@ -36,20 +37,31 @@ public static class VerificationClock
     /// <param name="battle">所属战斗。</param>
     /// <param name="seconds">非负秒数，最后片段保留原边界精度。</param>
     /// <param name="emitters">额外推进的未绑定阶段发射器。</param>
-    private static void AdvanceEntities(BattleManager battle, double seconds, BulletEmitter[] emitters)
+    private static void AdvanceEntities(BattleManager battle, double seconds, VBulletEmitter[] emitters)
     {
         // 零龄动作先按现有边界语义派发，子弹仍只计龄而不运动。
         long remaining = VTimeline.SecondsToUnits(seconds);
-        battle.Timers.AdvanceByUnits(0);
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         while (remaining > 0)
         {
             long units = Math.Min(remaining, VTimerProcessor.FixedStepUnits);
             battle.Timers.AdvanceByUnits(units, elapsed =>
             {
                 battle.Boss.Advance(elapsed);
-                foreach (var emitter in emitters) emitter.AdvanceUnits(units);
+                // 阶段只移动Boss；隔离测试显式推进活动树及纯节点。
+                var trees = (battle.Boss.CurrentPhase?.Emitters ?? Array.Empty<VBulletEmitter>()).Concat(emitters).Distinct();
+                foreach (var emitter in trees)
+                {
+                    emitter.AdvanceUnits(units);
+                    emitter.Root.VisitMembers(node =>
+                    {
+                        if (node is VBullet || node.PendingBirth) return;
+                        node.Advance(elapsed);
+                        if (node.Expired) emitter.ReleaseNode(node);
+                    });
+                }
                 foreach (var bullet in battle.Bullets.ActiveBullets) bullet.Timeline?.AdvanceUnits(units);
-            });
+            }, battle.Bullets.DispatchTimelines);
             remaining -= units;
         }
     }

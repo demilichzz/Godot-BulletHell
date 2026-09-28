@@ -21,7 +21,7 @@ public partial class BattleManager : Node
 	/// <summary>当前 Boss 实例。</summary>
 	public BossController Boss { get; private set; } = null!;
 	/// <summary>当前独立弹幕容器。</summary>
-	public BulletManager Bullets { get; private set; } = null!;
+	public VBulletManager Bullets { get; private set; } = null!;
 	/// <summary>已进行的战斗时间，单位为秒。</summary>
 	public double Elapsed => Timers.NowUnits / (double)VTimerProcessor.UnitsPerSecond;
 	/// <summary>本场战斗共享的时间线处理器。</summary>
@@ -59,7 +59,7 @@ public partial class BattleManager : Node
 			ClearOwnedBattle();
 			VMath.setRandomSeed(BattleRandomSeed);
 			Timers = new VTimerProcessor();
-			Bullets = new BulletManager { Name = "Bullets" };
+			Bullets = new VBulletManager { Name = "Bullets" };
 			_stopped = false;
 			State = BattleState.Running;
 			_world.AddChild(Bullets);
@@ -145,7 +145,7 @@ public partial class BattleManager : Node
         {
             // 当前边界的零延迟动作先完成，再接受本步按键。
             var clock = Timers;
-            clock.AdvanceByUnits(0);
+            clock.AdvanceByUnits(0, dispatchLocal: Bullets.DispatchTimelines);
             if (_stopped || State != BattleState.Running || !ReferenceEquals(clock, Timers)) return;
             if (previousPhasePressed != nextPhasePressed)
                 Boss.TrySwitchAdjacentPhase(previousPhasePressed ? -1 : 1);
@@ -158,7 +158,7 @@ public partial class BattleManager : Node
 				Bullets.Advance(seconds, Player, Boss);
                 // 运动碰撞完成后才派发本步计时动作；玩家零血和负血继续战斗。
                 if (Boss.Hp == 0) Finish(BattleState.Victory);
-            });
+            }, Bullets.DispatchTimelines);
             Player.FinishStep();
         }
         catch

@@ -1,4 +1,4 @@
-Timestamp: 2026-09-26T23:53:56+09:00
+Timestamp: 2026-09-28T21:49:36+09:00
 
 # 项目协作约定
 
@@ -32,6 +32,7 @@ Timestamp: 2026-09-26T23:53:56+09:00
 
 - 文档和非代码设计内容默认输出到同级 `../BulletHell_Design/`（`D:\Develop\Projects\BulletHell_Design`）；项目运行所需代码、配置、资源及项目协作规则保留在项目内。用户指定其他位置或输出方式时遵循其要求。
 - 结构索引位于 `../BulletHell_Design/Project-Structure.md`，是按需更新的快照。仅当用户明确要求更新结构索引时，读取其中的收录约定并按请求范围更新；日常代码、资源、目录、类型或注释变更不自动触发维护。
+- 数据化文档最新版本固定为 `../BulletHell_Design/BulletData/数据化_最新版.md`；发布新一版前将原最新版重命名为下一个未使用的 `数据化_vN.md`，不覆盖历史。归档编号仅用于文档，不写入JSON；当前已有v1至v4，下一次归档从v5开始。仅重命名的历史文档保留原内容Timestamp。
 - 生成或维护文档时，在顶部记录实际本地更新时间：`Timestamp: YYYY-MM-DDTHH:mm:ss±HH:mm`。
 - 未指定格式时默认 Markdown；对话中仅提供生成文件的链接与简要说明。
 

@@ -8,21 +8,8 @@ public partial class BattleVerification
 {
     // 含表达式、共享随机和首颗随机的最小完整定义。
     private const string DataSample = """
-    {
-      "Core": { "Id": "test", "Version": 2, "Amount": 3 },
-      "Display": { "TextureName": "Scale", "TextureIndex": 0 },
-      "BaseAttributes": { "Angle": "-(PI/6) + TAU/12", "Speed": "1e2 + (2*40)" },
-      "AddAttributes": { "Speed": 10 },
-      "AddAttributesRandDiff": { "Speed": 20 },
-      "PositionAttributes": {
-        "RefObject": "Emitter",
-        "RefMoveQueue": [
-          { "Type": "XYMove", "X": { "Value": 10, "RandDiff": 20, "ValueAdd": 3, "RandDiffAdd": 4 }, "Y": {} },
-          { "Type": "PMove", "Angle": { "Value": "PI/2" }, "Dist": { "Value": -5 } }
-        ]
-      }
-    }
-    """;
+        {"Core": {"Name": "test", "Type": "VBullet", "Amount": 3}, "Display": {"TextureName": "Scale", "TextureIndex": 0}, "BaseAttributes": [{"Angle": "-(PI/6) + TAU/12", "Speed": "1e2 + (2*40)", "RefMoveQueue": [{"Type": "XYMove", "X": 10, "Y": 0}, {"Type": "PMove", "Angle": "PI/2", "Dist": -5}]}], "AddAttributes": {"Speed": 10, "RefMoveQueue": [{"Type": "XYMove", "X": 3, "Y": 0}, {"Type": "PMove", "Angle": 0, "Dist": 0}]}, "RandDiffAttributes": {"Batch": {"RefMoveQueue": [{"Type": "XYMove", "X": 20, "Y": 0}, {"Type": "PMove", "Angle": 0, "Dist": 0}]}, "Member": {"Speed": 20, "RefMoveQueue": [{"Type": "XYMove", "X": 4, "Y": 0}, {"Type": "PMove", "Angle": 0, "Dist": 0}]}}}
+        """;
 
     /// <summary>验证配置、随机消耗、独立实例、运动积分和固定输入重复结果。</summary>
     private void VerifyBulletData()
@@ -37,14 +24,14 @@ public partial class BattleVerification
         VMath.setRandomSeed(317);
         double untouched = VMath.getRandomDouble(0, 1);
         VMath.setRandomSeed(317);
-        var template = BulletQueue.FromJson(DataSample, "test.json");
+        var template = VBulletCreator.FromJson(DataSample, "test.json");
         Check(VMath.getRandomDouble(0, 1) == untouched, "加载配置不消耗随机序列");
-        Check(template.BaseAttributes.Angle == 0 && template.BaseAttributes.Speed == 180
+        Check(template.BaseAttributes[0].Angle == 0 && template.BaseAttributes[0].Speed == 180
             && template.AddAttributes.Angle == 0, "表达式优先级、常量、一元负号与科学计数法");
-        var defaults = BulletQueue.FromJson(DataSample.Replace("\"Speed\": \"1e2 + (2*40)\"", "\"AAngle\": 0"));
-        Check(defaults.BaseAttributes.Speed == 180 && defaults.AddAttributesRandDiff.Angle == 0,
+        var defaults = VBulletCreator.FromJson(DataSample.Replace("\"Speed\": \"1e2 + (2*40)\"", "\"AAngle\": 0"));
+        Check(defaults.BaseAttributes[0].Speed == 180 && defaults.RandDiffAttributes.Member.Angle == 0,
             "基础缺省速度180且随机组缺省零");
-        Check(template.PositionAttributes.RefMoveQueue is not BulletMoveActionAttribute[], "位移列表冻结为只读包装");
+        Check(template.BaseAttributes[0].RefMoveQueue is not VNodeMoveActionAttribute[], "位移列表冻结为只读包装");
 
         // 无效配置在加载时拒绝，错误包含来源或字段路径。
         string[] invalid =
@@ -54,7 +41,7 @@ public partial class BattleVerification
             DataSample.Replace("\"Amount\": 3", "\"Amount\": 0"),
             DataSample.Replace("\"Amount\": 3", "\"Amount\": 3, \"Team\": \"enemy\""),
             DataSample.Replace("\"Core\":", "\"Source\": {}, \"Core\":"),
-            DataSample.Replace("\"Version\": 2", "\"Version\": 1"),
+            DataSample.Replace("\"Amount\": 3", "\"Amount\": 3, \"Version\": 1"),
             DataSample.Replace("1e2 + (2*40)", "1/0"),
             DataSample.Replace("1e2 + (2*40)", "1e999"),
             DataSample.Replace("1e2 + (2*40)", "sin(PI)"),
@@ -64,15 +51,15 @@ public partial class BattleVerification
             DataSample.Replace("\"TextureIndex\": 0", "\"TextureIndex\": 10"),
             DataSample.Replace("\"Speed\": 20", "\"Speed\": -20"),
             DataSample.Replace("\"Speed\": 10", "\"Damage\": 10"),
-            DataSample.Replace("\"RefObject\": \"Emitter\"", "\"RefObject\": \"\""),
-            DataSample.Replace("\"RefObject\": \"Emitter\"", "\"PositionMode\": \"Relative\""),
+            DataSample.Replace("\"Core\":", "\"PositionAttributes\": {}, \"Core\":"),
+            DataSample.Replace("\"Amount\": 3", "\"Amount\": 3, \"CreatePositionMode\": \"Relative\""),
             DataSample.Replace("\"Amount\": 3", "\"Amount\": 3, \"Amount\": 4"),
-            DataSample.Replace("\"Y\": {}", "\"Y\": null"),
-            DataSample.Replace("\"Y\": {}", "\"Y\": {}, \"Dist\": {}")
+            DataSample.Replace("\"Y\": 0", "\"Y\": null"),
+            DataSample.Replace("\"Y\": 0", "\"Y\": 0, \"Dist\": 0")
         };
         foreach (string json in invalid)
         {
-            try { BulletQueue.FromJson(json, "invalid.json"); Check(false, "无效配置须拒绝"); }
+            try { VBulletCreator.FromJson(json, "invalid.json"); Check(false, "无效配置须拒绝"); }
             catch (JsonException error) { Check(error.Message.Contains("invalid.json"), "配置错误包含来源"); }
         }
 
@@ -88,77 +75,76 @@ public partial class BattleVerification
         }
         double expectedNext = VMath.getRandomDouble(0, 1);
         VMath.setRandomSeed(42);
-        var first = template.CreateInstance(origin);
-        first.Emit(emitter, manager);
+        var first = template;
+        first.Emit(emitter, manager, null, null, origin);
         for (int index = 0; index < 3; index++)
         {
-            Check(first.BulletList[index].Speed == expectedSpeeds[index], "首颗及后续速度随机独立");
-            Check(first.BulletList[index].GlobalPosition.DistanceTo(origin + new Vector2((float)expectedX[index], -5)) < 0.002,
+            Check(first.Bullets[index].Speed == expectedSpeeds[index], "首颗及后续速度随机独立");
+            Check(first.Bullets[index].GlobalPosition.DistanceTo(origin + new Vector2((float)expectedX[index], -5)) < 0.002,
                 "共享位置随机、首颗位置随机与顺序位移");
         }
         Check(VMath.getRandomDouble(0, 1) == expectedNext, "固定字段求值顺序与零宽度不耗随机");
-        Check(template.BulletList.Count == 0, "发射不向模板写入成员");
-        try { first.Emit(emitter, manager); Check(false, "实例只能发射一次"); }
-        catch (InvalidOperationException) { _checks++; }
+        Check(template.Batches.Count == 1 && ReferenceEquals(template.Batches[0][0], first.Bullets[0]),
+            "Creator直接保存本次生成批次及真实对象引用");
 
         // 重复固定输入并逐步比较实际速度和位置，随机字段不随JSON键顺序变化。
-        var second = template.CreateInstance(origin);
+        var second = VBulletCreator.FromJson(DataSample);
         VMath.setRandomSeed(42);
-        second.Emit(emitter, manager);
+        second.Emit(emitter, manager, null, null, origin);
         for (int step = 0; step < 120; step++)
         {
             for (int index = 0; index < 3; index++)
             {
-                first.BulletList[index].Advance(1.0 / 60);
-                second.BulletList[index].Advance(1.0 / 60);
-                Check(first.BulletList[index].Position == second.BulletList[index].Position
-                    && first.BulletList[index].Velocity == second.BulletList[index].Velocity, "固定种子逐步重现");
+                first.Bullets[index].Advance(1.0 / 60);
+                second.Bullets[index].Advance(1.0 / 60);
+                Check(first.Bullets[index].Position == second.Bullets[index].Position
+                    && first.Bullets[index].Velocity == second.Bullets[index].Velocity, "固定种子逐步重现");
             }
         }
-        Check(!ReferenceEquals(first.BulletList, second.BulletList), "实例独立成员列表");
+        Check(!ReferenceEquals(first.Bullets, second.Bullets), "实例独立成员列表");
         manager.Clear();
-        Check(first.BulletList.Count == 0 && second.BulletList.Count == 0, "清场注销所有队列成员");
+        Check(first.Bullets.Count == 0 && second.Bullets.Count == 0, "清场注销所有队列成员");
 
         // JSON键顺序不改变固定求值顺序；同向模式忽略AAngle随机。
-        var reordered = BulletQueue.FromJson(DataSample.Replace(
+        var reordered = VBulletCreator.FromJson(DataSample.Replace(
             "\"Speed\": 20", "\"AAngle\": 100, \"Speed\": 20"));
         VMath.setRandomSeed(42);
-        var ignoredAngle = reordered.CreateInstance(origin);
-        ignoredAngle.Emit(emitter, manager);
-        Check(ignoredAngle.BulletList[0].Speed == expectedSpeeds[0]
+        var ignoredAngle = reordered;
+        ignoredAngle.Emit(emitter, manager, null, null, origin);
+        Check(ignoredAngle.Bullets[0].Speed == expectedSpeeds[0]
             && VMath.getRandomDouble(0, 1) == expectedNext, "忽略的加速度角不抽样且属性顺序不影响序列");
         manager.Clear();
-        var overflow = BulletQueue.FromJson(DataSample.Replace("\"Speed\": 10", "\"Speed\": 1e308"));
-        var overflowingInstance = overflow.CreateInstance(origin);
-        try { overflowingInstance.Emit(emitter, manager); Check(false, "出生参数越界须拒绝"); }
+        var overflow = VBulletCreator.FromJson(DataSample.Replace("\"Speed\": 10", "\"Speed\": 1e308"));
+        var overflowingInstance = overflow;
+        try { overflowingInstance.Emit(emitter, manager, null, null, origin); Check(false, "出生参数越界须拒绝"); }
         catch (ArgumentOutOfRangeException)
         {
-            Check(overflowingInstance.BulletList.Count == 1 && manager.ActiveCount == 1, "求值异常保留已登记成员");
+            Check(overflowingInstance.Bullets.Count == 1 && manager.ActiveCount == 1, "求值异常保留已登记成员");
         }
         manager.Clear();
 
         // 满额与部分容量分别验证，不预取未生成子弹的随机。
         for (int index = 0; index < BattleConfig.MaxBullets - 1; index++)
-            manager.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { Position = origin });
+            manager.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with { Position = origin });
         VMath.setRandomSeed(55);
         VMath.getRandomDiff(20, RandomDiffMode.Center);
         VMath.getRandomDiff(20, RandomDiffMode.Center);
         VMath.getRandomDiff(4, RandomDiffMode.Center);
         double afterOne = VMath.getRandomDouble(0, 1);
         VMath.setRandomSeed(55);
-        var partial = template.CreateInstance(origin);
-        partial.Emit(emitter, manager);
-        Check(partial.BulletList.Count == 1 && VMath.getRandomDouble(0, 1) == afterOne, "部分容量只抽共享值和成功首颗");
+        var partial = VBulletCreator.FromJson(DataSample);
+        partial.Emit(emitter, manager, null, null, origin);
+        Check(partial.Bullets.Count == 1 && VMath.getRandomDouble(0, 1) == afterOne, "部分容量只抽共享值和成功首颗");
         VMath.setRandomSeed(66);
         double afterNone = VMath.getRandomDouble(0, 1);
         VMath.setRandomSeed(66);
-        var blocked = template.CreateInstance(origin);
-        blocked.Emit(emitter, manager);
-        Check(blocked.BulletList.Count == 0 && VMath.getRandomDouble(0, 1) == afterNone, "已满额完全不抽样");
+        var blocked = VBulletCreator.FromJson(DataSample);
+        blocked.Emit(emitter, manager, null, null, origin);
+        Check(blocked.Bullets.Count == 0 && VMath.getRandomDouble(0, 1) == afterNone, "已满额完全不抽样");
         manager.Clear();
 
         // 以每秒60步验证有符号速度、独立加速度与参数重置。
-        var accelerated = manager.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        var accelerated = manager.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = origin,
             Speed = -1,
@@ -177,7 +163,7 @@ public partial class BattleVerification
         accelerated.SetDirection(Math.PI / 2);
         Check(accelerated.Velocity.DistanceTo(Vector2.Down * 10) < 0.001 && accelerated.ASpeed == 60,
             "设置方向按外部速度重建实际速度且保留加速度");
-        var vector = manager.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        var vector = manager.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = Vector2.Zero,
             Speed = 10,
@@ -194,7 +180,7 @@ public partial class BattleVerification
         vector.SetSpeed(-5);
         Check(vector.Velocity.DistanceTo(Vector2.Left * 5) < 0.001, "设置速度清除已累积速度并使用外部Angle");
         // 零速出生采用配置方向，负加速度沿独立加速度角反向起动。
-        var stopped = manager.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        var stopped = manager.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = origin,
             AngleRadians = Math.PI / 2,

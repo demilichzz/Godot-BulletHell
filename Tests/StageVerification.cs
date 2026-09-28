@@ -123,7 +123,7 @@ public partial class StageVerification : Node
             Input.ActionRelease("player_dodge");
             // Boss 在子弹终点外37像素判定范围内，独立半径应参与碰撞。
             battle.Bullets.Clear();
-            battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.PlayerSet) with { Position = battle.Boss.GlobalPosition + new Vector2(39, 0) })!.SetSpeed(0);
+            battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.PlayerSet) with { Position = battle.Boss.GlobalPosition + new Vector2(39, 0) })!.SetSpeed(0);
             battle.StepFixed( Vector2.Zero, false);
             Check(battle.Boss.Hp == 149, "碰撞使用独立Boss半径");
             var originalBoss = battle.Boss;
@@ -217,7 +217,7 @@ public partial class StageVerification : Node
             Check(battle.Boss.DisplayName == data.DisplayName && battle.Boss.Hp == 300
                 && phase.GetType().Name == $"B0{index + 1}_Phase01"
                 && !battle.Boss.TrySwitchAdjacentPhase(1), "新Boss进入唯一基础阶段");
-            BulletEmitter emitter = phase.Emitters[0];
+            VBulletEmitter emitter = phase.Emitters[0];
             Check(emitter.GetType().Name == $"B0{index + 1}P01_Emitter01", "每个新阶段只有对应空发射器");
             VerificationClock.BossSeconds(battle, 2);
             Check(battle.Bullets.ActiveCount == 0 && emitter.Bullets.Count == 0

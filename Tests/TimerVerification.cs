@@ -51,6 +51,7 @@ public partial class TimerVerification : Node
         try
         {
             VerifyTimeline();
+            VerifyLocalDispatch();
             VerifyAdapter();
             VerifyTargets();
             VerifyMutation();

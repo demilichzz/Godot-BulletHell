@@ -1,48 +1,43 @@
 {
   "Core": {
-    "Id": "B01P01_Emitter01",
-    "Version": 2,
     "RefObject": "Boss",
     "Team": "Enemy",
     "Damage": 1,
-    "StopMode": "KeepBullets"
+    "StopMode": "KeepBullets",
+    "Name": "B01P01_Emitter01"
   },
-  "VNodes": [],
-  "BulletQueues": [
-    {
-      "Core": {
-        "Id": "Rings",
-        "Version": 2,
-        "Amount": 24,
-        "LifeTimeS": 4,
-        "Radius": 6,
-        "VisualScale": 3,
-        "AAngleIsSameAsAngle": true,
-        "AngleMode": "Fixed"
-      },
-      "Display": {
-        "TextureName": "Scale",
-        "TextureIndex": 0
-      },
-      "BaseAttributes": {
+  "VNodes": {
+    "Core": {
+      "Amount": 24,
+      "Radius": 6,
+      "VisualScale": 3,
+      "AAngleIsSameAsAngle": true,
+      "AngleMode": "Fixed",
+      "Name": "Rings",
+      "Type": "VBullet",
+      "CreatePositionMode": "Snapshot",
+      "LifeTimeMs": 4000
+    },
+    "Display": {
+      "TextureName": "Scale",
+      "TextureIndex": 0
+    },
+    "BaseAttributes": [
+      {
         "Angle": 0,
         "Speed": 180,
         "AAngle": 0,
         "ASpeed": 0
-      },
-      "AddAttributes": {
-        "Angle": "TAU/24"
-      },
-      "PositionAttributes": {
-        "RefObject": "Emitter",
-        "Mode": "Snapshot"
-      },
-      "Timeline": [
-        {
-          "StartMs": 1000,
-          "IntervalMs": 1000
-        }
-      ]
-    }
-  ]
+      }
+    ],
+    "AddAttributes": {
+      "Angle": "TAU/24"
+    },
+    "Timeline": [
+      {
+        "StartMs": 1000,
+        "IntervalMs": 1000
+      }
+    ]
+  }
 }

@@ -1,5 +1,5 @@
 /// <summary>基础、增量与随机宽度共用的四项运动属性。</summary>
-public sealed record BulletMoveAttribute
+public record VNodeMoveAttribute
 {
     /// <summary>运动角或瞄准偏移，弧度，顺时针为正。</summary>
     public double Angle { get; init; } = 0;

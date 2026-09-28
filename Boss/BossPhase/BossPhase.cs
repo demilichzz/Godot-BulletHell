@@ -8,17 +8,17 @@ public abstract class BossPhase : IVTimelineOwner
     private Vector2 _travelStart;
     private double _travelSeconds;
     // 仅保留仍有活动子弹的发射批次。
-    private readonly List<BulletEmitter> _emitters = new();
+    private readonly List<VBulletEmitter> _emitters = new();
     /// <summary>阶段激活时创建的逻辑时间线。</summary>
     public VTimeline? Timeline { get; private set; }
     /// <summary>阶段绑定的可重复发射器只读视图。</summary>
-    public IReadOnlyList<BulletEmitter> Emitters { get; }
+    public IReadOnlyList<VBulletEmitter> Emitters { get; }
     /// <summary>缓存阶段发射器的只读视图。</summary>
     protected BossPhase() => Emitters = _emitters.AsReadOnly();
     /// <summary>绑定发射器并启动其独立发射时间线。</summary>
     /// <param name="emitter">本阶段使用的发射器。</param>
     /// <param name="boss">提供发射位置的Boss。</param>
-    protected void BindEmitter(BulletEmitter emitter, BossController boss)
+    protected void BindEmitter(VBulletEmitter emitter, BossController boss)
     {
         if (_emitters.Contains(emitter)) throw new System.InvalidOperationException("发射器不能重复绑定。");
         emitter.Start(boss, GlobalEvent.GetBulletManager());
@@ -74,7 +74,7 @@ public abstract class BossPhase : IVTimelineOwner
             boss.Position = _travelStart.MoveToward(MoveTarget, (float)(_travelSeconds * MoveSpeed));
             if (boss.Position == MoveTarget) IsMoving = false;
         }
-        foreach (var emitter in _emitters) emitter.AdvanceUnits(units);
+        // Emitter及成员由战斗管理器在Boss移动后统一沿树推进。
 	}
 	/// <summary>判断是否转入列表中的下一阶段。</summary>
 	/// <param name="boss">所属 Boss。</param>

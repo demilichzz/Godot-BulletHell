@@ -37,7 +37,22 @@ public partial class BattleVerification : Node
         try
         {
             var userArgs = OS.GetCmdlineUserArgs();
-            if (userArgs.Contains("--targeted-vnode"))
+            if (userArgs.Contains("--targeted-spawn"))
+            {
+                VerifySpawnLists();
+                GD.Print($"PASS: {_checks} targeted spawn assertions");
+            }
+            else if (userArgs.Contains("--targeted-doc-json"))
+            {
+                foreach (string argument in userArgs.Where(value => value.StartsWith("--json-example=")))
+                {
+                    VBulletEmitter.FromJson(System.IO.File.ReadAllText(argument[15..]), argument[15..]);
+                    _checks++;
+                }
+                Check(_checks > 0, "至少读取一个文档JSON示例");
+                GD.Print($"PASS: {_checks} document JSON assertions");
+            }
+            else if (userArgs.Contains("--targeted-vnode"))
             {
                 VerifyVNodeModel();
                 VerifyVNodeSchedules();
@@ -122,7 +137,7 @@ public partial class BattleVerification : Node
 		// 前24颗为默认环形弹，后16颗为既有定制环形弹。
 		for (int index = 0; index < 40; index++)
 		{
-			var bullet = container.GetChild<Bullet>(index);
+			var bullet = container.GetChild<VBullet>(index);
 			var sprite = bullet.GetNode<Sprite2D>("Sprite");
 			var isDefault = index < 24;
 			var localIndex = isDefault ? index : index - 24;
@@ -132,7 +147,7 @@ public partial class BattleVerification : Node
 			double expectedAngle = VMath.StandardizationAngle((isDefault ? 0 : aimedAngle)
 				+ localIndex * Math.Tau / expectedCount);
 			Check(Math.Abs(bullet.AngleRadians - expectedAngle) < 1e-12, "环形角度");
-			Check(bullet.Speed == expectedSpeed && bullet.LifetimeSeconds == 4, "原弹速寿命");
+			Check(bullet.Speed == expectedSpeed && bullet.LifeTimeMs == 4000, "原弹速寿命");
 			Check(sprite.Scale == Vector2.One * 3 && sprite.Frame == expectedColor && sprite.Centered, "原弹幕外观");
 			Check(sprite.TextureFilter == CanvasItem.TextureFilterEnum.Nearest, "最近邻");
 		}
@@ -141,12 +156,12 @@ public partial class BattleVerification : Node
 		VerificationClock.BossSeconds(battle, 0.5);
 		Check(container.GetChildCount() == 160, "发射余量");
 		// 所有实际子弹由管理器推进，外部初始化入口不再自行更新。
-        var sample = container.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        var sample = container.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = new Vector2(-1000, -1000),
             AngleRadians = Mathf.Pi / 2,
             Speed = 100,
-            LifetimeSeconds = 0.25f,
+            LifeTimeMs = 250,
             VisualScale = 2
         })!;
         Check(!sample.IsPhysicsProcessing(), "子弹不自行推进");
@@ -156,7 +171,7 @@ public partial class BattleVerification : Node
         // 枚举图集颜色，迁移后仍逐颗保留外观配置。
         for (int color = 0; color < 10; color++)
         {
-            var colored = container.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+            var colored = container.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
             {
                 Position = Vector2.Zero,
                 ColorIndex = color,
@@ -167,12 +182,12 @@ public partial class BattleVerification : Node
         // 无效参数应在创建节点之前失败，不污染任一列表。
         foreach (var invalidData in new[]
         {
-            BulletDefaultSet.Get(BulletType.ScaleSet) with { ColorIndex = 10 },
-            BulletDefaultSet.Get(BulletType.ScaleSet) with { VisualScale = double.NaN },
-            BulletDefaultSet.Get(BulletType.ScaleSet) with { VisualScale = double.Epsilon },
-            BulletDefaultSet.Get(BulletType.ScaleSet) with { Radius = double.Epsilon },
-            BulletDefaultSet.Get(BulletType.ScaleSet) with { Speed = double.MaxValue },
-            BulletDefaultSet.Get(BulletType.ScaleSet) with { Speed = -double.MaxValue }
+            VBulletDefaultSet.Get(VBulletType.ScaleSet) with { ColorIndex = 10 },
+            VBulletDefaultSet.Get(VBulletType.ScaleSet) with { VisualScale = double.NaN },
+            VBulletDefaultSet.Get(VBulletType.ScaleSet) with { VisualScale = double.Epsilon },
+            VBulletDefaultSet.Get(VBulletType.ScaleSet) with { Radius = double.Epsilon },
+            VBulletDefaultSet.Get(VBulletType.ScaleSet) with { Speed = double.MaxValue },
+            VBulletDefaultSet.Get(VBulletType.ScaleSet) with { Speed = -double.MaxValue }
         })
         {
             var before = container.GetChildCount();
@@ -255,27 +270,27 @@ public partial class BattleVerification : Node
 	/// <summary>验证连续碰撞、自动瞄准、胜负及重开。</summary>
 	private void VerifyCombat()
 	{
-		Check(BulletManager.SweptHit(new Vector2(-100, 0), new Vector2(100, 0), 1), "高速穿越");
-		Check(!BulletManager.SweptHit(new Vector2(-100, 2), new Vector2(100, 2), 1), "擦身未命中");
-		Check(BulletManager.SweptHit(Vector2.Zero, Vector2.Zero, 1), "静止重叠");
+		Check(VBulletManager.SweptHit(new Vector2(-100, 0), new Vector2(100, 0), 1), "高速穿越");
+		Check(!VBulletManager.SweptHit(new Vector2(-100, 2), new Vector2(100, 2), 1), "擦身未命中");
+		Check(VBulletManager.SweptHit(Vector2.Zero, Vector2.Zero, 1), "静止重叠");
 		// 隔离攻击发射，验证首次时机与瞄准方向。
 		var battle = CreateBattle(out var world);
 		VerificationClock.BattleSeconds(battle, 11.0 / 60, Vector2.Zero, false);
 		Check(battle.Bullets.ActiveCount == 0, "自动攻击首发等待");
 		VerificationClock.BattleSeconds(battle, 1.0 / 60, Vector2.Zero, false);
 		Check(battle.Bullets.ActiveCount == 1, "自动攻击首发");
-		var shot = battle.Bullets.GetChild<Bullet>(0);
-		Check(shot.Team == BulletTeam.Player && shot.Velocity.DistanceTo(Vector2.Up * 600) < 0.01, "自动瞄准");
+		var shot = battle.Bullets.GetChild<VBullet>(0);
+		Check(shot.Team == VBulletTeam.Player && shot.Velocity.DistanceTo(Vector2.Up * 600) < 0.01, "自动瞄准");
 		Check(!shot.IsPhysicsProcessing(), "托管子弹无重复更新");
 		battle.Bullets.Clear();
 		// 高速敌弹穿过玩家，实际连续碰撞必须扣血。
-		var enemy = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { Position = battle.Player.GlobalPosition - new Vector2(100, 0) })!;
+		var enemy = battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with { Position = battle.Player.GlobalPosition - new Vector2(100, 0) })!;
 		enemy.SetDirection(0);
 		enemy.SetSpeed(12000);
 		battle.StepFixed( Vector2.Zero, false);
 		Check(battle.Player.Health.Hp == 2, "实际高速敌弹命中");
 		Check(battle.Boss.Hp == 300, "敌弹不伤Boss");
-		var passing = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { Position = battle.Player.GlobalPosition })!;
+		var passing = battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with { Position = battle.Player.GlobalPosition })!;
 		passing.SetSpeed(0);
 		battle.StepFixed( Vector2.Zero, false);
 		Check(battle.Player.Health.Hp == 2 && battle.Bullets.ActiveCount == 1, "无敌期间敌弹穿过");
@@ -300,17 +315,17 @@ public partial class BattleVerification : Node
 		battle.Timers.AdvanceByUnits(60000, _ => battle.Player.Timeline!.AdvanceUnits(60000));
         battle.Bullets.Clear();
 		battle.Boss.TakeDamage(299);
-		battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { Position = battle.Player.GlobalPosition })!.SetSpeed(0);
-		battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.PlayerSet) with { Position = battle.Boss.GlobalPosition })!.SetSpeed(0);
+		battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with { Position = battle.Player.GlobalPosition })!.SetSpeed(0);
+		battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.PlayerSet) with { Position = battle.Boss.GlobalPosition })!.SetSpeed(0);
 		battle.StepFixed( Vector2.Zero, false);
 		Check(battle.Boss.Hp == 0 && battle.Player.Health.Hp == 0 && battle.State == BattleState.Victory, "玩家同段零血不阻止Boss击败胜利");
 		battle.Restart();
 		// 容量测试保持所有弹幕远离目标。
-		for (int index = 0; index < BattleConfig.MaxBullets; index++) battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+		for (int index = 0; index < BattleConfig.MaxBullets; index++) battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
 		{
 			Position = new Vector2(-10000, 0)
 		});
-		Check(battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { }) is null, "容量上限");
+		Check(battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with { }) is null, "容量上限");
 		battle.Bullets.Clear();
 		Check(battle.Bullets.ActiveCount == 0, "容量清理");
 		world.Free();
@@ -406,7 +421,7 @@ public partial class BattleVerification : Node
         var initialActions = battle.Timers.TimelineActionCount;
 		Check(initialPhase.Name == "环形弹幕 · 阶段01" && boss.Hp == 300 && initialActions == 4, "阶段切换初始状态");
         // 旧阶段弹幕用于验证切换时仍由管理器保留。
-        var oldBullet = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        var oldBullet = battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = new Vector2(-1000, -1000),
             Speed = 0
@@ -514,48 +529,46 @@ public partial class BattleVerification : Node
         Check(battle.Bullets.ActiveCount == 0, "首次发射前没有阶段03子弹");
         VerificationClock.BossSeconds(battle, 0.001);
         var emitter = (B01P03_Emitter01)boss.CurrentPhase!.Emitters[0];
-        Check(emitter.Bullets.Count == 12 && battle.Bullets.ActiveCount == 12,
-            "第一圈在发射时刻生成12颗");
-        // 后续圆心以首次发射时的位置为准，Boss位移不改变本轮斜线。
+        Check(emitter.Bullets.Count == 1, "首个六边形在触发时只出生第一颗");
+        // 后续中心采用首批Snapshot，移动Boss不改变已有中心。
         boss.Position = new Vector2(800, 240);
-        for (int ring = 2; ring <= 6; ring++)
+        for (int step = 1; step <= 31; step++)
         {
-            VerificationClock.BossSeconds(battle, 0.199);
-            Check(emitter.Bullets.Count == (ring - 1) * 12, "不足200毫秒不提前生成下一圈");
-            VerificationClock.BossSeconds(battle, 0.001);
-            Check(emitter.Bullets.Count == ring * 12 && battle.Bullets.ActiveCount == ring * 12,
-                "每200毫秒恰好生成一圈");
+            VerificationClock.BossSeconds(battle, 0.05);
+            int elapsedMs = step * 50;
+            int expected = Enumerable.Range(0, 6).Sum(center => Math.Clamp((elapsedMs - center * 200) / 50 + 1, 0, 12));
+            Check(emitter.Bullets.Count == expected, "每50ms按中心错位生成六边形成员");
         }
-        Vector2 source = VMath.PolarMove(origin, Mathf.Pi * 5 / 6, 400);
-        Vector2 end = VMath.PolarMove(origin, Mathf.Pi * 11 / 6, 400);
-        end.Y += 300;
-        double distance = VMath.GetDistanceBetween2Points(source, end);
-        double lineAngle = VMath.GetAngleBetween2Points(source, end);
+        var rings = emitter.GetCreator("Rings")!;
+        Check(rings.Batches.Count == 6 && rings.Batches.All(batch => batch.Count == 12), "六个独立批次各十二颗");
         for (int ring = 0; ring < 6; ring++)
         {
-            Vector2 center = VMath.PolarMove(source, lineAngle, distance * ring / 5);
+            Vector2 center = origin + new Vector2((float)(-346.4101615137755 + ring * 138.5640646055102), 200 - ring * 20);
             for (int index = 0; index < 12; index++)
             {
-                Bullet bullet = emitter.Bullets[ring * 12 + index];
+                var bullet = (VBullet)rings.Batches[ring][index];
                 double angle = index * Math.Tau / 12;
-                Check(bullet.GlobalPosition.DistanceTo(VMath.PolarMove(center, angle, 70)) < 0.001
-                    && Math.Abs(bullet.AngleRadians - angle) < 0.000001 && bullet.Speed == 0,
-                    "六个等距圆心及每圈12颗等角静止弹");
+                double radius = index % 2 == 0 ? 70 : 60.6217782649107;
+                Check(bullet.WorldPosition.DistanceTo(VMath.PolarMove(center, angle, radius)) < 0.001
+                    && Math.Abs(bullet.Angle - angle) < 0.000001 && bullet.Speed == 0,
+                    "六边形顶点与边中点位置、朝向正确且没有重复顶点");
+                if (index % 2 == 1)
+                    Check(bullet.WorldPosition.DistanceTo((rings.Batches[ring][index - 1].WorldPosition
+                        + rings.Batches[ring][(index + 1) % 12].WorldPosition) / 2) < 0.001, "每边中间子弹在线段中点");
             }
         }
-        VerificationClock.BossSeconds(battle, 0.999);
-        Check(emitter.Bullets[0].Speed == 0, "第一圈未满两秒保持静止");
+        var firstBullet = rings.Batches[0][0];
+        var secondBullet = rings.Batches[0][1];
+        VerificationClock.BossSeconds(battle, 0.449);
+        Check(firstBullet.Speed == 0, "首颗出生未满2000ms保持静止");
         battle.Player.Position = new Vector2(700, 650);
         VerificationClock.BossSeconds(battle, 0.001);
-        Bullet firstBullet = emitter.Bullets[0];
-        Check(firstBullet.Speed == 150 && emitter.Bullets[12].Speed == 0
-            && Math.Abs(firstBullet.AngleRadians - VMath.GetAngleBetween2Points(
-                firstBullet.GlobalPosition, battle.Player.GlobalPosition)) < 0.000001,
-            "第一圈两秒后逐颗瞄准当时的玩家，下一圈仍静止");
-        VerificationClock.BossSeconds(battle, 0.2);
-        Check(emitter.Bullets[12].Speed == 150 && emitter.Bullets[24].Speed == 0,
-            "第二圈按自身出生时间延迟转向");
-        VerificationClock.BossSeconds(battle, 1.8);
+        Check(firstBullet.Speed == 150 && secondBullet.Speed == 0
+            && Math.Abs(firstBullet.Angle - VMath.GetAngleBetween2Points(firstBullet.WorldPosition, battle.Player.GlobalPosition)) < 0.000001,
+            "MemberTimeline从各自实际出生计龄");
+        VerificationClock.BossSeconds(battle, 0.05);
+        Check(secondBullet.Speed == 150 && rings.Batches[1][0].Speed == 0, "第二颗延后50ms变向");
+        VerificationClock.BossSeconds(battle, 1.95);
         Check(boss.CurrentPhase is B01_Phase03 && boss.CurrentPhase.IsMoving
             && Math.Abs(boss.CurrentPhase.MoveTarget.DistanceTo(new Vector2(640, 250)) - 200) < 0.001,
             "阶段03仍在第五秒选择圆周移动目标");
@@ -566,13 +579,13 @@ public partial class BattleVerification : Node
         stoppedBattle.Boss.TakeDamage(200);
         VerificationClock.BossSeconds(stoppedBattle, 1.4);
         var stoppedEmitter = (B01P03_Emitter01)stoppedBattle.Boss.CurrentPhase!.Emitters[0];
-        Check(stoppedEmitter.Bullets.Count == 36, "退出前已生成三圈");
+        Check(stoppedEmitter.Bullets.Count == 15, "退出前生成了三个未完成六边形的15颗子弹");
         stoppedBattle.Boss.Stop();
         VerificationClock.BossSeconds(stoppedBattle, 2.5);
-        Check(stoppedEmitter.Bullets.Count == 36 && stoppedEmitter.Bullets.All(bullet => bullet.Speed == 150),
+        Check(stoppedEmitter.Bullets.Count == 15 && stoppedEmitter.Bullets.All(bullet => bullet.Speed == 150),
             "退出取消未生成的圈，已出生子弹仍按各自计时转向");
         while (stoppedBattle.Bullets.ActiveCount < BattleConfig.MaxBullets - 4)
-            stoppedBattle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+            stoppedBattle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
             {
                 Position = new Vector2(-1000, -1000),
                 Speed = 0
@@ -580,10 +593,10 @@ public partial class BattleVerification : Node
         var limited = new B01P03_Emitter01();
         limited.Start(stoppedBattle.Boss, stoppedBattle.Bullets);
         VerificationClock.EmitterSeconds(stoppedBattle, 1, limited);
-        int actionsBeforeEmptyRing = stoppedBattle.Timers.TimelineActionCount;
+        // 后续延迟成员在满额时跳过，不创建成员动作。
         VerificationClock.EmitterSeconds(stoppedBattle, 0.2, limited);
         Check(limited.Bullets.Count == 4 && stoppedBattle.Bullets.ActiveCount == BattleConfig.MaxBullets
-            && stoppedBattle.Timers.TimelineActionCount == actionsBeforeEmptyRing - 1,
+            && limited.Bullets.All(bullet => bullet.Timeline!.ActionCount == 1),
             "容量不足时只登记成功生成的弹，空圈不注册转向动作");
         limited.Stop();
         stoppedWorld.Free();
@@ -629,7 +642,7 @@ public partial class BattleVerification : Node
         var third = boss.CurrentPhase!;
         batches.AddRange(third.Emitters);
         Check(third.Emitters.Count == 2 && third.Emitters[0] is B01P03_Emitter01
-            && third.Emitters[0].Bullets.Count == 12, "阶段03第一圈立即生成");
+            && third.Emitters[0].Bullets.Count == 1, "阶段03第一批首颗立即生成");
         Check(batches.Count == 6, "记录三个阶段各自绑定的两个发射器");
         boss.TakeDamage(99);
         Check(boss.Hp == 1 && ReferenceEquals(third, boss.CurrentPhase), "1血保持最后阶段");
@@ -660,18 +673,19 @@ public partial class BattleVerification : Node
         battle.Player.Attack.Stop();
         // 发射边界前放入阈值伤害弹，碰撞须先取消旧阶段同刻发射。
         VerificationClock.BossSeconds(battle, 0.99);
-        battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.PlayerSet) with
+        battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.PlayerSet) with
         {
             Position = battle.Boss.Position,
             Speed = 0,
             Damage = 100
         });
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         battle.Timers.AdvanceByUnits(600, seconds =>
         {
             battle.Player.Advance(seconds, Vector2.Zero);
             battle.Boss.Advance(seconds);
             battle.Bullets.Advance(seconds, battle.Player, battle.Boss);
-        });
+        }, battle.Bullets.DispatchTimelines);
         Check(battle.Boss.CurrentPhase is B01_Phase02 && battle.Bullets.ActiveCount == 0,
             "血线碰撞先于同刻发射，旧阶段不多发一轮");
         VerificationClock.BossSeconds(battle, 1);
@@ -692,11 +706,11 @@ public partial class BattleVerification : Node
         battle.StepFixed(Vector2.Right, true);
         Check(battle.Player.Dodge.IsActive, "零血继续闪避");
         VerificationClock.BattleSeconds(battle, 10.0 / 60, Vector2.Zero, false);
-        Check(battle.Bullets.ActiveBullets.Any(bullet => bullet.Team == BulletTeam.Player), "零血自动射击继续");
+        Check(battle.Bullets.ActiveBullets.Any(bullet => bullet.Team == VBulletTeam.Player), "零血自动射击继续");
         Check(!battle.Player.Health.TakeDamage(1, false), "零血仍受正常无敌保护");
         VerificationClock.BattleSeconds(battle, 0.8, Vector2.Zero, false);
         battle.Bullets.Clear();
-        battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = battle.Player.Position,
             Speed = 0
@@ -755,6 +769,7 @@ public partial class BattleVerification : Node
             bullet.SetDirection(Mathf.Pi / 2);
             bullet.SetSpeed(50);
         }
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         manager.Advance(0.1, battle.Player, battle.Boss);
         Check(first.Bullets[0].GlobalPosition.DistanceTo(origin + Vector2.Down * 5) < 0.01, "外部批次转向变速");
         Check(second.Bullets[0].GlobalPosition.DistanceTo(origin + Vector2.Right * 18) < 0.01, "其他批次不受影响");
@@ -773,17 +788,19 @@ public partial class BattleVerification : Node
         directed.SetSpeed(40);
         Check(Math.Abs(directed.AngleRadians - Math.PI) < 1e-12 && directed.Speed == 40
             && Mathf.IsEqualApprox(directed.GetNode<Sprite2D>("Sprite").Rotation, Mathf.Pi), "方向与贴图一致");
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         manager.Advance(4, battle.Player, battle.Boss);
         Check(first.Bullets.Count == 0 && second.Bullets.Count == 0 && manager.ActiveCount == 0, "过期同步注销");
         // 命中与清场通过同一注销入口，容量不足时不能新增节点。
-        manager.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        manager.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = battle.Player.GlobalPosition,
             Speed = 0
         });
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         manager.Advance(0, battle.Player, battle.Boss);
         Check(manager.ActiveCount == 0, "直接生成的单颗弹幕命中后注销");
-        for (int index = 0; index < BattleConfig.MaxBullets - 1; index++) manager.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with { Position = origin });
+        for (int index = 0; index < BattleConfig.MaxBullets - 1; index++) manager.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with { Position = origin });
         var partial = new B01P01_Emitter01();
         partial.Start(battle.Boss, manager);
         VerificationClock.EmitterSeconds(battle, 1, partial);
@@ -805,6 +822,7 @@ public partial class BattleVerification : Node
         var surviving = phase.Emitters[0];
         battle.Boss.Stop();
         Check(phase.Emitters.Count == 0 && surviving.Bullets.Count == 24, "退出阶段保留已发弹幕");
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         battle.Bullets.Advance(0.1, battle.Player, battle.Boss);
         Check(surviving.Bullets[0].Age > 0, "退出后管理器继续推进");
         battle.Restart();
@@ -829,94 +847,47 @@ public partial class BattleVerification : Node
         battle.Boss.Stop();
         battle.Player.Attack.Stop();
         var origin = new Vector2(-10000, -10000);
-        var precise = battle.Bullets.Spawn(BulletDefaultSet.Get(BulletType.ScaleSet) with
+        var precise = battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = origin,
             AngleRadians = Math.PI / 7,
             Speed = 123.456789,
-            LifetimeSeconds = 4.123456789,
+            LifeTimeMs = 4123,
             Radius = 6.123456789,
             VisualScale = 1.123456789
         })!;
         Check(Math.Abs(precise.AngleRadians - Math.PI / 7) < 1e-12
-            && precise.Speed == 123.456789 && precise.LifetimeSeconds == 4.123456789
+            && precise.Speed == 123.456789 && precise.LifeTimeMs == 4123
             && precise.Radius == 6.123456789, "弹幕配置和运行状态保留双精度");
         precise.SetDirection(Math.PI / 11);
         Check(Math.Abs(precise.AngleRadians - Math.PI / 11) < 1e-12,
             "转向接口接受双精度弧度");
-        var first = BulletDefaultSet.Get(BulletType.ScaleSet) with { AngleRadians = -Math.PI / 4, Speed = 50 };
-        var queueSet = new BulletQueueSet
-        {
-            Amount = 7,
-            XAdd = 2,
-            YAdd = -1,
-            AngleAdd = Math.PI / 12,
-            SpeedAdd = 5
-        };
-        var queue = new BulletQueue(origin, first, queueSet);
-        Check(ReferenceEquals(queue.BulletList, queue.BulletList)
-            && ReferenceEquals(battle.Bullets.ActiveBullets, battle.Bullets.ActiveBullets),
-            "活动列表复用只读视图");
-        queue.Emit(new B01P01_Emitter01(), battle.Bullets);
-        Check(queue.BulletList.Count == 7 && queue.BulletList[0].GlobalPosition == origin,
-            "队列首颗位于参考点");
-        Check(queue.BulletList[6].GlobalPosition == origin + new Vector2(12, -6)
-            && queue.BulletList[6].Speed == 80
-            && Math.Abs(queue.BulletList[6].AngleRadians - Math.PI / 4) < 1e-12,
-            "位置角度速度按索引递增并形成扇形");
-        queue.SetSpeed(100);
-        queue.SetDirection(Math.PI / 2);
-        Check(queue.BulletList.All(bullet => bullet.Speed == 100 && bullet.AngleRadians == Math.PI / 2),
-            "队列批量控制所有存活成员");
-        queue.SetSpeed(-100);
-        Check(queue.BulletList.All(bullet => bullet.Speed == -100 && bullet.Velocity.Y < 0
-            && bullet.AngleRadians == Math.PI / 2), "队列负速度沿原角度反向移动");
-        queue.SetSpeed(100);
-        var ring = new BulletQueue(origin, first with { AngleRadians = 0 }, queueSet with
-        {
-            Amount = 24,
-            XAdd = 0,
-            YAdd = 0,
-            AngleAdd = Math.Tau / 24,
-            SpeedAdd = 0
-        });
-        ring.Emit(new B01P01_Emitter01(), battle.Bullets);
-        Check(ring.BulletList.Count == 24 && ring.BulletList[0].AngleRadians == 0
-            && Math.Abs(ring.BulletList[23].AngleRadians - Math.Tau * 23 / 24) < 1e-12,
-            "环形排列不重复终点");
-        var reverse = new BulletQueue(origin, first with { AngleRadians = Math.PI / 6 }, new BulletQueueSet
-        {
-            Amount = 3,
-            AngleAdd = -Math.PI / 12
-        });
-        reverse.Emit(new B01P01_Emitter01(), battle.Bullets);
-        Check(Math.Abs(reverse.BulletList[1].AngleRadians - Math.PI / 12) < 1e-12
-            && reverse.BulletList[2].AngleRadians == 0, "负增量逆时针排列");
-        Check(queueSet.Amount == 7 && queueSet.XAdd == 2, "with派生不改变原队列配置");
-        var signed = new BulletQueue(origin, first with { AngleRadians = 0 }, new BulletQueueSet
-        {
-            Amount = 7,
-            SpeedAdd = -20
-        });
-        signed.Emit(new B01P01_Emitter01(), battle.Bullets);
-        Check(signed.BulletList.Count == 7 && signed.BulletList[3].Speed == -10
-            && signed.BulletList[3].Velocity.X < 0 && signed.BulletList[6].Speed == -70,
-            "队列速度跨零并保持原角度");
-        try { _ = new BulletQueue(origin, first, new BulletQueueSet { Amount = 0 }); Check(false, "队列数量校验"); }
-        catch (ArgumentOutOfRangeException) { _checks++; }
-        try { _ = new BulletQueue(origin, first, new BulletQueueSet { Amount = 2, AngleAdd = double.NaN }); Check(false, "角度增量校验"); }
-        catch (ArgumentOutOfRangeException) { _checks++; }
-        try { _ = new BulletQueue(origin, first, new BulletQueueSet { Amount = 2, SpeedAdd = -double.MaxValue }); Check(false, "最终速度校验"); }
-        catch (ArgumentOutOfRangeException) { _checks++; }
+        // 使用统一JSON属性入口验证固定增量和批量参数，无旧构造路径。
+        var creator = VBulletCreator.FromJson("""
+        {"Core": {"Type": "VBullet", "Amount": 7}, "Display": {}, "BaseAttributes": [{"Angle": "-PI/4", "Speed": 50, "RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}], "AddAttributes": {"Angle": "PI/12", "Speed": 5, "RefMoveQueue": [{"Type": "XYMove", "X": 2, "Y": -1}]}, "RandDiffAttributes": {"Batch": {"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}, "Member": {"RefMoveQueue": [{"Type": "XYMove", "X": 0, "Y": 0}]}}}
+        """);
+        creator.Emit(new VBulletEmitter(), battle.Bullets, null, null, origin);
+        Check(creator.Bullets.Count == 7 && creator.Batches.Count == 1
+            && creator.Bullets[6].GlobalPosition == origin + new Vector2(12, -6)
+            && creator.Bullets[6].Speed == 80 && Math.Abs(creator.Bullets[6].Angle - Math.PI / 4) < 1e-12,
+            "位置、角度和速度按出生索引增量");
+        creator.SetDirection(Math.PI / 2);
+        creator.SetSpeed(-100);
+        Check(creator.Bullets.All(bullet => bullet.Speed == -100 && bullet.Velocity.Y < 0), "统一批量操作保留负速度语义");
+        creator.Emit(new VBulletEmitter(), battle.Bullets, null, null, origin);
+        Check(creator.Batches.Count == 2 && creator.Batches.All(batch => batch.Count == 7), "重复生成增加独立批次");
+        creator.SetSpeed(25);
+        Check(creator.Bullets.All(bullet => bullet.Speed == 25), "批量操作覆盖当前Creator全部批次");
         battle.Bullets.Clear();
-        Check(queue.BulletList.Count == 0 && ring.BulletList.Count == 0 && reverse.BulletList.Count == 0 && signed.BulletList.Count == 0,
-            "清场移除队列的全部成员引用");
+        Check(creator.Batches.Count == 0 && creator.Members.Count == 0, "清场回收全部批次和成员引用");
+        var first = VBulletDefaultSet.Get(VBulletType.ScaleSet);
         var reverseMotion = battle.Bullets.Spawn(first with
         {
             Position = origin,
             AngleRadians = 0,
             Speed = -40
         })!;
+        battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         battle.Bullets.Advance(0.5, battle.Player, battle.Boss);
         Check(reverseMotion.GlobalPosition.DistanceTo(origin + Vector2.Left * 20) < 0.001
             && reverseMotion.AngleRadians == 0 && reverseMotion.Speed == -40
@@ -928,19 +899,19 @@ public partial class BattleVerification : Node
     private void VerifySpriteSets()
     {
         // 保留既有枚举值，避免外部记录的参数集编号变化。
-        Check((int)BulletType.ScaleSet == 0 && (int)BulletType.PlayerSet == 1, "原预设编号稳定");
+        Check((int)VBulletType.ScaleSet == 0 && (int)VBulletType.PlayerSet == 1, "原预设编号稳定");
         // 使用隔离战斗验证真实生成路径，不推进战斗时间。
         var battle = CreateBattle(out var world);
-        var scale = BulletDefaultSet.Get(BulletType.ScaleSet);
+        var scale = VBulletDefaultSet.Get(VBulletType.ScaleSet);
         var entries = new[]
         {
-            (BulletType.ScaleSet, "scale"), (BulletType.DotSet, "dot"),
-            (BulletType.DropSet, "drop"), (BulletType.StarSet, "star")
+            (VBulletType.ScaleSet, "scale"), (VBulletType.DotSet, "dot"),
+            (VBulletType.DropSet, "drop"), (VBulletType.StarSet, "star")
         };
         // 逐种预设及逐色索引检查，确保末帧也能正常切片。
         foreach (var (type, name) in entries)
         {
-            var settings = BulletDefaultSet.Get(type);
+            var settings = VBulletDefaultSet.Get(type);
             Check(settings.TexturePath == $"res://Assets/Sprites/Sprite_{name}.png", "新图集路径");
             Check((settings with { TexturePath = scale.TexturePath }) == scale, "除贴图外全部参数与鳞弹一致");
             for (int index = 0; index < 10; index++)
@@ -954,8 +925,8 @@ public partial class BattleVerification : Node
             }
         }
         // 玩家圆点预设保持原行为，与新增圆形贴图弹幕分开。
-        var player = BulletDefaultSet.Get(BulletType.PlayerSet);
-        Check(!player.UseSprite && player.TexturePath is null && player.Team == BulletTeam.Player
+        var player = VBulletDefaultSet.Get(VBulletType.PlayerSet);
+        Check(!player.UseSprite && player.TexturePath is null && player.Team == VBulletTeam.Player
             && player.Speed == 600 && player.Radius == 3, "玩家预设保持不变");
         world.Free();
     }
@@ -964,19 +935,19 @@ public partial class BattleVerification : Node
     {
         VerifySpriteSets();
         // 明确检查原敌弹与玩家弹的数值，防止迁移改变现有玩法。
-        var scale = BulletDefaultSet.Get(BulletType.ScaleSet) with { };
-        var player = BulletDefaultSet.Get(BulletType.PlayerSet) with { };
-        Check(scale.Speed == 180 && scale.LifetimeSeconds == 4 && scale.Radius == 6
-            && scale.Team == BulletTeam.Enemy && scale.Damage == 1, "鳞弹预设数值");
+        var scale = VBulletDefaultSet.Get(VBulletType.ScaleSet) with { };
+        var player = VBulletDefaultSet.Get(VBulletType.PlayerSet) with { };
+        Check(scale.Speed == 180 && scale.LifeTimeMs == 4000 && scale.Radius == 6
+            && scale.Team == VBulletTeam.Enemy && scale.Damage == 1, "鳞弹预设数值");
         Check(scale.TexturePath == "res://Assets/Sprites/Sprite_scale.png" && scale.Hframes == 10 && scale.Vframes == 1
             && scale.ColorIndex == 0 && scale.VisualScale == 3 && scale.UseSprite && scale.CircleColor == Colors.Cyan, "鳞弹预设外观");
-        Check(player.Speed == 600 && player.LifetimeSeconds == 2 && player.Radius == 3
-            && player.Team == BulletTeam.Player && player.Damage == 1, "玩家弹预设数值");
+        Check(player.Speed == 600 && player.LifeTimeMs == 2000 && player.Radius == 3
+            && player.Team == VBulletTeam.Player && player.Damage == 1, "玩家弹预设数值");
         Check(player.TexturePath is null && player.Hframes == 1 && player.Vframes == 1 && player.ColorIndex == 0
             && player.VisualScale == 3 && !player.UseSprite && player.CircleColor == Colors.Cyan, "玩家弹预设外观");
         // 将所有预设字段改为自定义值，再检查批量设置是否完整覆盖。
         var behavior = new StraightBehavior();
-        var data = BulletDefaultSet.Get(BulletType.ScaleSet) with
+        var data = VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = new Vector2(10, 20),
             AngleRadians = 1.25f,
@@ -986,15 +957,15 @@ public partial class BattleVerification : Node
             Vframes = 2,
             ColorIndex = 7,
             Speed = 25,
-            LifetimeSeconds = 10,
+            LifeTimeMs = 10000,
             Radius = 12,
-            Team = BulletTeam.Enemy,
+            Team = VBulletTeam.Enemy,
             Damage = 8,
             VisualScale = 2,
             UseSprite = true,
             CircleColor = Colors.Red
         };
-        var switched = BulletDefaultSet.Get(BulletType.PlayerSet) with
+        var switched = VBulletDefaultSet.Get(VBulletType.PlayerSet) with
         {
             Position = data.Position,
             AngleRadians = data.AngleRadians,
@@ -1002,7 +973,7 @@ public partial class BattleVerification : Node
         };
         Check(switched.TexturePath == player.TexturePath && switched.Hframes == player.Hframes
             && switched.Vframes == player.Vframes && switched.ColorIndex == player.ColorIndex
-            && switched.Speed == player.Speed && switched.LifetimeSeconds == player.LifetimeSeconds
+            && switched.Speed == player.Speed && switched.LifeTimeMs == player.LifeTimeMs
             && switched.Radius == player.Radius
             && switched.Team == player.Team && switched.Damage == player.Damage
             && switched.VisualScale == player.VisualScale && switched.UseSprite == player.UseSprite
@@ -1012,27 +983,27 @@ public partial class BattleVerification : Node
         var customized = switched with
         {
             Speed = 250,
-            Team = BulletTeam.Enemy
+            Team = VBulletTeam.Enemy
         };
-        Check(customized.Speed == 250 && customized.Team == BulletTeam.Enemy && player.Speed == 600
-            && BulletDefaultSet.Get(BulletType.PlayerSet).Speed == 600, "逐项赋值及预设隔离");
+        Check(customized.Speed == 250 && customized.Team == VBulletTeam.Enemy && player.Speed == 600
+            && VBulletDefaultSet.Get(VBulletType.PlayerSet).Speed == 600, "逐项赋值及预设隔离");
         // 未知枚举不能取得参数集。
-        try { _ = BulletDefaultSet.Get((BulletType)999); Check(false, "未知枚举未拦截"); }
+        try { _ = VBulletDefaultSet.Get((VBulletType)999); Check(false, "未知枚举未拦截"); }
         catch (ArgumentOutOfRangeException) { _checks++; }
         // 在真实管理器中检查单发批次快照、生成后隔离和自定义二维图集。
         var battle = CreateBattle(out var world);
         var origin = new Vector2(-10000, -10000);
-        var batchSettings = BulletDefaultSet.Get(BulletType.ScaleSet) with
+        var batchSettings = VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = origin,
             Speed = 123
         };
         batchSettings = batchSettings with { Speed = 456 };
         var shot = battle.Bullets.Spawn(batchSettings with { Speed = 123 })!;
-        Check(shot.Speed == 123 && shot.Team == BulletTeam.Enemy && shot.LifetimeSeconds == 4, "单颗生成保存参数快照");
+        Check(shot.Speed == 123 && shot.Team == VBulletTeam.Enemy && shot.LifeTimeMs == 4000, "单颗生成保存参数快照");
         batchSettings = batchSettings with { Speed = 999 };
         Check(shot.Speed == 123, "初始化数据不改变已生成子弹");
-        var atlasData = BulletDefaultSet.Get(BulletType.ScaleSet) with
+        var atlasData = VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
             Position = origin,
             TexturePath = "res://Assets/Units/Boss_01.png",
@@ -1045,7 +1016,7 @@ public partial class BattleVerification : Node
         var sprite = atlasBullet.GetNode<Sprite2D>("Sprite");
         Check(sprite.Texture.ResourcePath == atlasData.TexturePath && sprite.Hframes == 4 && sprite.Vframes == 2
             && sprite.Frame == 7 && sprite.GetRect().Size == new Vector2(32, 64), "配置贴图与二维图集末帧");
-        var dotData = BulletDefaultSet.Get(BulletType.PlayerSet) with
+        var dotData = VBulletDefaultSet.Get(VBulletType.PlayerSet) with
         {
             Position = origin,
             CircleColor = Colors.Magenta
@@ -1095,7 +1066,7 @@ public partial class BattleVerification : Node
 		AddChild(main);
 		main.GetNode<BattleManager>("BattleManager").SetPhysicsProcess(false);
 		// 通过真实资源加载验证脚本迁移路径，并检查正式背景配置。
-		Check(ResourceLoader.Exists("res://Boss/BossController.cs") && ResourceLoader.Exists("res://Bullet/Bullet.cs"), "模块脚本资源路径");
+		Check(ResourceLoader.Exists("res://Boss/BossController.cs") && ResourceLoader.Exists("res://Bullet/VBullet.cs"), "模块脚本资源路径");
 		var background = main.GetNode<TextureRect>("Background");
 		Check(background.Texture is not null && background.Texture.GetSize() == new Vector2(400, 600), "背景素材加载");
 		Check(background.Size == new Vector2(1280, 800) && background.Position == Vector2.Zero, "背景逻辑覆盖范围");

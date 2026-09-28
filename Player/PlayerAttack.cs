@@ -8,16 +8,16 @@ public sealed class PlayerAttack
     private const long AttackIntervalMs = 200;
     private const long AttackIntervalUnits = AttackIntervalMs * VTimerProcessor.UnitsPerMillisecond;
     // 弹幕模板、绑定对象及永久周期的当前原定触发时刻。
-    private readonly BulletDefaultSet _template = BulletDefaultSet.Get(BulletType.PlayerSet);
+    private readonly VBulletDefaultSet _template = VBulletDefaultSet.Get(VBulletType.PlayerSet);
     private PlayerController? _owner;
-    private BulletManager? _bullets;
+    private VBulletManager? _bullets;
     private long _nextScheduledUnits, _nextEligibleUnits;
     private bool _scheduled, _active;
 
     /// <summary>启动自动攻击；同一玩家重复初始化时复用既有周期。</summary>
     /// <param name="owner">持有活动时间线的玩家，射击位置取其当前全局坐标。</param>
     /// <param name="bullets">本场战斗的弹幕容器。</param>
-    public void Initialize(PlayerController owner, BulletManager bullets)
+    public void Initialize(PlayerController owner, VBulletManager bullets)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(bullets);

@@ -34,7 +34,7 @@ public static class GlobalEvent
     {
         var battle = RequireBattle();
         if (battle.State != BattleState.Running) throw new InvalidOperationException("当前战斗未处于运行状态，不能创建时间线。");
-        return new VTimeline(battle.Timers, owner);
+        return new VTimeline(battle.Timers, owner, owner is VNode or VBulletEmitter);
     }
     /// <summary>取得当前 Boss。</summary>
     /// <returns>当前战斗中的 Boss 实体。</returns>
@@ -44,7 +44,7 @@ public static class GlobalEvent
     public static PlayerController GetPlayer() => RequireBattle().Player;
     /// <summary>取得当前弹幕管理器。</summary>
     /// <returns>当前战斗中的弹幕容器。</returns>
-    public static BulletManager GetBulletManager() => RequireBattle().Bullets;
+    public static VBulletManager GetBulletManager() => RequireBattle().Bullets;
 
     /// <summary>向所属战斗处理器通知目标失效，避免旧节点污染新战斗。</summary>
     /// <param name="node">已失效的战斗节点。</param>

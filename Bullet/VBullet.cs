@@ -2,10 +2,10 @@ using Godot;
 using System;
 
 /// <summary>在VNode运动与时间线基础上增加弹幕显示、伤害和碰撞参数。</summary>
-public partial class Bullet : VNode
+public partial class VBullet : VNode
 {
     /// <summary>出生时复制的阵营。</summary>
-    public BulletTeam Team { get; private set; }
+    public VBulletTeam Team { get; private set; }
     /// <summary>出生时复制的伤害点数。</summary>
     public int Damage { get; private set; }
     /// <summary>碰撞半径，逻辑像素。</summary>
@@ -16,12 +16,13 @@ public partial class Bullet : VNode
     private readonly Sprite2D _sprite = new() { Name = "Sprite" };
     /// <summary>在创建节点前校验完整参数与贴图资源。</summary>
     /// <param name="settings">出生参数，位置为全局逻辑像素。</param>
-    internal static void Validate(BulletDefaultSet settings)
+    internal static void Validate(VBulletDefaultSet settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        _ = checked(settings.LifeTimeMs * VTimerProcessor.UnitsPerMillisecond);
         if (!settings.Position.IsFinite() || !double.IsFinite(settings.AngleRadians) || !double.IsFinite(settings.Speed) || Math.Abs(settings.Speed) > float.MaxValue
             || !double.IsFinite(settings.AAngle) || !double.IsFinite(settings.ASpeed) || Math.Abs(settings.ASpeed) > float.MaxValue
-            || !double.IsFinite(settings.LifetimeSeconds) || settings.LifetimeSeconds <= 0 || settings.Damage <= 0
+            || settings.LifeTimeMs <= 0 || settings.Damage <= 0
             || !double.IsFinite(settings.Radius) || settings.Radius <= 0 || settings.Radius > float.MaxValue || (float)settings.Radius == 0 || settings.Hframes <= 0 || settings.Vframes <= 0
             || (long)settings.Hframes * settings.Vframes > int.MaxValue || settings.ColorIndex < 0 || settings.ColorIndex >= (long)settings.Hframes * settings.Vframes
             || !double.IsFinite(settings.VisualScale) || settings.VisualScale <= 0 || settings.VisualScale > float.MaxValue || (float)settings.VisualScale == 0 || !Enum.IsDefined(settings.Team) || settings.Behavior is null
@@ -38,15 +39,15 @@ public partial class Bullet : VNode
     private static bool ValidColorComponent(float value) => float.IsFinite(value) && value >= 0 && value <= 1;
     /// <summary>入树前初始化显示、伤害以及继承的公共运动参数。</summary>
     /// <param name="settings">完整出生参数，位置为全局逻辑像素。</param>
-    internal void Configure(BulletDefaultSet settings)
+    internal void Configure(VBulletDefaultSet settings)
     {
-        ConfigureMotion(settings.Position, new BulletMoveAttribute
+        ConfigureMotion(settings.Position, new VNodeMoveAttribute
         {
             Angle = settings.AngleRadians,
             Speed = settings.Speed,
             AAngle = settings.AAngle,
             ASpeed = settings.ASpeed
-        }, settings.LifetimeSeconds, settings.AAngleIsSameAsAngle, settings.Behavior);
+        }, settings.LifeTimeMs, settings.AAngleIsSameAsAngle, settings.Behavior);
         Team = settings.Team;
         Damage = settings.Damage;
         Radius = settings.Radius;
@@ -71,6 +72,13 @@ public partial class Bullet : VNode
         _sprite.Centered = true;
         _sprite.TextureFilter = TextureFilterEnum.Nearest;
         AddChild(_sprite);
+    }
+
+    /// <summary>外部移出场景时也通过管理器注销容量、后代和批次。</summary>
+    public override void _ExitTree()
+    {
+        if (IsAlive && GetParent() is VBulletManager manager) manager.Release(this, false);
+        else base._ExitTree();
     }
 
     /// <summary>绘制代码入口生成的圆点弹幕。</summary>
