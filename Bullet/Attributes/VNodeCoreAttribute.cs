@@ -6,13 +6,13 @@ public record VNodeCoreAttribute
     public string Id { get; internal set; } = "";
     /// <summary>可选名称，同一Emitter内非空名称唯一。</summary>
     public string? Name { get; init; }
-    /// <summary>生成对象类型，JSON必须显式填写VNode或VBullet。</summary>
+    /// <summary>生成器类型，JSON必须显式填写VNode、VBullet或生成纯节点的VPath。</summary>
     public string Type { get; init; } = "VNode";
-    /// <summary>基础列表的正整数生成轮数。</summary>
+    /// <summary>基础列表的正整数生成轮数；VPath限单基础项，此值为路径总节点数。</summary>
     public int Amount { get; init; } = 1;
     /// <summary>正整数寿命毫秒数；节点省略表示持续至父对象结束。</summary>
     public long? LifeTimeMs { get; init; }
-    /// <summary>Follow或Snapshot；省略时VNode跟随、VBullet快照。</summary>
+    /// <summary>Follow或Snapshot；省略时VNode/VPath跟随、VBullet快照。</summary>
     public string? CreatePositionMode { get; init; }
     /// <summary>为真时沿外部Angle施加加速度。</summary>
     public bool AAngleIsSameAsAngle { get; init; } = true;

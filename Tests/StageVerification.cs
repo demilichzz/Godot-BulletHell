@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Threading.Tasks;
+using System.Linq;
 
 /// <summary>验证场景切换、独立 Boss 配置和选择界面的集成行为。</summary>
 public partial class StageVerification : Node
@@ -181,7 +182,7 @@ public partial class StageVerification : Node
             GetTree().Quit(1);
         }
     }
-    /// <summary>验证新增Boss的正式配置、选择入口和空战斗阶段。</summary>
+    /// <summary>验证新增Boss的正式配置、选择入口及各自阶段弹幕。</summary>
     /// <returns>全部场景切换完成后的任务。</returns>
     private async Task VerifyNewBosses()
     {
@@ -193,7 +194,7 @@ public partial class StageVerification : Node
         await Settle();
         for (int index = 1; index <= 4; index++)
         {
-            // 逐项验证资源、卡片和进入战斗后的唯一阶段与空发射器。
+            // 逐项验证资源、卡片和进入战斗后的唯一阶段与对应发射器。
             var data = catalog.Entries[index];
             string id = $"Boss_0{index + 1}";
             Check(data.Id == id && data.PhaseProfile == id && data.DisplayName == $"Boss 0{index + 1}",
@@ -212,18 +213,62 @@ public partial class StageVerification : Node
             await Settle();
             var battle = ((BattleStage)game.CurrentStage!).View.Battle;
             battle.SetPhysicsProcess(false);
+            // 清除等待UI帧期间推进的时间，从完整相同初始状态检查发射时刻。
+            battle.Restart();
             battle.Player.Attack.Stop();
             BossPhase phase = battle.Boss.CurrentPhase!;
             Check(battle.Boss.DisplayName == data.DisplayName && battle.Boss.Hp == 300
                 && phase.GetType().Name == $"B0{index + 1}_Phase01"
                 && !battle.Boss.TrySwitchAdjacentPhase(1), "新Boss进入唯一基础阶段");
             VBulletEmitter emitter = phase.Emitters[0];
-            Check(emitter.GetType().Name == $"B0{index + 1}P01_Emitter01", "每个新阶段只有对应空发射器");
+            Check(emitter.GetType().Name == $"B0{index + 1}P01_Emitter01", "每个新阶段绑定对应发射器");
             VerificationClock.BossSeconds(battle, 2);
-            Check(battle.Bullets.ActiveCount == 0 && emitter.Bullets.Count == 0
-                && battle.Timers.TimelineActionCount == 1
-                && battle.Boss.Position == new Vector2(640, 240),
-                "未定义时间线动作的空发射器不产生弹幕且阶段沿用基类移动");
+            Check(battle.Boss.Position == new Vector2(640, 240), "阶段沿用基类移动");
+            if (id == "Boss_02")
+            {
+                // 第一条曲线在1000ms开始，到2000ms有21颗，第二条恰好出生首颗。
+                var path = emitter.Root.Children[0];
+                Check(path is VPathCreator && path.TotalAmount == 50 && path.Batches.Count == 2
+                    && path.Batches[0].Count == 50 && path.Batches[1].Count == 50,
+                    "Boss02每秒以独立随机VNode为父生成50点曲线");
+                Check(emitter.Bullets.Count == 22 && battle.Bullets.ActiveCount == 22, "每条曲线按50ms间隔逐颗生成Dot子弹");
+                Check(emitter.Root.Members[0].WorldPosition.X != emitter.Root.Members[1].WorldPosition.X,
+                    "不同曲线使用新的上方扇区随机位置");
+                foreach (var batch in path.Batches)
+                {
+                    Check((batch[0].WorldPosition + batch[^1].WorldPosition).DistanceTo(new Vector2(1280, 800)) < 0.001
+                        && Math.Abs(batch[0].WorldPosition.DistanceTo(new Vector2(640, 400)) - 400) < 0.001,
+                        "曲线两端在半径400圆弧上且关于中心对称");
+                    foreach (var node in batch)
+                        Check(node.WorldPosition.X >= 0 && node.WorldPosition.X <= 1280
+                            && node.WorldPosition.Y >= 0 && node.WorldPosition.Y <= 800, "曲线节点保持在屏幕范围内");
+                }
+                // 隔离时钟只推进子弹时间线；直接读取整数时间单位验证50ms间隔。
+                for (int bulletIndex = 0; bulletIndex < 21; bulletIndex++)
+                    Check(emitter.Bullets[bulletIndex].Timeline!.ElapsedUnits == 60000 - bulletIndex * 3000,
+                        "曲线每颗实际出生时间严格相隔50ms");
+                Check(emitter.Bullets[21].Timeline!.ElapsedUnits == 0, "下一条曲线恰在下一秒开始发射");
+                // 已发子弹采用Snapshot，父节点消失后仍按自己的3秒寿命存在。
+                var firstBullet = emitter.Bullets[0];
+                var firstPosition = firstBullet.WorldPosition;
+                var sprite = firstBullet.GetNode<Sprite2D>("Sprite");
+                Check(sprite.Texture!.ResourcePath == "res://Assets/Sprites/Sprite_dot.png" && sprite.Frame == 0
+                    && firstBullet.Speed == 0 && firstBullet.LifeTimeMs == 3000, "使用Dot索引0、零速和3000ms寿命");
+                VerificationClock.BossSeconds(battle, 1.45);
+                Check(emitter.Bullets.Count == 90 && emitter.Bullets.Any(bullet => ReferenceEquals(bullet.ParentVNode, path.Batches[0][49]) && bullet.WorldPosition == path.Batches[0][49].WorldPosition),
+                    "2450ms内补齐第一条50颗曲线且后续曲线并行生成");
+                VerificationClock.BossSeconds(battle, 0.05);
+                Check(firstBullet.IsAlive && firstBullet.ParentVNode is null && firstBullet.WorldPosition == firstPosition,
+                    "2500ms锚点结束不提前清除已发子弹");
+                // 隔离时钟已累计2.5秒年龄，只补足到出生后2999ms。
+                firstBullet.Advance(0.499);
+                Check(!firstBullet.Expired && firstBullet.WorldPosition == firstPosition, "静止子弹出生后不足3秒不失效");
+                firstBullet.Advance(0.001);
+                Check(firstBullet.Expired, "静止子弹出生满3秒到期");
+            }
+            else
+                Check(battle.Bullets.ActiveCount == 0 && emitter.Bullets.Count == 0
+                    && battle.Timers.TimelineActionCount == 1, "其他未定义动作的空发射器不产生弹幕");
             Check(game.RequestStage(GameManager.SelectStageId), "可返回选择界面");
             await Settle();
             Check(game.CurrentStage is BossSelectStage restored && restored.UI.SelectedIndex == index,

@@ -11,7 +11,7 @@ public enum RandomDiffMode
 }
 
 /// <summary>提供统一弧度的坐标数学工具及固定算法的可重现随机序列。</summary>
-public static class VMath
+public static partial class VMath
 {
     /// <summary>取得当前 Boss 指向玩家的标准弧度。</summary>
     /// <returns>[0,2π)内的弧度，使用双方全局逻辑像素坐标。</returns>
@@ -104,6 +104,13 @@ public static class VMath
             throw new OverflowException("极坐标结果超出Vector2范围。");
         return new Vector2((float)x, (float)y);
     }
+    /// <summary>朝同一坐标系中的目标方向移动指定距离，允许超过目标或反向移动。</summary>
+    /// <param name="source">有限起点，逻辑像素。</param>
+    /// <param name="target">有限目标点，逻辑像素；与起点重合时按0弧度向右。</param>
+    /// <param name="dist">有限有符号距离，逻辑像素；0保持原位。</param>
+    /// <returns>新坐标，坐标溢出时抛错。</returns>
+    public static Vector2 TargetMove(Vector2 source, Vector2 target, double dist)
+        => PolarMove(source, GetAngleBetween2Points(source, target), dist);
     /// <summary>仅转换度数单位，保留旋转量的正负与圈数；方向由取角函数标准化。</summary>
     /// <param name="degrees">有限度数。</param>
     /// <returns>对应弧度。</returns>

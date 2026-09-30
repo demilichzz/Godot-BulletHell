@@ -37,7 +37,12 @@ public partial class BattleVerification : Node
         try
         {
             var userArgs = OS.GetCmdlineUserArgs();
-            if (userArgs.Contains("--targeted-spawn"))
+            if (userArgs.Contains("--targeted-path"))
+            {
+                VerifyPaths();
+                GD.Print($"PASS: {_checks} targeted path assertions");
+            }
+            else if (userArgs.Contains("--targeted-spawn"))
             {
                 VerifySpawnLists();
                 GD.Print($"PASS: {_checks} targeted spawn assertions");

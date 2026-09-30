@@ -19,9 +19,17 @@ public partial class VNodeCreator
         internal readonly IReadOnlyList<VNode> View;
         internal readonly long Order;
         internal VNodeSpawnAttribute? Shared;
+        // 仅路径批次保存出生偏移，延迟成员共享本批缓存。
+        internal readonly IReadOnlyList<Vector2>? Positions;
         /// <summary>建立尚无实际成员的批次。</summary>
         /// <param name="order">Creator内部的固定建立顺序。</param>
-        internal SpawnBatch(long order) { Order = order; View = Members.AsReadOnly(); }
+        /// <param name="positions">相对批次原点的固定偏移，普通生成器为空。</param>
+        internal SpawnBatch(long order, IReadOnlyList<Vector2>? positions)
+        {
+            Order = order;
+            View = Members.AsReadOnly();
+            Positions = positions;
+        }
     }
 
     /// <summary>解析、校验并冻结一个出生、增量或随机属性组。</summary>
@@ -36,22 +44,38 @@ public partial class VNodeCreator
         if (spawn.SpawnDelayMs < 0 || spawn.RefMoveQueue is null) throw new JsonException("延迟须非负，位移动作不可为null。");
         foreach (double value in new[] { spawn.Angle, spawn.Speed, spawn.AAngle, spawn.ASpeed })
             ValidateNumber(value, random);
-        foreach (var action in spawn.RefMoveQueue)
+        return spawn with
+        {
+            RefMoveQueue = element.TryGetProperty("RefMoveQueue", out var actions)
+                ? ReadMoveQueue(actions, random) : Array.Empty<VNodeMoveActionAttribute>()
+        };
+    }
+
+    /// <summary>读取三种共用位移动作，冻结列表并拒绝混用字段。</summary>
+    /// <param name="element">不可为null的动作数组。</param>
+    /// <param name="random">是否表示非负随机总宽度，路径端点队列使用false。</param>
+    /// <returns>经过校验的只读动作队列。</returns>
+    internal static IReadOnlyList<VNodeMoveActionAttribute> ReadMoveQueue(JsonElement element, bool random = false)
+    {
+        if (element.ValueKind != JsonValueKind.Array) throw new JsonException("位移队列必须为数组且不可为null。");
+        // 每个动作缺省数值为0，显式null仍视为无效配置。
+        var actions = Read<VNodeMoveActionAttribute[]>(element);
+        foreach (var action in actions)
         {
             if (action is null) throw new JsonException("位移动作不可为null。");
             if (action.Type == "PMove" && action.X is null && action.Y is null)
             { ValidateNumber(action.Angle ?? 0, random); ValidateNumber(action.Dist ?? 0, random); }
             else if (action.Type == "XYMove" && action.Angle is null && action.Dist is null)
             { ValidateNumber(action.X ?? 0, random); ValidateNumber(action.Y ?? 0, random); }
+            else if (action.Type == "TarMove" && action.Angle is null)
+            { ValidateNumber(action.X ?? 0, random); ValidateNumber(action.Y ?? 0, random); ValidateNumber(action.Dist ?? 0, random); }
             else throw new JsonException("位移Type与字段不匹配。");
         }
-        if (element.TryGetProperty("RefMoveQueue", out var actions))
-            foreach (var action in actions.EnumerateArray())
-                foreach (var field in action.EnumerateObject())
-                    if (field.Value.ValueKind == JsonValueKind.Null) throw new JsonException("位移字段不可显式为null。");
-        return spawn with { RefMoveQueue = Array.AsReadOnly(spawn.RefMoveQueue.ToArray()) };
+        foreach (var action in element.EnumerateArray())
+            foreach (var field in action.EnumerateObject())
+                if (field.Value.ValueKind == JsonValueKind.Null) throw new JsonException("位移字段不可显式为null。");
+        return Array.AsReadOnly(actions);
     }
-
     /// <summary>验证有限值和随机宽度。</summary>
     /// <param name="value">属性值或总宽度。</param>
     /// <param name="random">是否为非负宽度。</param>
@@ -76,7 +100,9 @@ public partial class VNodeCreator
             var action = width.RefMoveQueue[index];
             actions[index] = action.Type == "PMove"
                 ? new VNodeMoveActionAttribute { Type = "PMove", Angle = Random(action.Angle ?? 0), Dist = Random(action.Dist ?? 0) }
-                : new VNodeMoveActionAttribute { Type = "XYMove", X = Random(action.X ?? 0), Y = Random(action.Y ?? 0) };
+                : action.Type == "TarMove"
+                    ? new VNodeMoveActionAttribute { Type = "TarMove", X = Random(action.X ?? 0), Y = Random(action.Y ?? 0), Dist = Random(action.Dist ?? 0) }
+                    : new VNodeMoveActionAttribute { Type = "XYMove", X = Random(action.X ?? 0), Y = Random(action.Y ?? 0) };
         }
         return new VNodeSpawnAttribute
         {
@@ -116,7 +142,9 @@ public partial class VNodeCreator
             AAngle = Core.AAngleIsSameAsAngle ? angle : Sum(basis.AAngle, AddAttributes.AAngle, group, shared.AAngle, individual.AAngle),
             ASpeed = Sum(basis.ASpeed, AddAttributes.ASpeed, group, shared.ASpeed, individual.ASpeed)
         };
-        Vector2 position = source;
+        // 派生路径先提供排列位置，再应用既有逐颗位移动作。
+        Vector2 position = batch.Positions is null ? source : source + batch.Positions[index];
+        if (!position.IsFinite()) throw new OverflowException("出生位置溢出。");
         for (int actionIndex = 0; actionIndex < basis.RefMoveQueue.Count; actionIndex++)
         {
             var action = basis.RefMoveQueue[actionIndex];
@@ -129,7 +157,13 @@ public partial class VNodeCreator
             double second = action.Type == "PMove"
                 ? Sum(action.Dist ?? 0, add?.Dist ?? 0, group, common?.Dist ?? 0, memberRandom?.Dist ?? 0)
                 : Sum(action.Y ?? 0, add?.Y ?? 0, group, common?.Y ?? 0, memberRandom?.Y ?? 0);
-            position = action.Type == "PMove" ? VMath.PolarMove(position, first, second)
+            // TarMove的前两项是世界目标坐标，第三项才是距离。
+            if (action.Type == "TarMove")
+            {
+                double distance = Sum(action.Dist ?? 0, add?.Dist ?? 0, group, common?.Dist ?? 0, memberRandom?.Dist ?? 0);
+                position = VMath.TargetMove(position, new Vector2((float)first, (float)second), distance);
+            }
+            else position = action.Type == "PMove" ? VMath.PolarMove(position, first, second)
                 : new Vector2((float)(position.X + first), (float)(position.Y + second));
             if (!position.IsFinite()) throw new OverflowException("出生位置溢出。");
         }

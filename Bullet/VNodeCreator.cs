@@ -122,7 +122,7 @@ public partial class VNodeCreator
     {
         if (!source.IsFinite()) throw new ArgumentOutOfRangeException(nameof(source));
         // 每批持有独立快照、稳定顺序和共享随机，未出生对象不加入场景。
-        var batch = new SpawnBatch(checked(_nextBatchOrder++));
+        var batch = new SpawnBatch(checked(_nextBatchOrder++), PrepareBatchPositions(source));
         for (int index = 0; index < TotalAmount; index++)
         {
             // 索引由配置固定，容量或已死亡成员不改变它。
@@ -155,6 +155,10 @@ public partial class VNodeCreator
     /// <returns>可生成时为真。</returns>
     protected virtual bool CanCreate(VBulletManager manager) => true;
 
+    /// <summary>在安排出生前准备批次专属位置，普通节点和子弹不分配缓存。</summary>
+    /// <param name="source">批次触发时父参考点的世界逻辑像素坐标。</param>
+    /// <returns>相对source的固定出生偏移列表，普通生成器返回null。</returns>
+    protected virtual IReadOnlyList<Vector2>? PrepareBatchPositions(Vector2 source) => null;
     /// <summary>创建无显示节点并交给Emitter登记。</summary>
     /// <param name="emitter">所属Emitter。</param>
     /// <param name="manager">子弹管理器，纯节点不登记到其中。</param>
@@ -200,22 +204,28 @@ public partial class VNodeCreator
         // 类型必须由数据显式指定，ID只由树初始化过程生成。
         JsonElement core = Required(element, "Core");
         string type = Required(core, "Type").GetString() ?? "";
-        if (type is not ("VNode" or "VBullet")) throw new JsonException("Core.Type只支持VNode或VBullet。");
+        if (type is not ("VNode" or "VBullet" or "VPath")) throw new JsonException("Core.Type只支持VNode、VBullet或VPath。");
         if (core.TryGetProperty("Id", out _)) throw new JsonException("Core.Id不属于JSON字段。");
         bool bullet = type == "VBullet";
-        CheckFields(element, bullet
+        CheckFields(element, type == "VPath"
+            ? new[] { "Core", "PathQueue", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" }
+            : bullet
             ? new[] { "Core", "Display", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" }
             : new[] { "Core", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" });
-        VNodeCreator queue = bullet ? new VBulletCreator() : new VNodeCreator();
+        VNodeCreator queue = type == "VPath" ? new VPathCreator() : bullet ? new VBulletCreator() : new VNodeCreator();
         queue.Core = bullet ? Read<VBulletCoreAttribute>(core) : Read<VNodeCoreAttribute>(core);
-        JsonElement baseValues = Required(element, "BaseAttributes");
-        if (baseValues.ValueKind != JsonValueKind.Array || baseValues.GetArrayLength() == 0)
-            throw new JsonException("BaseAttributes必须为非空数组。");
-        queue.BaseAttributes = Array.AsReadOnly(baseValues.EnumerateArray().Select(value =>
+        // 仅路径允许省略基础项，其他类型保留原有必填约束。
+        if (type != "VPath" || element.TryGetProperty("BaseAttributes", out _))
         {
-            var spawn = ReadSpawn(value, false);
-            return bullet && !value.TryGetProperty("Speed", out _) ? spawn with { Speed = 180 } : spawn;
-        }).ToArray());
+            JsonElement baseValues = Required(element, "BaseAttributes");
+            if (baseValues.ValueKind != JsonValueKind.Array || baseValues.GetArrayLength() == 0)
+                throw new JsonException("BaseAttributes必须为非空数组。");
+            queue.BaseAttributes = Array.AsReadOnly(baseValues.EnumerateArray().Select(value =>
+            {
+                var spawn = ReadSpawn(value, false);
+                return bullet && !value.TryGetProperty("Speed", out _) ? spawn with { Speed = 180 } : spawn;
+            }).ToArray());
+        }
         queue.AddAttributes = element.TryGetProperty("AddAttributes", out var add) ? ReadSpawn(add, false) : new();
         if (element.TryGetProperty("RandDiffAttributes", out var random))
         {
@@ -229,6 +239,7 @@ public partial class VNodeCreator
         queue.Timeline = ReadTimes(element, "Timeline");
         queue.MemberTimeline = ReadTimes(element, "MemberTimeline");
         if (queue is VBulletCreator bullets) bullets.ReadDisplay(Required(element, "Display"));
+        if (queue is VPathCreator path) path.ReadPathQueue(Required(element, "PathQueue"));
         queue.ValidateAttributes();
         if (element.TryGetProperty("Children", out var children))
         {

@@ -1,0 +1,34 @@
+{
+  "Core": { "RefObject": null },
+  "VNodes": {
+    "Core": { "Type": "VNode", "LifeTimeMs": 2500 },
+    "BaseAttributes": [{ "RefMoveQueue": [
+      { "Type": "XYMove", "X": 640, "Y": 400 },
+      { "Type": "PMove", "Angle": "3*PI/2", "Dist": 400 }
+    ] }],
+    "RandDiffAttributes": {
+      "Batch": { "RefMoveQueue": [
+        { "Type": "XYMove" },
+        { "Type": "PMove", "Angle": "PI/2" }
+      ] }
+    },
+    "Timeline": [{ "StartMs": 1000, "IntervalMs": 1000 }],
+    "Children": [{
+      "Core": { "Type": "VPath", "Amount": 50 },
+      "PathQueue": [{
+        "EndMoveQueue": [{ "Type": "TarMove", "X": 640, "Y": 400, "Dist": 800 }],
+        "PathMode": "Function",
+        "AxisMode": "Relative",
+        "X": "L*t+60*sin(2*TAU*t)",
+        "Y": "120*sin(2*TAU*t)"
+      }],
+      "Timeline": [{ "StartMs": 0 }],
+      "Children": [{
+        "Core": { "Type": "VBullet", "LifeTimeMs": 3000 },
+        "Display": { "TextureName": "Dot", "TextureIndex": 0 },
+        "BaseAttributes": [{ "Speed": 0 }],
+        "Timeline": [{ "StartMs": 0, "StartMsAdd": 50 }]
+      }]
+    }]
+  }
+}
