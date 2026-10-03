@@ -27,9 +27,9 @@ public abstract class BossPhase : IVTimelineOwner
 	/// <summary>阶段名称，用于状态显示。</summary>
 	public abstract string Name { get; }
 	/// <summary>当前移动目标，战场局部逻辑像素。</summary>
-	public Vector2 MoveTarget { get; private set; } = new(640, 240);
+	public Vector2 MoveTarget { get; protected set; } = new(640, 240);
 	/// <summary>是否正在前往当前目标。</summary>
-	public bool IsMoving { get; private set; }
+	public bool IsMoving { get; protected set; }
 	/// <summary>移动速度，逻辑像素/秒；子类可覆盖。</summary>
 	protected virtual float MoveSpeed => 200;
 	/// <summary>取得进入阶段时的目标，默认战场局部坐标(640,240)。</summary>
@@ -64,7 +64,7 @@ public abstract class BossPhase : IVTimelineOwner
 	public virtual void Advance(BossController boss, double delta)
 	{
 		if (!double.IsFinite(delta) || delta < 0) throw new System.ArgumentOutOfRangeException(nameof(delta));
-		if (Timeline is null || boss.Hp == 0) return;
+		if (Timeline is null || boss.IsDefeated) return;
 		long units = VTimeline.SecondsToUnits(delta);
 		Timeline.AdvanceUnits(units);
         // Boss先完成本步移动，再推进跟随它的VNode树。

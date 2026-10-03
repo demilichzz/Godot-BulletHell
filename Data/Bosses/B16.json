@@ -1,0 +1,70 @@
+{
+  "Core": {
+    "Id": "Boss_AIGen_13",
+    "DisplayName": "Boss_AIGen_13",
+    "TexturePath": "res://Assets/Units/Boss_04.png",
+    "Hframes": 2,
+    "Vframes": 2,
+    "AnimationFps": 4,
+    "MaxHp": 300,
+    "CollisionRadius": 32,
+    "VisualScale": 3,
+    "SpawnPosition": {
+      "X": 640,
+      "Y": 250
+    }
+  },
+  "Phases": [
+    {
+      "Name": "重力流星与斜向碎屑",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_13_Phase01.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    },
+    {
+      "Name": "彗星划过并留下延迟弹尾",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_13_Phase02.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    },
+    {
+      "Name": "星屑散开暂停后追击",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_13_Phase03.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    }
+  ]
+}

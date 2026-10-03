@@ -69,12 +69,7 @@ public partial class BattleManager : Node
 			_stopped = false;
 			State = BattleState.Running;
 			_world.AddChild(Bullets);
-			if (_bossData is null)
-			{
-				Boss = new BossController { Name = "Boss", Position = BattleConfig.BossSpawn };
-				Boss.Initialize();
-			}
-			else Boss = BossFactory.Create(_bossData);
+			Boss = BossFactory.Create(_bossData ?? BossData.Load("res://Data/Bosses/B01.json"));
 			Player = new PlayerController { Name = "Player", Position = BattleConfig.PlayerSpawn };
 			// 先建立双方字段与节点，再显式启动Boss阶段，保证阶段可查询玩家。
 			_world.AddChild(Player);
@@ -179,7 +174,7 @@ public partial class BattleManager : Node
                 if (AI is not null) AI.Advance(seconds, AI.LastIntent.Movement);
 				Bullets.Advance(seconds, Player, Boss, AI);
                 // 运动碰撞完成后才派发本步计时动作；玩家零血和负血继续战斗。
-                if (Boss.Hp == 0) Finish(BattleState.Victory);
+                if (Boss.IsDefeated) Finish(BattleState.Victory);
             }, Bullets.DispatchTimelines);
             Player.FinishStep();
             AI?.FinishStep();

@@ -7,9 +7,19 @@ public partial class BossController : Node2D, IVTimelineOwner
 {
 	/// <summary>从首次启动阶段起持续到战斗结束的 Boss 时间线。</summary>
 	public VTimeline? Timeline { get; private set; }
-	/// <summary>当前生命点数。</summary>
+	/// <summary>Boss剩余总生命：当前阶段血量与未来阶段血池之和。</summary>
 	public int Hp { get; private set; } = BattleConfig.BossHp;
-	/// <summary>当前 Boss 的最大生命点数。</summary>
+	/// <summary>当前阶段剩余生命点数，数据化阶段独立受伤。</summary>
+    public int PhaseHp { get; private set; }
+    /// <summary>当前阶段最大生命点数。</summary>
+    public int PhaseMaxHp => CurrentPhase is DataBossPhase phase ? phase.Definition.Hp : MaxHp;
+    /// <summary>当前阶段的零基序号。</summary>
+    public int PhaseIndex => _phaseIndex;
+    /// <summary>阶段队列长度。</summary>
+    public int PhaseCount => _phases.Count;
+    /// <summary>最终阶段满足结束条件后为真；仅时间阶段零血仍继续运行。</summary>
+    public bool IsDefeated { get; private set; }
+    /// <summary>当前 Boss 的最大生命点数。</summary>
 	public int MaxHp { get; private set; } = BattleConfig.BossHp;
 	/// <summary>当前 Boss 的碰撞半径，单位为逻辑像素。</summary>
 	public float CollisionRadius { get; private set; } = BattleConfig.BossRadius;
@@ -47,7 +57,7 @@ public partial class BossController : Node2D, IVTimelineOwner
 	/// <summary>进入新阶段的通知，参数为阶段实例。</summary>
 	public event Action<BossPhase>? PhaseChanged;
 	// 有序阶段列表与当前索引。
-	private List<BossPhase> _phases = new() { new B01_Phase01(), new B01_Phase02(), new B01_Phase03() };
+	private List<BossPhase> _phases = new();
 	private int _phaseIndex;
 	// 独立贴图，缩放不影响碰撞半径。
 	private readonly Sprite2D _sprite = new() { Name = "Sprite" };
@@ -59,7 +69,7 @@ public partial class BossController : Node2D, IVTimelineOwner
 	public bool TrySwitchAdjacentPhase(int direction)
 	{
 		if (direction != -1 && direction != 1) throw new ArgumentOutOfRangeException(nameof(direction));
-		if (CurrentPhase is null || Hp == 0) return false;
+		if (CurrentPhase is null || IsDefeated) return false;
 		// 计算目标阶段索引并检查首尾边界。
 		int targetIndex = _phaseIndex + direction;
 		if (targetIndex < 0 || targetIndex >= _phases.Count) return false;
@@ -110,6 +120,12 @@ public partial class BossController : Node2D, IVTimelineOwner
 	internal void StartPhases()
 	{
 		if (_phasesStarted) return;
+        if (_phases.Count == 0)
+        {
+            // 直接构造控制器时也使用正式B01定义。
+            var data = BossData.Load("res://Data/Bosses/B01.json");
+            for (int index = 0; index < data.Phases.Count; index++) _phases.Add(new DataBossPhase(data.Phases[index], index));
+        }
 		_phasesStarted = true;
 		Timeline = GlobalEvent.CreateTimeline(this);
 		EnterPhase();
@@ -123,25 +139,40 @@ public partial class BossController : Node2D, IVTimelineOwner
 	private void EnterPhase()
 	{
 		CurrentPhase = _phases[_phaseIndex];
+        if (CurrentPhase is DataBossPhase dataPhase) PhaseHp = dataPhase.Definition.Hp;
 		CurrentPhase.Enter(this);
 		PhaseChanged?.Invoke(CurrentPhase);
 	}
-	/// <summary>推进图集动画与阶段并在条件满足时切换，最后阶段保持运行。</summary>
+	/// <summary>推进图集动画和阶段，数据化末阶段满足条件时结束战斗。</summary>
 	/// <param name="delta">经过的非负有限秒数。</param>
 	public void Advance(double delta)
 	{
 		if (!double.IsFinite(delta) || delta < 0) throw new ArgumentOutOfRangeException(nameof(delta));
 		PreviousPosition = GlobalPosition;
-		if (Hp == 0 || CurrentPhase is null) return;
+		if (IsDefeated || CurrentPhase is null) return;
 		AdvanceAnimation(delta);
 		UpdatePhase();
 		Timeline?.AdvanceUnits(VTimeline.SecondsToUnits(delta));
-		CurrentPhase!.Advance(this, delta);
+		CurrentPhase?.Advance(this, delta);
+        if (CurrentPhase is DataBossPhase) UpdatePhase();
 	}
-    /// <summary>立即处理满足条件的阶段切换，单次伤害可跨过多个阈值。</summary>
+    /// <summary>结算当前阶段条件，取消旧时间线并按队列进入下一阶段。</summary>
     private void UpdatePhase()
     {
-        // 保持阶段有序进入和退出，旧阶段时间线在步末发射前取消。
+        // 独立阶段一次只结算当前血池，超额伤害不触及下一阶段。
+        if (CurrentPhase is DataBossPhase dataPhase)
+        {
+            if (!dataPhase.ShouldEnd(this)) return;
+            Hp -= PhaseHp;
+            PhaseHp = 0;
+            HealthChanged?.Invoke(Hp);
+            if (_phaseIndex + 1 == _phases.Count) { Defeat(); return; }
+            ExitCurrentPhase();
+            _phaseIndex++;
+            EnterPhase();
+            return;
+        }
+        // 显式代码阶段保持自身结束条件，供隔离扩展阶段使用。
         while (Hp > 0 && CurrentPhase is not null && _phaseIndex + 1 < _phases.Count && CurrentPhase.ShouldEnd(this))
         {
 			ExitCurrentPhase();
@@ -161,19 +192,51 @@ public partial class BossController : Node2D, IVTimelineOwner
 		// 消除60Hz累计在换帧边界附近的浮点误差，索引仍限制在图集内。
 		_sprite.Frame = (int)Math.Floor(_animationSeconds * _animationFps + 1e-9) % frameCount;
 	}
-	/// <summary>施加伤害并立即处理血线切阶段；归零时只执行一次死亡与退出。</summary>
+	/// <summary>施加伤害；独立阶段只扣本血池，最终阶段满足条件时才死亡。</summary>
 	/// <param name="damage">正整数伤害点数，非正数忽略。</param>
 	/// <returns>是否造成有效伤害。</returns>
 	public bool TakeDamage(int damage)
 	{
-		if (Hp == 0 || damage <= 0) return false;
+		if (IsDefeated || CurrentPhase is null || damage <= 0) return false;
+        if (CurrentPhase is DataBossPhase)
+        {
+            // 已耗尽的仅时间阶段继续移动与发射，但不再接受伤害。
+            int applied = Math.Min(PhaseHp, damage);
+            if (applied == 0) return false;
+            PhaseHp -= applied;
+            Hp -= applied;
+            HealthChanged?.Invoke(Hp);
+            UpdatePhase();
+            return true;
+        }
+        if (Hp == 0) return false;
 		Hp = Math.Max(0, Hp - damage);
 		HealthChanged?.Invoke(Hp);
-		if (Hp == 0) { GlobalEvent.TryNotifyTargetDestroyed(this); Stop(); Died?.Invoke(); }
+		if (Hp == 0) Defeat();
         else UpdatePhase();
 		return true;
 	}
-	/// <summary>只退出当前阶段，切换阶段时保留 Boss 自身的时间线。</summary>
+	/// <summary>计算指定数据化阶段及其后续阶段的满血总和。</summary>
+    /// <param name="index">队列内的零基阶段序号。</param>
+    /// <returns>剩余阶段生命点数之和。</returns>
+    internal int GetRemainingPhaseHp(int index)
+    {
+        // 加载时已校验总和不超过int范围。
+        int total = 0;
+        for (int current = index; current < _phases.Count; current++)
+            total = checked(total + ((DataBossPhase)_phases[current]).Definition.Hp);
+        return total;
+    }
+    /// <summary>只执行一次最终死亡，取消阶段及Boss时间线。</summary>
+    private void Defeat()
+    {
+        if (IsDefeated) return;
+        IsDefeated = true;
+        GlobalEvent.TryNotifyTargetDestroyed(this);
+        Stop();
+        Died?.Invoke();
+    }
+    /// <summary>只退出当前阶段，切换阶段时保留 Boss 自身的时间线。</summary>
 	private void ExitCurrentPhase()
 	{
 		// 清空引用后回调，避免重入时重复退出。

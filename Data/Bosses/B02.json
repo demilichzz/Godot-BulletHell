@@ -1,0 +1,36 @@
+{
+  "Core": {
+    "Id": "Boss_02",
+    "DisplayName": "Boss 02",
+    "TexturePath": "res://Assets/Units/Boss_02.png",
+    "Hframes": 2,
+    "Vframes": 2,
+    "AnimationFps": 4,
+    "MaxHp": 300,
+    "CollisionRadius": 32,
+    "VisualScale": 3,
+    "SpawnPosition": {
+      "X": 640,
+      "Y": 250
+    }
+  },
+  "Phases": [
+    {
+      "Name": "Boss 02 · 阶段01",
+      "Hp": 300,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/B02P01_Emitter01.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    }
+  ]
+}

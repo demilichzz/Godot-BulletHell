@@ -43,7 +43,7 @@ public partial class StageVerification : Node
             Check(production.Entries.Count == 23, "正式目录包含3个原Boss和20个AI生成Boss");
             for (int index = 0; index < 3; index++)
                 Check(production.Entries[index].Id == $"Boss_0{index + 1}"
-                    && production.Entries[index].PhaseProfile == $"Boss_0{index + 1}",
+                    && production.Entries[index].Phases.Count > 0,
                     "正式Boss目录按编号排序且阶段配置匹配");
             Check(production.Entries[0].Texture!.ResourcePath == "res://Assets/Units/Boss_01.png"
                 && production.Entries[0].Texture!.GetSize() == new Vector2(128, 128), "正式Boss四帧图集");
@@ -197,7 +197,7 @@ public partial class StageVerification : Node
             // 逐项验证资源、卡片和进入战斗后的首个阶段与对应发射器。
             var data = catalog.Entries[index];
             string id = $"Boss_0{index + 1}";
-            Check(data.Id == id && data.PhaseProfile == id && data.DisplayName == $"Boss 0{index + 1}",
+            Check(data.Id == id && data.Phases.Count > 0 && data.DisplayName == $"Boss 0{index + 1}",
                 "新增Boss配置与目录顺序匹配");
             Check(data.Texture!.ResourcePath == $"res://Assets/Units/{id}.png"
                 && data.Texture.GetSize() == new Vector2(128, 128)
@@ -218,10 +218,10 @@ public partial class StageVerification : Node
             battle.Player.Attack.Stop();
             BossPhase phase = battle.Boss.CurrentPhase!;
             Check(battle.Boss.DisplayName == data.DisplayName && battle.Boss.Hp == 300
-                && phase.GetType().Name == $"B0{index + 1}_Phase01"
+                && phase is DataBossPhase { Index: 0 }
                 && (id == "Boss_03" || !battle.Boss.TrySwitchAdjacentPhase(1)), "新Boss进入对应基础阶段");
             VBulletEmitter emitter = phase.Emitters[0];
-            Check(emitter.GetType().Name == $"B0{index + 1}P01_Emitter01", "每个新阶段绑定对应发射器");
+            Check(phase.Emitters.Count == data.Phases[0].Emitters.Count, "每个新阶段绑定对应发射器");
             VerificationClock.BossSeconds(battle, 2);
             Check(battle.Boss.Position == new Vector2(640, 240), "阶段沿用基类移动");
             if (id == "Boss_02")

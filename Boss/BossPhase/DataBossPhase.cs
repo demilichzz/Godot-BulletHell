@@ -1,0 +1,126 @@
+using Godot;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+/// <summary>执行独立JSON阶段，复用阶段时间线、Emitter生命周期和VPath几何。</summary>
+public sealed class DataBossPhase : BossPhase
+{
+    /// <summary>阶段静态定义，不包含本场运行状态。</summary>
+    public BossPhaseDefinition Definition { get; }
+    /// <summary>阶段在Boss队列中的零基序号。</summary>
+    public int Index { get; }
+    /// <summary>阶段显示名称。</summary>
+    public override string Name => Definition.Name;
+    /// <summary>逻辑像素/秒的目标移动速度。</summary>
+    protected override float MoveSpeed => _movement.Speed;
+    // 阶段独占移动配置、固定目标索引及路径采样状态。
+    private readonly BossMovement _movement;
+    private int _nextTarget;
+    private Vector2[] _path = Array.Empty<Vector2>();
+    private double[] _lengths = Array.Empty<double>();
+
+    /// <summary>建立尚未启动的独立阶段。</summary>
+    /// <param name="definition">已校验的阶段定义。</param>
+    /// <param name="index">队列零基序号。</param>
+    public DataBossPhase(BossPhaseDefinition definition, int index)
+    {
+        Definition = definition;
+        Index = index;
+        _movement = BossMovement.Read(definition.Movement);
+    }
+    /// <summary>进入阶段时的Boss总血量；未来阶段尚未受伤。</summary>
+    /// <param name="boss">所属Boss。</param>
+    /// <returns>本阶段及剩余阶段的生命点数总和。</returns>
+    public override int GetInitialHp(BossController boss) => boss.GetRemainingPhaseHp(Index);
+    /// <summary>取得中心移动或显式入场目标，随机与路径默认从当前位置开始。</summary>
+    /// <param name="boss">所属Boss。</param>
+    /// <returns>战场局部逻辑像素目标。</returns>
+    protected override Vector2 GetInitialMoveTarget(BossController boss)
+        => _movement.Target is not null ? BossMovement.Point(_movement.Target)
+            : _movement.Type == "Center" ? new Vector2(640, 240) : boss.Position;
+
+    /// <summary>建立本阶段时间线，先登记移动，再依次绑定独立发射器。</summary>
+    /// <param name="boss">本场Boss，玩家与战斗服务已就绪。</param>
+    public override void Enter(BossController boss)
+    {
+        base.Enter(boss);
+        _nextTarget = 0;
+        if (_movement.Type is "RandomCircle" or "RandomRect" or "Sequence")
+            Timeline!.Repeat(_movement.StartMs, _movement.IntervalMs, null, () => ChooseTarget(boss));
+        if (_movement.Type == "Path")
+        {
+            // 在激活时冻结路径世界坐标，后续仅按阶段整数年龄推进距离。
+            Vector2 origin = boss.GlobalPosition;
+            var geometry = VPathCreator.CreateGeometry(_movement.PathQueue, _movement.PointCount);
+            _path = geometry.SampleGeometry(origin).Select(offset => origin + offset).ToArray();
+            _lengths = new double[_path.Length];
+            for (int index = 1; index < _path.Length; index++)
+                _lengths[index] = _lengths[index - 1] + VMath.GetDistanceBetween2Points(_path[index - 1], _path[index]);
+            if (_movement.Loop && _path[0].DistanceTo(_path[^1]) > 0.001f)
+                throw new InvalidOperationException("循环Boss路径必须首尾闭合。");
+            boss.GlobalPosition = _path[0];
+            MoveTarget = boss.Position + (_path[^1] - _path[0]);
+            IsMoving = true;
+        }
+        // 每次进入阶段重新加载独立树，手动回退或重开不共享批次。
+        foreach (string path in Definition.Emitters) BindEmitter(VBulletEmitter.Load(path), boss);
+    }
+    /// <summary>在阶段时间线上选择下一个目标，不由渲染帧消耗随机。</summary>
+    /// <param name="boss">提供移动起点的Boss。</param>
+    private void ChooseTarget(BossController boss)
+    {
+        // 声明顺序固定：圆形先角度再半径，矩形先X再Y。
+        Vector2 target;
+        if (_movement.Type == "Sequence")
+        {
+            target = BossMovement.Point(_movement.Targets![_nextTarget]);
+            _nextTarget = (_nextTarget + 1) % _movement.Targets.Count;
+        }
+        else if (_movement.Type == "RandomCircle")
+        {
+            double angle = VMath.getRandomDouble(0, Math.Tau);
+            double radius = Sample(_movement.MinRadius, _movement.MaxRadius);
+            target = VMath.PolarMove(BossMovement.Point(_movement.Center), angle, radius);
+        }
+        else
+        {
+            Vector2 min = BossMovement.Point(_movement.Min), max = BossMovement.Point(_movement.Max);
+            target = new Vector2((float)Sample(min.X, max.X), (float)Sample(min.Y, max.Y));
+        }
+        SetMoveTarget(boss, target);
+    }
+    /// <summary>抽样闭区间配置，固定值不消耗业务随机。</summary>
+    /// <param name="min">最小值。</param>
+    /// <param name="max">不小于最小值的最大值。</param>
+    /// <returns>固定值或VMath抽样值。</returns>
+    private static double Sample(double min, double max) => min == max ? min : VMath.getRandomDouble(min, max);
+    /// <summary>推进阶段年龄与移动，在下一棵Emitter树更新前完成。</summary>
+    /// <param name="boss">所属Boss。</param>
+    /// <param name="delta">固定步非负秒数。</param>
+    public override void Advance(BossController boss, double delta)
+    {
+        if (_movement.Type != "Path") { base.Advance(boss, delta); return; }
+        if (!double.IsFinite(delta) || delta < 0) throw new ArgumentOutOfRangeException(nameof(delta));
+        if (Timeline is null || boss.IsDefeated) return;
+        Timeline.AdvanceUnits(VTimeline.SecondsToUnits(delta));
+        // 累计距离由整数年龄求值，速度单位为像素/秒。
+        double distance = Timeline.ElapsedUnits / (double)VTimerProcessor.UnitsPerSecond * _movement.Speed;
+        if (_movement.Loop) distance %= _lengths[^1];
+        if (distance >= _lengths[^1]) { boss.GlobalPosition = _path[^1]; IsMoving = false; return; }
+        // 二分查找采样路段，长度平台不参与除法。
+        int upper = Array.BinarySearch(_lengths, distance);
+        if (upper >= 0) { boss.GlobalPosition = _path[upper]; return; }
+        upper = ~upper;
+        int lower = Math.Max(0, upper - 1);
+        boss.GlobalPosition = _path[lower].Lerp(_path[upper],
+            (float)((distance - _lengths[lower]) / (_lengths[upper] - _lengths[lower])));
+    }
+    /// <summary>直接检查血池与整数年龄，HealthOrTime采用逻辑或。</summary>
+    /// <param name="boss">所属Boss，提供当前阶段血量。</param>
+    /// <returns>当前阶段是否满足结束条件。</returns>
+    public override bool ShouldEnd(BossController boss)
+        => (Definition.EndCondition != "Time" && boss.PhaseHp == 0)
+            || (Definition.EndCondition != "Health" && Timeline is not null
+                && Timeline.ElapsedUnits >= (long)Definition.DurationMs!.Value * (VTimerProcessor.UnitsPerSecond / 1000));
+}

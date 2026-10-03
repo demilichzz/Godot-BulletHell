@@ -62,7 +62,7 @@ public partial class Main : Node2D
 		var result = _battle.State switch { BattleState.Victory => "胜利！按 R 重新开始", _ => "战斗中" };
 		// 显示当前阶段名称，战斗结束后显示结束状态。
 		var phaseName = _battle.Boss.CurrentPhase?.Name ?? "已结束";
-		_status.Text = $"玩家 HP {_battle.Player.Health.Hp}/{BattleConfig.PlayerHp}    Boss HP {_battle.Boss.Hp}/{_battle.Boss.MaxHp}    {phaseName}\n"
+		_status.Text = $"玩家 HP {_battle.Player.Health.Hp}/{BattleConfig.PlayerHp}    Boss HP {_battle.Boss.Hp}/{_battle.Boss.MaxHp}    阶段 {_battle.Boss.PhaseIndex + 1}/{_battle.Boss.PhaseCount} HP {_battle.Boss.PhaseHp}/{_battle.Boss.PhaseMaxHp}    {phaseName}\n"
 			+ $"闪避冷却 {_battle.Player.Dodge.Cooldown:0.0} 秒    时间 {_battle.Elapsed:0.0} 秒\n"
 			+ "WASD / 方向键移动 · 空格闪避 · Q/E 切换阶段 · 自动攻击 · Esc 返回选择\n" + result;
         if (_battle.AI is not null) _status.Text += $"\nAI 被击中次数：{_battle.AI.HitCount}";
