@@ -52,7 +52,10 @@ public partial class EmitterEditor : Control
         foreach (string side in new[] { "left", "right", "top", "bottom" }) margin.AddThemeConstantOverride("margin_" + side, 12);
         AddChild(margin);
         // 从标题到状态栏的主纵向布局。
-        var layout = new VBoxContainer(); layout.AddThemeConstantOverride("separation", 10); margin.AddChild(layout);
+        // 模式栏始终可见，两个主体占据同一工作区。
+        var modes = new VBoxContainer(); margin.AddChild(modes); SetupModes(modes);
+        var layout = new VBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
+        layout.AddThemeConstantOverride("separation", 10); _emitterBody = layout; modes.AddChild(layout);
         _title.AddThemeFontSizeOverride("font_size", 21); layout.AddChild(_title);
         // 文件操作与历史控制工具栏。
         var files = new HBoxContainer(); layout.AddChild(files);
@@ -126,6 +129,9 @@ public partial class EmitterEditor : Control
         // 可直接用Godot场景启动，再通过参数指定Emitter文件。
         string? argument = OS.GetCmdlineUserArgs().FirstOrDefault(value => value.StartsWith("--emitter="));
         if (argument is not null) Guard(() => { Document.Open(ProjectSettings.GlobalizePath(argument[10..])); Refresh(); });
+        // Boss文件可直接进入对应模式，不影响普通编辑器启动。
+        string? bossArgument = OS.GetCmdlineUserArgs().FirstOrDefault(value => value.StartsWith("--boss="));
+        if (bossArgument is not null) Guard(() => { SwitchMode(true); BossPanel!.Open(bossArgument[7..]); });
     }
     /// <summary>创建文件对话框和丢弃修改确认。</summary>
     private void SetupDialogs()
@@ -147,11 +153,13 @@ public partial class EmitterEditor : Control
     }
     /// <summary>文件切换和退出前保护未保存内容。</summary>
     /// <param name="action">确认后执行的操作。</param>
-    private void DiscardThen(Action action)
+    /// <param name="includeBoss">退出时同时保护另一模式的未保存数据。</param>
+    private void DiscardThen(Action action, bool includeBoss = false)
     {
         GetViewport().GuiGetFocusOwner()?.ReleaseFocus();
         _jsonDirty = _json.Text != _jsonBaseline;
-        if (!Document.Dirty && !_jsonDirty) { action(); return; }
+        if (!Document.Dirty && !_jsonDirty && !(includeBoss && BossPanel?.HasUnsaved == true)) { action(); return; }
+        _discard.DialogText = includeBoss ? "Emitter或Boss模式存在未保存的修改。退出将放弃这些修改。" : "当前修改尚未保存。继续将放弃这些修改。";
         _afterDiscard = action; _discard.PopupCentered();
     }
     /// <summary>校验并保存或选择目标文件。</summary>
@@ -396,7 +404,7 @@ public partial class EmitterEditor : Control
     /// <param name="input">键盘输入。</param>
     public override void _UnhandledKeyInput(InputEvent input)
     {
-        if (input is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true } key) return;
+        if (IsBossMode || input is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true } key) return;
         if (key.Keycode == Key.S) { Guard(() => Save(key.ShiftPressed)); AcceptEvent(); }
         if (key.Keycode == Key.O) { Guard(() => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640)))); AcceptEvent(); }
         if (key.Keycode == Key.F && _tabs.CurrentTab == 0) { _propertySearch.GrabFocus(); _propertySearch.SelectAll(); AcceptEvent(); }
@@ -411,6 +419,6 @@ public partial class EmitterEditor : Control
     /// <param name="what">Godot生命周期通知。</param>
     public override void _Notification(int what)
     {
-        if (what == NotificationWMCloseRequest) DiscardThen(() => GetTree().Quit());
+        if (what == NotificationWMCloseRequest) DiscardThen(() => GetTree().Quit(), includeBoss: true);
     }
 }

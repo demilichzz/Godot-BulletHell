@@ -8,6 +8,10 @@ public partial class EditorPreview : Node2D
     private const string Profile = "__EmitterEditorPreview";
     private static bool _registered;
     private BattleManager? _battle;
+    /// <summary>当前正式Boss实例，用于阶段和血池预览。</summary>
+    public BossController? Boss => _battle?.Boss;
+    /// <summary>当前预览是否已完成全部阶段。</summary>
+    public bool Victory => _battle?.State == BattleState.Victory;
     /// <summary>当前预览发射器，未启动时为空。</summary>
     public VBulletEmitter? Emitter { get; private set; }
     /// <summary>当前预览运行秒数。</summary>
@@ -35,6 +39,25 @@ public partial class EditorPreview : Node2D
             _battle.Boss.Visible = false; _battle.Player.Visible = false;
             Emitter = emitter;
             emitter.Start(_battle.Boss, _battle.Bullets);
+            QueueRedraw();
+        }
+        catch { Stop(); throw; }
+    }
+    /// <summary>以完整Boss数据创建正式战斗预览，停止玩家自动攻击以便检查阶段。</summary>
+    /// <param name="json">当前Boss JSON快照。</param>
+    public void StartBoss(string json)
+    {
+        // 先校验，再替换旧场景；运行实例完全重新建立。
+        var data = BossData.FromJson(json, "Boss预览");
+        Stop();
+        try
+        {
+            _battle = new BattleManager();
+            AddChild(_battle);
+            _battle.Initialize(this, data);
+            _battle.SetPhysicsProcess(false);
+            _battle.Player.Attack.Stop();
+            _battle.Player.Visible = false;
             QueueRedraw();
         }
         catch { Stop(); throw; }

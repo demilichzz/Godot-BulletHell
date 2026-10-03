@@ -196,6 +196,12 @@ public partial class EditorVerification : Node
     {
         try
         {
+            if (OS.GetCmdlineUserArgs().Contains("--targeted-boss"))
+            {
+                await VerifyBossEditor();
+                GetTree().Quit();
+                return;
+            }
             VerifyDocuments();
             // 实际实例化的编辑器场景。
             var editor = GD.Load<PackedScene>("res://EmitterEditor/EmitterEditor.tscn").Instantiate<EmitterEditor>(); AddChild(editor);
