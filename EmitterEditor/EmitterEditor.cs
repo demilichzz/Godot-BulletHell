@@ -28,6 +28,10 @@ public partial class EmitterEditor : Control
     private bool _refreshing, _playing, _jsonDirty;
     private Action? _afterDiscard;
     private Button _play = null!;
+    // 文档历史按钮随撤销栈与JSON草稿状态启用。
+    private Button _undoButton = null!, _redoButton = null!;
+    // 编辑器位置修改选项：关闭时补偿后代的静态世界坐标。
+    private bool _moveChildren = true;
     /// <summary>搭建独立工具界面并加载可选命令行文件。</summary>
     public override void _Ready()
     {
@@ -54,10 +58,10 @@ public partial class EmitterEditor : Control
         var files = new HBoxContainer(); layout.AddChild(files);
         AddButton(files, "新建", () => DiscardThen(() => { Document.New(); _selection = "/VNodes"; Refresh(); }));
         AddButton(files, "打开…", () => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640))));
-        AddButton(files, "保存", () => Save(false));
-        AddButton(files, "另存为…", () => Save(true));
-        AddButton(files, "撤销", () => { RequireAppliedDraft(); Document.Undo(); Refresh(); });
-        AddButton(files, "重做", () => { RequireAppliedDraft(); Document.Redo(); Refresh(); });
+        AddButton(files, "保存", () => Save(false)).TooltipText = "保存（Ctrl+S）";
+        AddButton(files, "另存为…", () => Save(true)).TooltipText = "另存为（Ctrl+Shift+S）";
+        _undoButton = AddButton(files, "撤销", () => ChangeHistory(false));
+        _redoButton = AddButton(files, "重做", () => ChangeHistory(true));
         AddButton(files, "校验", () => { RequireAppliedDraft(); Document.Validate(); SetStatus("校验通过；尚未运行的几何约束将在预览生成时检查。", false); });
         // 预览播放及显示质量工具栏。
         var controls = new HBoxContainer(); layout.AddChild(controls);
@@ -78,6 +82,12 @@ public partial class EmitterEditor : Control
         // 生成器树及其操作按钮容器。
         var hierarchy = new VBoxContainer { CustomMinimumSize = new Vector2(210, 0) }; workspace.AddChild(hierarchy);
         hierarchy.AddChild(new Label { Text = "CREATOR  /  生成器树" });
+        // 只过滤画布，完整树始终保留，便于重新选择其他节点。
+        var visibility = new OptionButton { TooltipText = "控制静态画布中的图标、父子连线和路径显示范围。", FitToLongestItem = false };
+        foreach (string mode in new[] { "显示全部节点", "仅显示当前和子节点", "仅显示当前节点" }) visibility.AddItem(mode);
+        visibility.ItemSelected += mode => { Canvas.CancelDrag(); Canvas.DisplayMode = (int)mode; Canvas.QueueRedraw(); }; hierarchy.AddChild(visibility);
+        var moveChildren = new CheckButton { Text = "同时更改子节点位置", ButtonPressed = true, TooltipText = "开启：保留子节点相对配置。关闭：补偿后代出生位移，保持静态世界位置；拖动和右侧位置设值共用此规则。" };
+        moveChildren.Toggled += enabled => { Canvas.CancelDrag(); _moveChildren = enabled; }; hierarchy.AddChild(moveChildren);
         _tree.HideRoot = false; _tree.SizeFlagsVertical = SizeFlags.ExpandFill;
         _tree.ItemSelected += TreeSelected; hierarchy.AddChild(_tree);
         // 子Creator类型和添加按钮所在行。
@@ -96,11 +106,10 @@ public partial class EmitterEditor : Control
         center.AddChild(new Label { Text = "场地 1280 × 800  ·  圆形区域 R400  ·  右下为正" });
         Canvas.SizeFlagsVertical = SizeFlags.ExpandFill; center.AddChild(Canvas);
         Canvas.Selected = marker => SelectMarker(marker);
-        center.AddChild(new Label { Text = "基础布局：仅基础项；子树参考父第一项。路径显示参考锚点。\n重叠图标连续点击切换；动态效果请播放预览。", AutowrapMode = TextServer.AutowrapMode.WordSmart });
+        Canvas.MoveRequested = MoveMarker; Canvas.MoveCanceled = ValidateLayout;
+        center.AddChild(new Label { Text = "基础布局：子树参考父第一项；路径瞄准固定玩家位置。\n左键拖动，Esc取消；重叠图标连续点击切换。", AutowrapMode = TextServer.AutowrapMode.WordSmart });
         _tabs.CustomMinimumSize = new Vector2(440, 0); content.AddChild(_tabs);
-        // 属性面板的纵向滚动区域。
-        var scroll = new ScrollContainer { Name = "属性", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
-        _tabs.AddChild(scroll); _properties.SizeFlagsHorizontal = SizeFlags.ExpandFill; scroll.AddChild(_properties);
+        BuildInspectorNavigation();
         // 完整JSON原文及应用按钮所在页面。
         var source = new VBoxContainer { Name = "JSON" }; _tabs.AddChild(source);
         source.AddChild(new Label { Text = "完整原文 · 应用后同步图形界面\n小数字段支持PI/TAU表达式；毫秒与数量使用整数。" });
@@ -163,6 +172,7 @@ public partial class EmitterEditor : Control
     /// <summary>完整刷新编辑数据相关界面。</summary>
     public void Refresh()
     {
+        Canvas.CancelDrag();
         StopPreview(); _refreshing = true;
         try { SyncJson(); RebuildTree(); BuildInspector(); ValidateLayout(); UpdateTitle(); }
         finally { _refreshing = false; }
@@ -170,8 +180,8 @@ public partial class EmitterEditor : Control
     /// <summary>校验当前数据并刷新基础图标，错误明确显示。</summary>
     private void ValidateLayout()
     {
-        try { Canvas.Rebuild(Document.Validate()); SetStatus("校验通过 · 固定种子0 · 60Hz · Boss(640,250) / 玩家(640,600)", false); }
-        catch (Exception error) { Canvas.Markers.Clear(); Canvas.QueueRedraw(); SetStatus(error.Message, true); }
+        try { Canvas.Rebuild(Document.Validate(), Document.Root); SetStatus("校验通过 · 拖动图标设置位置 · 路径按静态参考显示 · Boss(640,250) / 玩家(640,600)", false); }
+        catch (Exception error) { Canvas.Markers.Clear(); Canvas.Paths.Clear(); Canvas.QueueRedraw(); SetStatus(error.Message, true); }
     }
     /// <summary>同步完整JSON文本，避免丢失表达式。</summary>
     private void SyncJson()
@@ -181,7 +191,14 @@ public partial class EmitterEditor : Control
         _json.Text = Document.Text; _jsonBaseline = _json.Text; _jsonDirty = false; _refreshing = previous;
     }
     /// <summary>更新文件名和未保存状态。</summary>
-    private void UpdateTitle() => _title.Text = "弹幕编辑器  /  " + (Document.FilePath.Length == 0 ? "未命名" : Path.GetFileName(Document.FilePath)) + (Document.Dirty || _jsonDirty ? "  ● 未保存" : "  已保存") + (_jsonDirty ? "  · JSON草稿未应用" : "");
+    private void UpdateTitle()
+    {
+        _title.Text = "弹幕编辑器  /  " + (Document.FilePath.Length == 0 ? "未命名" : Path.GetFileName(Document.FilePath)) + (Document.Dirty || _jsonDirty ? "  ● 未保存" : "  已保存") + (_jsonDirty ? "  · JSON草稿未应用" : "");
+        _undoButton.Disabled = _jsonDirty || !Document.CanUndo;
+        _redoButton.Disabled = _jsonDirty || !Document.CanRedo;
+        _undoButton.TooltipText = _jsonDirty ? "请先应用或放弃JSON草稿" : "撤销文档修改（Ctrl+Z）；文本框内使用文本撤销";
+        _redoButton.TooltipText = _jsonDirty ? "请先应用或放弃JSON草稿" : "重做文档修改（Ctrl+Y / Ctrl+Shift+Z）；文本框内使用文本重做";
+    }
     /// <summary>显示可复制的完整诊断，长错误可悬停阅读。</summary>
     /// <param name="message">状态或错误文本。</param>
     /// <param name="error">是否使用错误颜色。</param>
@@ -210,6 +227,9 @@ public partial class EmitterEditor : Control
         var root = _tree.CreateItem(); root.SetText(0, "Emitter · 共用属性"); root.SetMetadata(0, ""); _items[""] = root;
         if (Document.Root["VNodes"] is JsonObject creator) AddTreeCreator(creator, "/VNodes", root);
         if (!_items.ContainsKey(_selection)) _selection = Document.Root["VNodes"] is JsonObject ? "/VNodes" : "";
+        // 新文档或删除数组项后，选中下标不能停留在已经不存在的基础项。
+        if (Document.At(_selection) is JsonObject selected && selected["BaseAttributes"] is JsonArray bases)
+            Canvas.SelectedBasis = Math.Clamp(Canvas.SelectedBasis, 0, Math.Max(0, bases.Count - 1));
         _items[_selection].Select(0); Canvas.SelectedPath = _selection; Canvas.QueueRedraw();
     }
     /// <summary>追加一个Creator及其子树。</summary>
@@ -246,7 +266,7 @@ public partial class EmitterEditor : Control
         if (!_items.TryGetValue(path, out var item)) return;
         _tabs.CurrentTab = 0;
         item.Select(0); _selection = path; Canvas.SelectedPath = marker.Path; Canvas.SelectedBasis = marker.Basis;
-        _tree.ScrollToItem(item); BuildInspector(); Canvas.QueueRedraw();
+        _tree.ScrollToItem(item); RevealSelectedBasis(); Canvas.QueueRedraw();
     }
     /// <summary>为选中Creator增加子节点；Emitter选择下添加到根。</summary>
     /// <param name="type">Creator类型。</param>
@@ -341,6 +361,7 @@ public partial class EmitterEditor : Control
     /// <summary>创建新的预览快照，完整重置角色和随机状态。</summary>
     private void StartPreview()
     {
+        Canvas.CancelDrag();
         RequireAppliedDraft(); Document.Validate();
         Preview.Start(Document.Text); _previewText = Document.Text;
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
@@ -378,6 +399,13 @@ public partial class EmitterEditor : Control
         if (input is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true } key) return;
         if (key.Keycode == Key.S) { Guard(() => Save(key.ShiftPressed)); AcceptEvent(); }
         if (key.Keycode == Key.O) { Guard(() => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640)))); AcceptEvent(); }
+        if (key.Keycode == Key.F && _tabs.CurrentTab == 0) { _propertySearch.GrabFocus(); _propertySearch.SelectAll(); AcceptEvent(); }
+        // 文本输入保留控件自身的撤销记录，不回退整份文档。
+        if (GetViewport().GuiGetFocusOwner() is LineEdit or TextEdit) return;
+        if (key.Keycode is Key.Z or Key.Y)
+        {
+            Guard(() => ChangeHistory(key.Keycode == Key.Y || key.ShiftPressed)); AcceptEvent();
+        }
     }
     /// <summary>窗口关闭前保护未保存内容。</summary>
     /// <param name="what">Godot生命周期通知。</param>

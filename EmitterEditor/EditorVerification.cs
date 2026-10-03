@@ -96,6 +96,7 @@ public partial class EditorVerification : Node
             // 当前真实输入文档的独立副本。
             var source = new EmitterDocument(); source.Open(file); source.Validate();
             Check(JsonNode.DeepEquals(EmitterDocument.Parse(File.ReadAllText(file)), EmitterDocument.Parse(source.Text)), "原文往返失真：" + file);
+            Check(new EditorLayout(source.Validate(), source.Root).Markers.Count > 0, "真实Emitter静态布局及路径采样：" + file);
             fileCount++;
         }
         GD.Print($"Editor document inputs: {fileCount}");
@@ -114,6 +115,81 @@ public partial class EditorVerification : Node
         document.Validate(); document.Save(path); reopened.Open(path);
         Check(reopened.Root["VNodes"]!["Children"]![1]!["Core"]!["CopySource"]!.GetValue<string>() == "Original", "CopySource原文保存");
         Check(reopened.Root["VNodes"]!["Children"]![1]!["BaseAttributes"] is null, "未将复制继承属性展开写回");
+    }
+    /// <summary>验证搜索、折叠、基础项定位与历史快捷键组成的实际编辑流程。</summary>
+    /// <param name="editor">已就绪的独立编辑器。</param>
+    /// <returns>交互和布局验证结束的任务。</returns>
+    private async Task VerifyNavigation(EmitterEditor editor)
+    {
+        // 导航输入及历史按钮；测试从无历史的新文档开始。
+        var search = Descendants<LineEdit>(editor).Single(input => input.PlaceholderText.StartsWith("搜索属性"));
+        var undo = Descendants<Button>(editor).Single(button => button.Text == "撤销");
+        var redo = Descendants<Button>(editor).Single(button => button.Text == "重做");
+        string initial = editor.Document.Text;
+        Check(undo.Disabled && redo.Disabled, "空历史禁用撤销重做");
+        Press(editor, "全部收起");
+        Check(Descendants<Button>(editor).Where(button => button.ToggleMode && button is not CheckButton).All(button => !button.ButtonPressed), "全部收起包含深层分组");
+        search.Text = "aNgLe"; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text); await Settle();
+        Check(Descendants<Label>(editor).Any(label => label.Text == "角度（Angle）" && label.IsVisibleInTree()), "英文搜索忽略大小写并展开匹配项");
+        Check(!Descendants<Label>(editor).Any(label => label.Text == "速度（Speed）"), "筛选排除无关字段");
+        Check(editor.Document.Text == initial && undo.Disabled, "筛选和折叠不修改文档或历史");
+        // 在筛选结果中提交表达式，再用文档撤销恢复。
+        var angle = Descendants<Label>(editor).First(label => label.Text == "角度（Angle）").GetParent().GetChildren().OfType<LineEdit>().Single();
+        angle.Text = "PI/4"; angle.EmitSignal(LineEdit.SignalName.TextSubmitted, angle.Text);
+        Check(!undo.Disabled && redo.Disabled, "编辑后历史按钮状态更新");
+        undo.GrabFocus();
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Z, CtrlPressed = true, Pressed = true }); await Settle();
+        Check(editor.Document.Text == initial && !redo.Disabled, "Ctrl+Z通过界面输入撤销文档修改");
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Y, CtrlPressed = true, Pressed = true }); await Settle();
+        Check(editor.Document.Root["VNodes"]!["BaseAttributes"]![0]!["Angle"]!.ToString() == "PI/4", "Ctrl+Y恢复表达式");
+        search.Text = "加速度"; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text); await Settle();
+        // 未填写的可选属性也能通过中文搜索找到，添加后保持筛选。
+        var menu = Descendants<OptionButton>(editor).First(item => Enumerable.Range(0, item.ItemCount).Any(index => item.GetItemText(index) == "加速度（ASpeed）"));
+        menu.Select(Enumerable.Range(0, menu.ItemCount).First(index => menu.GetItemText(index) == "加速度（ASpeed）"));
+        menu.GetParent().GetChildren().OfType<Button>().Single(button => button.Text == "+ 属性").EmitSignal(BaseButton.SignalName.Pressed); await Settle();
+        Check(Descendants<Label>(editor).Any(label => label.Text == "加速度（ASpeed）" && label.IsVisibleInTree()), "搜索结果可添加缺省属性");
+        if (OS.GetCmdlineUserArgs().Contains("--capture")) await Capture("editor-search");
+        // 文本框中的撤销不应回退刚刚完成的文档操作。
+        string edited = editor.Document.Text;
+        search.GrabFocus();
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Z, CtrlPressed = true, Pressed = true }); await Settle();
+        Check(editor.Document.Text == edited, "搜索框输入不触发文档撤销");
+        search.Text = "不存在的字段xyz"; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text); await Settle();
+        Check(Descendants<Label>(editor).Any(label => label.Text.StartsWith("没有匹配的属性")), "无匹配结果提供清空提示");
+        search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text); await Settle();
+        Check(!Descendants<Button>(editor).Single(button => button.Text == "核心属性（Core）").ButtonPressed, "清空搜索恢复原来的折叠状态");
+        // 多基础项分散摆放，点击后应展开并滚动到准确的零基下标。
+        editor.Document.New();
+        editor.Document.Edit(root =>
+        {
+            // 由默认项派生多个互不重叠的图标，每项横向间隔60逻辑像素。
+            var bases = root["VNodes"]!["BaseAttributes"]!.AsArray();
+            for (int index = 1; index < 9; index++)
+            {
+                var basis = bases[0]!.DeepClone(); basis["RefMoveQueue"]![0]!["X"] = index * 60; bases.Add(basis);
+            }
+        });
+        editor.Refresh(); await Settle();
+        Press(editor, "全部展开");
+        // 选择第八个基础项，避开其他图标命中半径。
+        var marker = editor.Canvas.Markers[7];
+        search.Text = "Angle"; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
+        editor.Canvas._GuiInput(new InputEventMouseButton { Position = editor.Canvas.ToCanvas(marker.Position), ButtonIndex = MouseButton.Left, Pressed = true });
+        await Settle(); await Settle();
+        var target = Descendants<Button>(editor).Single(button => button.Text == "基础项 [7] · 已选中");
+        var scroll = Descendants<ScrollContainer>(editor).Single();
+        Check(editor.Canvas.SelectedBasis == 7 && search.Text == "" && target.ButtonPressed, "图标点击清除筛选并展开对应基础项");
+        Check(scroll.ScrollVertical > 0 && scroll.GetGlobalRect().Encloses(target.GetGlobalRect()) &&
+            target.GlobalPosition.Y - scroll.GlobalPosition.Y < 30, "属性面板自动滚动让目标标题位于顶部并展示其字段");
+        if (OS.GetCmdlineUserArgs().Contains("--capture")) await Capture("editor-basis-navigation");
+        // 快捷键聚焦搜索，JSON草稿存在时禁用文档历史且保留草稿。
+        target.GrabFocus();
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.F, CtrlPressed = true, Pressed = true }); await Settle();
+        Check(search.HasFocus(), "Ctrl+F聚焦属性搜索");
+        var code = Descendants<CodeEdit>(editor).Single(); code.Text += " "; code.EmitSignal(TextEdit.SignalName.TextChanged); await Settle();
+        Check(undo.Disabled && redo.Disabled, "未应用JSON草稿禁用文档历史");
+        Press(editor, "应用 JSON 草稿"); await Settle();
+        editor.Document.New(); editor.Refresh(); await Settle();
     }
     /// <summary>执行运行及图形交互集成验证。</summary>
     private async void Run()
@@ -139,6 +215,8 @@ public partial class EditorVerification : Node
             Press(editor, "撤销"); await Settle();
             Check(editor.Document.Root["VNodes"]!["Children"]!.AsArray().Count == 1, "UI撤销恢复子树");
             editor.Document.New(); editor.Refresh(); await Settle();
+            await VerifyNavigation(editor);
+            await VerifyLayoutTools(editor);
             // 找到图形Angle输入，模拟文本提交，检查原文与方向提示同步存在。
             var label = Descendants<Label>(editor).First(item => item.Text == "角度（Angle）");
             // Angle字段的实际文本输入控件。

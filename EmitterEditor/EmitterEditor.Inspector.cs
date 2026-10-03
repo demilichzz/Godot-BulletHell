@@ -13,6 +13,7 @@ public partial class EmitterEditor
     /// <summary>为当前树选择建立属性编辑菜单。</summary>
     private void BuildInspector()
     {
+        _inspectorRevision++; _groupHeaders.Clear();
         // 当前子节点，逐个处理以保持原有顺序。
         foreach (Node child in _properties.GetChildren()) { _properties.RemoveChild(child); child.QueueFree(); }
         // 当前选中的原始JSON对象。
@@ -24,7 +25,11 @@ public partial class EmitterEditor
         _properties.AddChild(new Label { Text = "输入后回车或移开焦点应用 · × 移除可选字段\n角度单位rad；表达式原文保留。null为显式空值。", AutowrapMode = TextServer.AutowrapMode.WordSmart });
         if (selected["Core"] is JsonObject core && core.ContainsKey("CopySource"))
             _properties.AddChild(new Label { Text = "当前编辑复制声明的覆盖项；未填写字段继承复制源。", AutowrapMode = TextServer.AutowrapMode.WordSmart });
-        ObjectFields(_properties, selected, _selection.Length == 0 ? typeof(EmitterDocument) : typeof(JsonObject), _selection, creatorType, "", 0);
+        // 用独立容器判断空结果，说明文字不计入属性命中。
+        var fields = new VBoxContainer(); _properties.AddChild(fields);
+        ObjectFields(fields, selected, _selection.Length == 0 ? typeof(EmitterDocument) : typeof(JsonObject), _selection, creatorType, "", 0);
+        if (fields.GetChildCount() == 0)
+            fields.AddChild(new Label { Text = "没有匹配的属性。试试中文或英文名称，或清空搜索。", AutowrapMode = TextServer.AutowrapMode.WordSmart });
     }
     /// <summary>取得原始或CopySource继承的Creator类型。</summary>
     /// <param name="node">当前声明。</param>
@@ -57,21 +62,23 @@ public partial class EmitterEditor
         // 目录提供全部可选属性，原始JSON中的额外属性仍可删除修复。
         var fields = EditorSchema.Fields(type, value, creatorType, context);
         // 当前JSON键值对，按原声明顺序显示。
-        foreach (var pair in value.ToArray())
+        foreach (var pair in value.ToArray().OrderBy(pair => { int index = fields.FindIndex(field => field.Name == pair.Key); return index < 0 ? int.MaxValue : index; }))
         {
             if (type == typeof(JsonObject) && pair.Key == "Children") continue;
             if (type == typeof(EmitterDocument) && pair.Key == "VNodes") continue;
             // 对应当前JSON字段的类型及说明。
             var field = fields.Find(entry => entry.Name == pair.Key) ?? new EditorSchema.Field(pair.Key, InferType(pair.Value), null, "当前协议未识别的字段；请核对或删除。" );
+            if (!MatchesProperty(path + "/" + EmitterDocument.Escape(pair.Key), pair.Value, field.ValueType, creatorType, pair.Key)) continue;
             FieldControl(parent, pair.Value, field.ValueType, path + "/" + EmitterDocument.Escape(pair.Key), creatorType, pair.Key, field.Tip, depth);
         }
         // 尚未显式填写且允许添加的字段。
-        var missing = fields.Where(field => !value.ContainsKey(field.Name) && field.Name != "Children").ToList();
+        var missing = fields.Where(field => !value.ContainsKey(field.Name) && field.Name != "Children" &&
+            MatchesProperty(path + "/" + EmitterDocument.Escape(field.Name), null, field.ValueType, creatorType, field.Name)).ToList();
         if (missing.Count == 0) return;
         // 当前属性及操作按钮的横向容器。
         var row = new HBoxContainer(); parent.AddChild(row);
         // 待添加字段的选择菜单。
-        var menu = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var menu = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill, FitToLongestItem = false, ClipText = true };
         // 当前字段元数据。
         foreach (var field in missing) { menu.AddItem(EditorSchema.DisplayName(field.Name)); menu.SetItemTooltip(menu.ItemCount - 1, field.Tip); }
         row.AddChild(menu);
@@ -79,8 +86,8 @@ public partial class EmitterEditor
         {
             // 对应当前JSON字段的类型及说明。
             var field = missing[menu.Selected];
-            Document.At(path)!.AsObject()[field.Name] = field.Default?.DeepClone();
-        }, true));
+            EditorSchema.InsertField(Document.At(path)!.AsObject(), fields, field);
+        }, true, EditorPositionTools.IsSpatial(path + "/" + missing[menu.Selected].Name)));
     }
     /// <summary>为对象、数组或标量建立对应控件。</summary>
     /// <param name="parent">显示容器。</param>
@@ -91,20 +98,33 @@ public partial class EmitterEditor
     /// <param name="name">字段或数组项名称。</param>
     /// <param name="tip">悬停说明。</param>
     /// <param name="depth">层级。</param>
-    private void FieldControl(VBoxContainer parent, JsonNode? value, Type type, string path, string creatorType, string name, string tip, int depth)
+    /// <param name="itemIndex">队列项零基下标；普通字段为空。</param>
+    private void FieldControl(VBoxContainer parent, JsonNode? value, Type type, string path, string creatorType, string name, string tip, int depth, int? itemIndex = null)
     {
         if (value is JsonObject || value is JsonArray)
         {
             // 每组独立折叠；深层列表默认折叠以控制大文档的面板长度。
             var header = new HBoxContainer(); parent.AddChild(header);
             // 记录并控制属性组展开状态的按钮。
-            var toggle = new Button { Text = EditorSchema.DisplayName(name) + (value is JsonArray list ? $"  [{list.Count}]" : ""), ToggleMode = true, ButtonPressed = _expanded.GetValueOrDefault(path, depth < 2), SizeFlagsHorizontal = SizeFlags.ExpandFill, TooltipText = tip };
-            header.AddChild(toggle); AddButton(header, "×", () => Mutate(() => RemoveAt(path), true));
+            var toggle = new Button { Text = EditorSchema.DisplayName(name) + (value is JsonArray list ? $"  [{list.Count}]" : ""), ToggleMode = true, ButtonPressed = _propertySearch.Text.Trim().Length > 0 || _expanded.GetValueOrDefault(path, depth < 2), SizeFlagsHorizontal = SizeFlags.ExpandFill, TooltipText = tip };
+            _groupHeaders[path] = toggle;
+            if (itemIndex.HasValue) toggle.Text = EditorSchema.ItemName(name, itemIndex.Value);
+            // 标出基础项下标，画布与属性表使用同一零基索引。
+            if (path.StartsWith(_selection + "/BaseAttributes/", StringComparison.Ordinal) && int.TryParse(path[(_selection.Length + "/BaseAttributes/".Length)..], out int basis))
+            {
+                toggle.Text = $"基础项 [{basis}]";
+                if (basis == Canvas.SelectedBasis && Canvas.SelectedPath == _selection)
+                {
+                    toggle.Text += " · 已选中"; toggle.Modulate = new Color("91d8ff");
+                }
+            }
+            toggle.ClipText = true;
+            header.AddChild(toggle); AddQueueActions(header, path, itemIndex); AddButton(header, "×", () => Mutate(() => RemoveAt(path), true, EditorPositionTools.IsSpatial(path)));
             // 嵌套属性的左侧缩进容器。
             var inset = new MarginContainer(); inset.AddThemeConstantOverride("margin_left", 10); parent.AddChild(inset);
             // 属性组展开后的内容容器。
             var body = new VBoxContainer(); inset.AddChild(body); inset.Visible = toggle.ButtonPressed;
-            toggle.Toggled += expanded => { _expanded[path] = expanded; inset.Visible = expanded; };
+            toggle.Toggled += expanded => { if (_propertySearch.Text.Trim().Length == 0) _expanded[path] = expanded; inset.Visible = expanded; };
             if (value is JsonObject obj) ObjectFields(body, obj, type, path, creatorType, name, depth + 1);
             else ArrayFields(body, (JsonArray)value, EditorSchema.ElementType(type) ?? typeof(string), path, creatorType, name, depth + 1);
             return;
@@ -114,7 +134,7 @@ public partial class EmitterEditor
         // 字段名称及悬停说明控件。
         var label = new Label
         {
-            Text = EditorSchema.DisplayName(name),
+            Text = itemIndex.HasValue ? EditorSchema.ItemName(name, itemIndex.Value) : EditorSchema.DisplayName(name),
             CustomMinimumSize = new Vector2(172, 0),
             CustomMaximumSize = new Vector2(192, -1),
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
@@ -124,7 +144,27 @@ public partial class EmitterEditor
         row.AddChild(label);
         // 布尔字段用开关，其他标量保留文本和表达式输入。
         Type scalar = Nullable.GetUnderlyingType(type) ?? type;
-        if (scalar == typeof(bool) && value is not null)
+        // 固定字符串和枚举使用原协议选项，异常原值仍保留供用户修复。
+        var choices = EditorSchema.Choices(name, scalar, path, creatorType);
+        if (name == "CopySource" && _selection.Contains("/Children/"))
+        {
+            // 复制源仅允许当前同级中更早声明且未复制的命名节点。
+            int split = _selection.LastIndexOf('/'); int index = int.Parse(_selection[(split + 1)..]);
+            choices = Document.At(_selection[..split])!.AsArray().Take(index).OfType<JsonObject>()
+                .Where(node => node["Core"] is JsonObject core && !core.ContainsKey("CopySource") && core["Name"] is JsonValue)
+                .Select(node => node["Core"]!["Name"]!.ToString()).ToArray();
+        }
+        if (choices.Length > 0)
+        {
+            var menu = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill, FitToLongestItem = false, ClipText = true, TooltipText = tip };
+            string current = value?.ToString() ?? "null";
+            foreach (string choice in choices) menu.AddItem(choice);
+            int selectedIndex = Array.IndexOf(choices, current);
+            if (selectedIndex < 0) { menu.AddItem(current + "（当前值）"); selectedIndex = menu.ItemCount - 1; }
+            menu.Select(selectedIndex); row.AddChild(menu);
+            menu.ItemSelected += index => { if (index < choices.Length) Guard(() => Mutate(() => SetAt(path, EditorSchema.Scalar(choices[index], type)), true, EditorPositionTools.IsSpatial(path))); };
+        }
+        else if (scalar == typeof(bool) && value is not null)
         {
             // 布尔字段的实际开关控件。
             var check = new CheckButton { ButtonPressed = value.ToString().Equals("true", StringComparison.OrdinalIgnoreCase), TooltipText = tip, SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -145,7 +185,7 @@ public partial class EmitterEditor
                 {
                     // 按照字段类型转换的独立JSON值。
                     JsonNode? parsed = EditorSchema.Scalar(input.Text, type);
-                    Mutate(() => SetAt(path, parsed), name is "Type" or "Name" or "CopySource"); applied = input.Text;
+                    Mutate(() => SetAt(path, parsed), name is "Type" or "Name" or "CopySource", EditorPositionTools.IsSpatial(path)); applied = input.Text;
                 });
             }
             input.TextSubmitted += _ => Commit(); input.FocusExited += Commit;
@@ -156,7 +196,7 @@ public partial class EmitterEditor
                 indicator.SetText(input.Text); input.TextChanged += indicator.SetText;
             }
         }
-        AddButton(row, "×", () => Mutate(() => RemoveAt(path), true));
+        AddQueueActions(row, path, itemIndex); AddButton(row, "×", () => Mutate(() => RemoveAt(path), true, EditorPositionTools.IsSpatial(path)));
     }
     /// <summary>显示数组项，并提供追加、复制、移动和删除。</summary>
     /// <param name="parent">显示容器。</param>
@@ -171,14 +211,7 @@ public partial class EmitterEditor
         // 按声明顺序处理的零基下标。
         for (int index = 0; index < array.Count; index++)
         {
-            // 捕获固定下标；修改后统一重建，避免闭包读到下一次循环值。
-            int position = index;
-            // 当前数组项的复制与排序按钮行。
-            var actions = new HBoxContainer(); parent.AddChild(actions);
-            actions.AddChild(new Label { Text = $"[{index}]", SizeFlagsHorizontal = SizeFlags.ExpandFill });
-            AddButton(actions, "复制", () => Mutate(() => { var list = Document.At(path)!.AsArray(); list.Insert(position + 1, list[position]?.DeepClone()); }, true));
-            AddButton(actions, "↑", () => ShiftItem(path, position, -1)); AddButton(actions, "↓", () => ShiftItem(path, position, 1));
-            FieldControl(parent, array[index], type, path + "/" + index, creatorType, context, $"{EditorSchema.DisplayName(context)}[{index}]；按声明顺序处理。", depth);
+            FieldControl(parent, array[index], type, path + "/" + index, creatorType, context, $"{EditorSchema.DisplayName(context)}[{index}]；按声明顺序处理。", depth, index);
         }
         // 当前属性及操作按钮的横向容器。
         var row = new HBoxContainer(); parent.AddChild(row);
@@ -187,7 +220,20 @@ public partial class EmitterEditor
         // 可添加数组项的模板名称。
         foreach (string variant in type == typeof(VNodeMoveActionAttribute) ? new[] { "XYMove", "PMove", "TarMove" } : new[] { "默认" }) variants.AddItem(variant);
         row.AddChild(variants);
-        AddButton(row, "+ 添加项", () => Mutate(() => Document.At(path)!.AsArray().Add(EditorSchema.Item(type, context, variants.GetItemText(variants.Selected))), true));
+        AddButton(row, "+ 添加项", () => Mutate(() => Document.At(path)!.AsArray().Add(EditorSchema.Item(type, context, variants.GetItemText(variants.Selected))), true, EditorPositionTools.IsSpatial(path)));
+    }
+    /// <summary>把队列操作放到项目标题同一行，边界移动按钮禁用。</summary>
+    /// <param name="row">项目标题或标量所在行。</param>
+    /// <param name="path">项目JSON指针。</param>
+    /// <param name="index">零基下标；非队列字段为空。</param>
+    private void AddQueueActions(HBoxContainer row, string path, int? index)
+    {
+        if (!index.HasValue) return;
+        // 当前队列与稳定下标，操作完成后重建控件。
+        string parent = path[..path.LastIndexOf('/')]; int position = index.Value;
+        AddButton(row, "复制", () => Mutate(() => { var list = Document.At(parent)!.AsArray(); list.Insert(position + 1, list[position]?.DeepClone()); }, true, EditorPositionTools.IsSpatial(parent)));
+        AddButton(row, "↑", () => ShiftItem(parent, position, -1)).Disabled = position == 0;
+        AddButton(row, "↓", () => ShiftItem(parent, position, 1)).Disabled = position == Document.At(parent)!.AsArray().Count - 1;
     }
     /// <summary>按顺序移动列表成员。</summary>
     /// <param name="path">列表指针。</param>
@@ -200,13 +246,17 @@ public partial class EmitterEditor
         if (target < 0 || target >= list.Count) return;
         // 需要显示或移动的当前列表项。
         var item = list[index]; list.RemoveAt(index); list.Insert(target, item);
-    }, true);
+    }, true, EditorPositionTools.IsSpatial(path));
     /// <summary>提交表单修改并同步校验与原文。</summary>
     /// <param name="change">对当前JSON节点的修改。</param>
     /// <param name="rebuild">结构变化时延迟重建表单。</param>
-    private void Mutate(Action change, bool rebuild)
+    /// <param name="spatial">位置字段修改时是否执行后代坐标补偿。</param>
+    private void Mutate(Action change, bool rebuild, bool spatial = false)
     {
-        RequireAppliedDraft(); Document.Edit(_ => change()); StopPreview();
+        RequireAppliedDraft();
+        // 位置修改与后代补偿共用一次文档事务，失败完整回滚。
+        var before = !_moveChildren && spatial ? new EditorLayout(Document.Validate(), Document.Root) : null;
+        Document.Edit(_ => { change(); if (before is not null) EditorPositionTools.PreserveChildren(Document, _selection, before); }); StopPreview();
         SyncJson(); ValidateLayout(); UpdateTitle();
         if (rebuild) Callable.From(() => { if (IsInsideTree()) Refresh(); }).CallDeferred();
     }
