@@ -1,0 +1,159 @@
+{
+  "Core": {
+    "Name": "FixedLaserExample",
+    "RefObject": null,
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "RoundBeam",
+          "Width": 8
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 160,
+                "Y": 160
+              }
+            ]
+          }
+        ],
+        "Laser": {
+          "Mode": "Fixed",
+          "Length": 960,
+          "HitWidth": 6,
+          "EndCap": "Round",
+          "Color": "#FF0000",
+          "CoreColor": "#FFFFFF",
+          "GlowColor": "#FF0000",
+          "WarningMs": 600,
+          "ExpandMs": 150,
+          "ActiveMs": 1000,
+          "FadeMs": 250
+        },
+        "Timeline": [
+          {
+            "StartMs": 0,
+            "IntervalMs": 3000
+          }
+        ],
+        "Display": {
+          "BlendMode": "CoreAdd"
+        }
+      },
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "PointBeam",
+          "Width": 8
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 160,
+                "Y": 280
+              }
+            ]
+          }
+        ],
+        "Laser": {
+          "Mode": "Fixed",
+          "Length": 960,
+          "HitWidth": 6,
+          "EndCap": "Point",
+          "Color": "#FF0000",
+          "CoreColor": "#FFFFFF",
+          "GlowColor": "#FF0000",
+          "WarningMs": 600,
+          "ExpandMs": 150,
+          "ActiveMs": 1000,
+          "FadeMs": 250
+        },
+        "Timeline": [
+          {
+            "StartMs": 0,
+            "IntervalMs": 3000
+          }
+        ],
+        "Display": {
+          "BlendMode": "CoreAdd"
+        }
+      },
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "FixedCurveBeam",
+          "Width": 8
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 160,
+                "Y": 430
+              }
+            ]
+          }
+        ],
+        "Laser": {
+          "Mode": "Fixed",
+          "HitWidth": 6,
+          "EndCap": "Point",
+          "Color": "#FF0000",
+          "CoreColor": "#FFFFFF",
+          "GlowColor": "#FF0000",
+          "WarningMs": 600,
+          "ExpandMs": 150,
+          "ActiveMs": 1000,
+          "FadeMs": 250,
+          "PathPointCount": 128
+        },
+        "Timeline": [
+          {
+            "StartMs": 0,
+            "IntervalMs": 3000
+          }
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "Function",
+            "AxisMode": "Relative",
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 960
+              }
+            ],
+            "X": "L*t",
+            "Y": "35*sin(TAU*t)",
+            "Samples": 1024
+          }
+        ],
+        "Display": {
+          "BlendMode": "CoreAdd"
+        }
+      }
+    ]
+  }
+}

@@ -15,9 +15,8 @@ public sealed class PlayerMovement
 		if (!direction.IsZeroApprox()) LastDirection = direction.Normalized();
 		return direction;
 	}
-	/// <summary>沿圆心方向约束角色中心，使判定圆完整位于半径400像素的活动区域内。</summary>
+	/// <summary>通过共用区域约束角色中心，使判定圆完整位于活动区域内。</summary>
 	/// <param name="position">待限制的战场位置，单位为像素。</param>
 	/// <returns>合法的角色中心位置，单位为像素。</returns>
-	public Vector2 Clamp(Vector2 position) => BattleConfig.ArenaCenter
-		+ (position - BattleConfig.ArenaCenter).LimitLength(BattleConfig.ArenaRadius - BattleConfig.PlayerRadius);
+	public Vector2 Clamp(Vector2 position) => BattleConfig.GameRegion.Clamp(position, BattleConfig.PlayerRadius);
 }

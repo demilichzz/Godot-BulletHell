@@ -157,7 +157,7 @@ public partial class VNode : Node2D, IVTimelineOwner
 
     /// <summary>从同一旧状态求值，再一次性应用运行参数。</summary>
     /// <param name="parameters">空字段保持原值，位置单位为逻辑像素。</param>
-    public void ApplyParameters(ParameterActionAttribute parameters)
+    public virtual void ApplyParameters(ParameterActionAttribute parameters)
     {
         ArgumentNullException.ThrowIfNull(parameters);
         parameters.Validate();
@@ -210,7 +210,7 @@ public partial class VNode : Node2D, IVTimelineOwner
             if (_velocity != Vector2.Zero) _actualAngle = VMath.GetAngleBetween2Points(Vector2.Zero, _velocity);
             OnDirectionChanged(_actualAngle);
         }
-        Behavior.Advance(this, delta);
+        AdvancePosition(delta);
         if (!Position.IsFinite()) throw new OverflowException("运行位置超出有限范围。");
         if (_reference is not null) _offset = GlobalPosition - ReferencePosition(_reference);
         Timeline?.AdvanceUnits(VTimeline.SecondsToUnits(delta));
@@ -218,6 +218,22 @@ public partial class VNode : Node2D, IVTimelineOwner
         Age = _ageUnits / (double)VTimerProcessor.UnitsPerSecond;
     }
 
+    /// <summary>在本步加速度已累积后推进位置；默认使用原运动策略。</summary>
+    /// <param name="delta">本步非负逻辑秒数。</param>
+    protected virtual void AdvancePosition(double delta) => Behavior.Advance(this, delta);
+
+    /// <summary>反射专用方向更新，保留外部Speed、加速度及已累积的实际速率。</summary>
+    /// <param name="velocity">已经完成反射的实际速度，像素/秒。</param>
+    protected void ApplyReflectedVelocity(Vector2 velocity)
+    {
+        if (!velocity.IsFinite()) throw new ArgumentOutOfRangeException(nameof(velocity));
+        _velocity = velocity;
+        if (velocity == Vector2.Zero) return;
+        _actualAngle = VMath.GetAngleBetween2Points(Vector2.Zero, velocity);
+        // 负Speed保持外部方向与实际运动方向相反，不调用会重建速度的SetDirection。
+        AngleRadians = VMath.StandardizationAngle(_actualAngle + (Speed < 0 ? Math.PI : 0));
+        OnDirectionChanged(_actualAngle);
+    }
     /// <summary>逻辑注销时解除跟随引用、时间线及所属队列。</summary>
     internal void Deactivate()
     {

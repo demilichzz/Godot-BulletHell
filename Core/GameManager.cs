@@ -13,6 +13,11 @@ public partial class GameManager : Node
     [Export] public BossCatalog Catalog { get; set; } = null!;
     /// <summary>返回选择界面时恢复的 Boss 标识。</summary>
     public string SelectedBossId { get; private set; } = "";
+    /// <summary>本次运行记住的AI加入选项，默认关闭，不写入磁盘。</summary>
+    public bool AIEnabled { get; private set; }
+    /// <summary>记住选择界面中的AI加入选项。</summary>
+    /// <param name="enabled">是否在下一场战斗加入AI。</param>
+    public void RememberAISelection(bool enabled) => AIEnabled = enabled;
     /// <summary>是否已有一个等待执行的切换请求。</summary>
     public bool IsTransitioning { get; private set; }
     /// <summary>当前唯一 Stage 的宿主节点。</summary>
@@ -60,7 +65,9 @@ public partial class GameManager : Node
         var boss = id == BattleStageId ? Catalog.Find(bossId ?? SelectedBossId) : null;
         if (id == BattleStageId && boss is null) { LastError = "请选择有效 Boss。"; return false; }
         IsTransitioning = true;
-        Callable.From(() => ChangeStage(id, create, new StageContext(this, boss))).CallDeferred();
+        // 接受切换请求时冻结AI选项，延迟执行期间不再读取可变选择。
+        var context = new StageContext(this, boss, new AICharConfig { Enabled = AIEnabled });
+        Callable.From(() => ChangeStage(id, create, context)).CallDeferred();
         return true;
     }
     /// <summary>安全时机准备新节点，再替换旧场景；准备失败时保留旧场景。</summary>

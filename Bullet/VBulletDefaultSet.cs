@@ -41,6 +41,12 @@ public sealed record VBulletDefaultSet
     public bool AAngleIsSameAsAngle { get; init; } = true;
     /// <summary>正整数寿命，单位为毫秒。</summary>
     public long LifeTimeMs { get; init; }
+    /// <summary>中心连续出界后的强制消失阈值，非负整数毫秒，默认2000；回区清零。</summary>
+    public long OutsideTimeoutMs { get; init; } = 2000;
+    /// <summary>是否启用选定边界反射，默认false；true时必须配置ReflectionRegion。</summary>
+    public bool Reflectable { get; init; }
+    /// <summary>以世界坐标定义的反射关联区域，默认null；不替代游戏区域的出界计时。</summary>
+    public VReflectionRegion? ReflectionRegion { get; init; }
     /// <summary>正数碰撞半径，单位为逻辑像素。</summary>
     public double Radius { get; init; }
     /// <summary>子弹所属阵营。</summary>
@@ -51,6 +57,8 @@ public sealed record VBulletDefaultSet
     public double VisualScale { get; init; }
     /// <summary>true使用贴图，false使用圆点。</summary>
     public bool UseSprite { get; init; }
+    /// <summary>Mix普通透明混合或Add颜色加算混合，默认Mix；贴图与圆点共用。</summary>
+    public string BlendMode { get; init; } = "Mix";
     /// <summary>圆点模式的显示颜色，含透明度。</summary>
     public Color CircleColor { get; init; }
     /// <summary>运动行为，with仅浅复制引用；默认直线，有状态行为须每颗独立创建。</summary>

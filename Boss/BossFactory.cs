@@ -10,7 +10,7 @@ public static class BossFactory
     {
         ["Boss_01"] = () => new BossPhase[] { new B01_Phase01(), new B01_Phase02(), new B01_Phase03() },
         ["Boss_02"] = () => new BossPhase[] { new B02_Phase01() },
-        ["Boss_03"] = () => new BossPhase[] { new B03_Phase01() },
+        ["Boss_03"] = () => new BossPhase[] { new B03_Phase01(), new B03_Phase02(), new B03_Phase03() },
         ["Boss_04"] = () => new BossPhase[] { new B04_Phase01() },
         ["Boss_05"] = () => new BossPhase[] { new B05_Phase01() }
     };

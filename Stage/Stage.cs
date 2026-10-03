@@ -8,10 +8,18 @@ public sealed class StageContext
     public GameManager Game { get; }
     /// <summary>本次战斗 Boss 配置，非战斗场景可为空。</summary>
     public BossData? BossData { get; }
+    /// <summary>本次进入时冻结的AI配置，默认关闭。</summary>
+    public AICharConfig AIConfig { get; }
     /// <summary>构造场景进入参数。</summary>
     /// <param name="game">当前游戏管理器。</param>
     /// <param name="bossData">可选 Boss 配置，默认空。</param>
-    public StageContext(GameManager game, BossData? bossData = null) { Game = game; BossData = bossData; }
+    /// <param name="aiConfig">可选AI创建配置，默认关闭。</param>
+    public StageContext(GameManager game, BossData? bossData = null, AICharConfig? aiConfig = null)
+    {
+        Game = game;
+        BossData = bossData;
+        AIConfig = aiConfig ?? new AICharConfig();
+    }
 }
 /// <summary>游戏内场景的统一生命周期；同一时刻只激活一个实例。</summary>
 public abstract partial class Stage : Node

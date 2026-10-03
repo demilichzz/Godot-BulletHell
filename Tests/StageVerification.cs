@@ -194,7 +194,7 @@ public partial class StageVerification : Node
         await Settle();
         for (int index = 1; index <= 4; index++)
         {
-            // 逐项验证资源、卡片和进入战斗后的唯一阶段与对应发射器。
+            // 逐项验证资源、卡片和进入战斗后的首个阶段与对应发射器。
             var data = catalog.Entries[index];
             string id = $"Boss_0{index + 1}";
             Check(data.Id == id && data.PhaseProfile == id && data.DisplayName == $"Boss 0{index + 1}",
@@ -219,7 +219,7 @@ public partial class StageVerification : Node
             BossPhase phase = battle.Boss.CurrentPhase!;
             Check(battle.Boss.DisplayName == data.DisplayName && battle.Boss.Hp == 300
                 && phase.GetType().Name == $"B0{index + 1}_Phase01"
-                && !battle.Boss.TrySwitchAdjacentPhase(1), "新Boss进入唯一基础阶段");
+                && (id == "Boss_03" || !battle.Boss.TrySwitchAdjacentPhase(1)), "新Boss进入对应基础阶段");
             VBulletEmitter emitter = phase.Emitters[0];
             Check(emitter.GetType().Name == $"B0{index + 1}P01_Emitter01", "每个新阶段绑定对应发射器");
             VerificationClock.BossSeconds(battle, 2);
@@ -266,6 +266,9 @@ public partial class StageVerification : Node
                 firstBullet.Advance(0.001);
                 Check(firstBullet.Expired, "静止子弹出生满3秒到期");
             }
+            else if (id == "Boss_03")
+                Check(emitter.Bullets.OfType<VLaser>().Count() == 24 && emitter.Bullets.Count > 24,
+                    "Boss03首轮发射24条预警激光并叠加圆弹");
             else
                 Check(battle.Bullets.ActiveCount == 0 && emitter.Bullets.Count == 0
                     && battle.Timers.TimelineActionCount == 1, "其他未定义动作的空发射器不产生弹幕");

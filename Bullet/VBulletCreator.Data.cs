@@ -26,6 +26,16 @@ public sealed partial class VBulletCreator
     /// <param name="element">Display对象。</param>
     internal void ReadDisplay(JsonElement element) => Display = Read<VBulletDisplayAttribute>(element);
 
+    // 加载阶段冻结的反射配置，所有本Creator出生的弹幕只读共享。
+    private VReflectionRegion? _reflectionRegion;
+
+    /// <summary>校验反射区域的模式专属字段并冻结形状。</summary>
+    /// <param name="core">子弹Core对象。</param>
+    internal void ReadReflectionRegion(JsonElement core)
+    {
+        if (core.TryGetProperty("ReflectionRegion", out var region))
+            _reflectionRegion = VReflectionRegionAttribute.Read(region).Create();
+    }
     /// <summary>先校验公共属性，再建立子弹出生参数模板。</summary>
     protected override void ValidateAttributes()
     {
@@ -43,7 +53,11 @@ public sealed partial class VBulletCreator
         _template = VBulletDefaultSet.Get(type) with
         {
             ColorIndex = Display.TextureIndex,
+            BlendMode = Display.BlendMode,
             LifeTimeMs = Core.LifeTimeMs.Value,
+            OutsideTimeoutMs = Core.OutsideTimeoutMs,
+            Reflectable = Core.Reflectable,
+            ReflectionRegion = _reflectionRegion,
             Radius = Core.Radius,
             VisualScale = Core.VisualScale,
             AngleRadians = BaseAttributes[0].Angle,

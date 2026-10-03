@@ -204,16 +204,18 @@ public partial class VNodeCreator
         // 类型必须由数据显式指定，ID只由树初始化过程生成。
         JsonElement core = Required(element, "Core");
         string type = Required(core, "Type").GetString() ?? "";
-        if (type is not ("VNode" or "VBullet" or "VPath")) throw new JsonException("Core.Type只支持VNode、VBullet或VPath。");
+        if (type is not ("VNode" or "VBullet" or "VPath" or "VLaser")) throw new JsonException("Core.Type只支持VNode、VBullet、VPath或VLaser。");
         if (core.TryGetProperty("Id", out _)) throw new JsonException("Core.Id不属于JSON字段。");
         bool bullet = type == "VBullet";
-        CheckFields(element, type == "VPath"
+        CheckFields(element, type == "VLaser"
+            ? new[] { "Core", "Laser", "Display", "PathQueue", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" }
+            : type == "VPath"
             ? new[] { "Core", "PathQueue", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" }
             : bullet
             ? new[] { "Core", "Display", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" }
             : new[] { "Core", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" });
-        VNodeCreator queue = type == "VPath" ? new VPathCreator() : bullet ? new VBulletCreator() : new VNodeCreator();
-        queue.Core = bullet ? Read<VBulletCoreAttribute>(core) : Read<VNodeCoreAttribute>(core);
+        VNodeCreator queue = type == "VLaser" ? new VLaserCreator() : type == "VPath" ? new VPathCreator() : bullet ? new VBulletCreator() : new VNodeCreator();
+        queue.Core = type == "VLaser" ? Read<VLaserCoreAttribute>(core) : bullet ? Read<VBulletCoreAttribute>(core) : Read<VNodeCoreAttribute>(core);
         // 仅路径允许省略基础项，其他类型保留原有必填约束。
         if (type != "VPath" || element.TryGetProperty("BaseAttributes", out _))
         {
@@ -238,8 +240,13 @@ public partial class VNodeCreator
         }
         queue.Timeline = ReadTimes(element, "Timeline");
         queue.MemberTimeline = ReadTimes(element, "MemberTimeline");
-        if (queue is VBulletCreator bullets) bullets.ReadDisplay(Required(element, "Display"));
+        if (queue is VBulletCreator bullets)
+        {
+            bullets.ReadDisplay(Required(element, "Display"));
+            bullets.ReadReflectionRegion(core);
+        }
         if (queue is VPathCreator path) path.ReadPathQueue(Required(element, "PathQueue"));
+        if (queue is VLaserCreator laser) laser.ReadLaser(element);
         queue.ValidateAttributes();
         if (element.TryGetProperty("Children", out var children))
         {

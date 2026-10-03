@@ -9,6 +9,8 @@ public static class BattleConfig
 	public static readonly Vector2 ArenaCenter = Bounds.GetCenter();
 	// 圆形活动区域半径，单位为逻辑像素，玩家判定圆须完整位于其中。
 	public const float ArenaRadius = 400;
+    /// <summary>角色约束与普通弹幕出界判断共用的世界活动区域。</summary>
+    public static IRegionShape GameRegion { get; } = new CircleRegionShape(ArenaCenter, ArenaRadius);
 	// 双方出生位置，单位为逻辑像素，保持原有相对画面中心的偏移。
 	public static readonly Vector2 PlayerSpawn = new(640, 600), BossSpawn = new(640, 250);
 	// 玩家正常速度与闪避速度，单位为像素/秒。

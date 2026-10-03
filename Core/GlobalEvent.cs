@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 
 /// <summary>提供当前战斗实体与共享服务的唯一全局访问入口。</summary>
 public static class GlobalEvent
@@ -8,6 +9,8 @@ public static class GlobalEvent
     private static BattleManager? _current;
     // 初始化、清理和固定步推进期间的临时绑定，允许嵌套恢复。
     private static BattleManager? _context;
+    // 查询形状只在尺寸变化时重建；平移圆心后查询，移动感知框无需逐步分配。
+    private static RectangleRegionShape _queryRectangle = new(new Rect2(0, 0, 200, 200));
 
     /// <summary>绑定一场新的持久当前战斗。</summary>
     /// <param name="battle">已完成初始化的战斗管理器。</param>
@@ -45,6 +48,33 @@ public static class GlobalEvent
     /// <summary>取得当前弹幕管理器。</summary>
     /// <returns>当前战斗中的弹幕容器。</returns>
     public static VBulletManager GetBulletManager() => RequireBattle().Bullets;
+
+    /// <summary>按登记顺序收集覆盖闭矩形的活动弹幕，复用并清空结果列表。</summary>
+    /// <param name="rectangle">世界逻辑像素矩形，尺寸非负，接触边界也包含。</param>
+    /// <param name="results">调用方持有的可复用结果列表，不可为空。</param>
+    /// <param name="team">可选阵营，默认null包含所有阵营；激光包含预警但排除消退。</param>
+    public static void CollectBulletsInRect(Rect2 rectangle, List<VBullet> results, VBulletTeam? team = null)
+    {
+        ArgumentNullException.ThrowIfNull(results);
+        VMath.ValidateQueryRectangle(rectangle);
+        // 先验证战斗绑定，失败时不清除调用方原结果。
+        var bullets = RequireBattle().Bullets.ActiveBullets;
+        // 区域接口要求正尺寸；原工具允许退化矩形，兼容分支继续使用数学函数。
+        bool hasArea = rectangle.Size.X > 0 && rectangle.Size.Y > 0;
+        if (hasArea && _queryRectangle.Bounds.Size != rectangle.Size)
+            _queryRectangle = new RectangleRegionShape(new Rect2(Vector2.Zero, rectangle.Size));
+        IRegionShape region = _queryRectangle;
+        results.Clear();
+        for (int index = 0; index < bullets.Count; index++)
+        {
+            // Follow对象使用逻辑世界位置，不依赖显示变换是否已经刷新。
+            var bullet = bullets[index];
+            if (!bullet.IsAlive || bullet.PendingBirth || (team.HasValue && bullet.Team != team.Value)) continue;
+            if (bullet is VLaser laser ? laser.IntersectsRect(rectangle)
+                : hasArea ? region.IntersectsCircle(bullet.WorldPosition - rectangle.Position, bullet.Radius)
+                : VMath.CircleIntersectsRect(bullet.WorldPosition, bullet.Radius, rectangle)) results.Add(bullet);
+        }
+    }
 
     /// <summary>向所属战斗处理器通知目标失效，避免旧节点污染新战斗。</summary>
     /// <param name="node">已失效的战斗节点。</param>
@@ -89,7 +119,7 @@ public static class GlobalEvent
     /// <returns>节点属于该战斗时为真。</returns>
     private static bool OwnsNode(BattleManager battle, Node2D node)
     {
-        if (ReferenceEquals(node, battle.Boss) || ReferenceEquals(node, battle.Player)) return true;
+        if (ReferenceEquals(node, battle.Boss) || ReferenceEquals(node, battle.Player) || ReferenceEquals(node, battle.AI)) return true;
         if (node is VNode vnode && ReferenceEquals(vnode.Emitter?.Manager, battle.Bullets)) return true;
         var bullets = battle.Bullets;
         return IsLiveNode(bullets) && (ReferenceEquals(node, bullets) || bullets.IsAncestorOf(node));

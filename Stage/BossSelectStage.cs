@@ -15,7 +15,8 @@ public partial class BossSelectStage : Stage
         AddChild(UI);
         UI.SelectionChanged += context.Game.RememberSelection;
         UI.Confirmed += StartBattle;
-        UI.Initialize(context.Game.Catalog, context.Game.SelectedBossId);
+        UI.AISelectionChanged += context.Game.RememberAISelection;
+        UI.Initialize(context.Game.Catalog, context.Game.SelectedBossId, context.Game.AIEnabled);
     }
     /// <summary>提交选中的 Boss，实际切换由管理器延迟执行。</summary>
     /// <param name="bossId">目录中的有效 Boss 标识。</param>
@@ -26,5 +27,6 @@ public partial class BossSelectStage : Stage
         if (UI is null) return;
         UI.SelectionChanged -= Context.Game.RememberSelection;
         UI.Confirmed -= StartBattle;
+        UI.AISelectionChanged -= Context.Game.RememberAISelection;
     }
 }

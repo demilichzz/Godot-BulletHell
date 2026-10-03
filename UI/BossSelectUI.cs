@@ -13,6 +13,14 @@ public partial class BossSelectUI : Control
     public event Action<string>? SelectionChanged;
     /// <summary>空格确认通知，参数为 Boss 标识。</summary>
     public event Action<string>? Confirmed;
+    /// <summary>AI加入开关变化通知，参数为当前勾选状态。</summary>
+    public event Action<bool>? AISelectionChanged;
+    /// <summary>鼠标勾选的AI加入选项，不抢占方向键及空格导航。</summary>
+    public CheckBox AIOption { get; } = new()
+    {
+        Name = "AIOption", Text = "加入 AI", Position = new Vector2(960, 105),
+        FocusMode = FocusModeEnum.None
+    };
     // 卡片列表及关联的有序目录。
     private readonly List<BossSelectItem> _items = new();
     private BossCatalog _catalog = null!;
@@ -22,7 +30,8 @@ public partial class BossSelectUI : Control
     /// <summary>构建当前目录的选择画面。</summary>
     /// <param name="catalog">已验证的 Boss 有序目录。</param>
     /// <param name="selectedId">返回场景时恢复的 Boss 标识，未找到则选中第一项。</param>
-    public void Initialize(BossCatalog catalog, string selectedId)
+    /// <param name="aiEnabled">恢复的AI选项，默认关闭。</param>
+    public void Initialize(BossCatalog catalog, string selectedId, bool aiEnabled = false)
     {
         _catalog = catalog;
         Size = BattleConfig.Bounds.Size;
@@ -34,6 +43,9 @@ public partial class BossSelectUI : Control
         title.AddThemeFontSizeOverride("font_size", 36);
         AddChild(title);
         AddChild(new Label { Text = "鼠标点击或方向键选择 · 空格开始挑战", Position = new Vector2(100, 115), MouseFilter = MouseFilterEnum.Ignore });
+        AIOption.ButtonPressed = aiEnabled;
+        AIOption.Toggled += OnAIToggled;
+        AddChild(AIOption);
         AddChild(_scroll);
         AddChild(_details);
         // 固定四列，目录增加时自动形成更多行并允许纵向滚动。
@@ -100,10 +112,15 @@ public partial class BossSelectUI : Control
         else return;
         GetViewport().SetInputAsHandled();
     }
+    /// <summary>转发鼠标AI选项变化，不触发关卡确认。</summary>
+    /// <param name="enabled">是否加入陪练AI。</param>
+    private void OnAIToggled(bool enabled) => AISelectionChanged?.Invoke(enabled);
+
     /// <summary>离开节点树时解除卡片事件订阅。</summary>
     public override void _ExitTree()
     {
         // 各卡片随场景释放，同时移除指向本界面的回调。
         foreach (var item in _items) item.Chosen -= Select;
+        AIOption.Toggled -= OnAIToggled;
     }
 }

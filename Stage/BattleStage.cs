@@ -15,6 +15,7 @@ public partial class BattleStage : Stage
         if (context.BossData is null) throw new ArgumentException("战斗场景需要 Boss 配置。");
         View = GD.Load<PackedScene>("res://Main.tscn").Instantiate<Main>();
         View.BossData = context.BossData;
+        View.AIConfig = context.AIConfig;
         AddChild(View);
         if (!View.Battle.IsInitialized) throw new InvalidOperationException("战斗初始化未完成。");
         View.Battle.WaitForConfirmRelease();

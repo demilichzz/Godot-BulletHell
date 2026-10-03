@@ -17,6 +17,24 @@ public sealed class VPathCreator : VNodeCreator
     /// <summary>建立路径类型的空生成器，使用前须通过JSON加载有效定义。</summary>
     public VPathCreator() => Core = new VNodeCoreAttribute { Type = "VPath" };
 
+    /// <summary>建立仅供激光采样的路径定义，不生成节点或登记时间线。</summary>
+    /// <param name="queue">沿用VPath格式的非空PathQueue。</param>
+    /// <param name="pointCount">包含全部连接点的采样点数，至少为段数加一。</param>
+    /// <returns>经过现有路径校验和表达式编译的独立定义。</returns>
+    internal static VPathCreator CreateGeometry(JsonElement queue, int pointCount)
+    {
+        // 复用原生成器的几何计算，数量只决定采样密度。
+        var path = new VPathCreator { Core = new VNodeCoreAttribute { Type = "VPath", Amount = pointCount } };
+        path.ReadPathQueue(queue);
+        path.ValidateAttributes();
+        return path;
+    }
+
+    /// <summary>采样完整路径，返回相对指定世界参考点的固定偏移，不创建成员。</summary>
+    /// <param name="source">本次路径冻结时的世界参考点，逻辑像素。</param>
+    /// <returns>包含起点、连接点及终点的只读偏移。</returns>
+    internal IReadOnlyList<Vector2> SampleGeometry(Vector2 source) => PrepareBatchPositions(source)!;
+
     /// <summary>读取新路径格式，不保留固定Start/End或Polar模式的兼容分支。</summary>
     /// <param name="element">非空PathQueue数组。</param>
     internal void ReadPathQueue(JsonElement element)

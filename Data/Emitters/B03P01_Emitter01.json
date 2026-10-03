@@ -1,0 +1,188 @@
+{
+  "Core": {
+    "Name": "B03P01_Emitter01",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Wave",
+      "CreatePositionMode": "Snapshot",
+      "LifeTimeMs": 4000
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 1000,
+        "IntervalMs": 5000
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "LaserOrigins",
+          "CreatePositionMode": "Snapshot",
+          "LifeTimeMs": 3700
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -180,
+                "Y": 0
+              }
+            ]
+          },
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": -90
+              }
+            ]
+          },
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 180,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 0
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VLaser",
+              "Name": "CyanGrid",
+              "Amount": 8,
+              "Width": 8
+            },
+            "BaseAttributes": [
+              {
+                "Angle": "PI/16"
+              }
+            ],
+            "AddAttributes": {
+              "Angle": "TAU/8"
+            },
+            "RandDiffAttributes": {
+              "Batch": {
+                "Angle": "PI/12"
+              }
+            },
+            "Laser": {
+              "Mode": "Fixed",
+              "Length": 1300,
+              "HitWidth": 6,
+              "EndCap": "Point",
+              "Color": "#27BEFF",
+              "CoreColor": "#FFFFFF",
+              "GlowColor": "#127BFF",
+              "WarningMs": 900,
+              "ExpandMs": 150,
+              "ActiveMs": 2300,
+              "FadeMs": 350
+            },
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ],
+            "Display": {
+              "BlendMode": "CoreAdd"
+            }
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "LargeOrbs",
+          "Amount": 20,
+          "Radius": 12,
+          "VisualScale": 3,
+          "LifeTimeMs": 6000
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 6
+        },
+        "BaseAttributes": [
+          {
+            "Angle": "PI/20",
+            "Speed": 150
+          }
+        ],
+        "AddAttributes": {
+          "Angle": "TAU/20"
+        },
+        "RandDiffAttributes": {
+          "Batch": {
+            "Angle": "TAU/20"
+          }
+        },
+        "Timeline": [
+          {
+            "AtMs": [
+              300,
+              1000,
+              1700
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "MediumOrbs",
+          "Amount": 36,
+          "Radius": 5,
+          "VisualScale": 1.5,
+          "LifeTimeMs": 6000
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 5
+        },
+        "BaseAttributes": [
+          {
+            "Angle": "PI/36",
+            "Speed": 185
+          }
+        ],
+        "AddAttributes": {
+          "Angle": "TAU/36"
+        },
+        "RandDiffAttributes": {
+          "Batch": {
+            "Angle": "TAU/36"
+          }
+        },
+        "Timeline": [
+          {
+            "AtMs": [
+              800,
+              1500,
+              2200
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

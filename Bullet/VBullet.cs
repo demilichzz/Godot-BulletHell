@@ -12,16 +12,22 @@ public partial class VBullet : VNode
     public double Radius { get; private set; }
     /// <summary>圆点模式的显示颜色。</summary>
     public Color CircleColor { get; private set; }
+    // 加算材质供全部弹幕只读共享，避免每颗弹幕重复创建相同材质。
+    protected static readonly CanvasItemMaterial AdditiveMaterial = new() { BlendMode = CanvasItemMaterial.BlendModeEnum.Add };
     // 只有实际子弹才创建显示节点。
-    private readonly Sprite2D _sprite = new() { Name = "Sprite" };
+    private readonly Sprite2D _sprite = new() { Name = "Sprite", UseParentMaterial = true };
     /// <summary>在创建节点前校验完整参数与贴图资源。</summary>
     /// <param name="settings">出生参数，位置为全局逻辑像素。</param>
     internal static void Validate(VBulletDefaultSet settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        ValidateOutsideTimeout(settings.OutsideTimeoutMs);
+        if (settings.Reflectable && (settings.ReflectionRegion is null || settings.Behavior is not StraightBehavior))
+            throw new ArgumentException("反射需要关联区域及按实际速度移动的StraightBehavior。", nameof(settings));
         _ = checked(settings.LifeTimeMs * VTimerProcessor.UnitsPerMillisecond);
         if (!settings.Position.IsFinite() || !double.IsFinite(settings.AngleRadians) || !double.IsFinite(settings.Speed) || Math.Abs(settings.Speed) > float.MaxValue
             || !double.IsFinite(settings.AAngle) || !double.IsFinite(settings.ASpeed) || Math.Abs(settings.ASpeed) > float.MaxValue
+            || settings.BlendMode is not ("Mix" or "Add")
             || settings.LifeTimeMs <= 0 || settings.Damage <= 0
             || !double.IsFinite(settings.Radius) || settings.Radius <= 0 || settings.Radius > float.MaxValue || (float)settings.Radius == 0 || settings.Hframes <= 0 || settings.Vframes <= 0
             || (long)settings.Hframes * settings.Vframes > int.MaxValue || settings.ColorIndex < 0 || settings.ColorIndex >= (long)settings.Hframes * settings.Vframes
@@ -48,6 +54,9 @@ public partial class VBullet : VNode
             AAngle = settings.AAngle,
             ASpeed = settings.ASpeed
         }, settings.LifeTimeMs, settings.AAngleIsSameAsAngle, settings.Behavior);
+        ConfigureOutside(settings.OutsideTimeoutMs);
+        Reflectable = settings.Reflectable;
+        ReflectionRegion = settings.ReflectionRegion;
         Team = settings.Team;
         Damage = settings.Damage;
         Radius = settings.Radius;
@@ -58,6 +67,8 @@ public partial class VBullet : VNode
         _sprite.Scale = Vector2.One * (float)settings.VisualScale;
         _sprite.Visible = settings.UseSprite;
         CircleColor = settings.CircleColor;
+        // 根节点负责普通混合，贴图默认继承；激光可独立设置亮芯材质。
+        Material = settings.BlendMode == "Add" ? AdditiveMaterial : null;
     }
 
     /// <summary>将实际运动方向同步到贴图，保持公共状态与显示解耦。</summary>

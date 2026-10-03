@@ -124,7 +124,8 @@ public partial class VBulletManager : Node2D
 	/// <param name="delta">经过的非负秒数。</param>
 	/// <param name="player">敌弹的伤害目标。</param>
 	/// <param name="boss">玩家弹的伤害目标。</param>
-    public void Advance(double delta, PlayerController player, BossController boss)
+    /// <param name="ai">可选陪练AI，命中不会释放敌弹，默认空。</param>
+    public void Advance(double delta, PlayerController player, BossController boss, AICharacter? ai = null)
     {
         if (!double.IsFinite(delta) || delta < 0) throw new ArgumentOutOfRangeException(nameof(delta));
         // Creator前序、批次生成序、成员出生序；碰撞注销不会跳过下一个成员。
@@ -138,7 +139,7 @@ public partial class VBulletManager : Node2D
             emitter.Root.VisitMembers(node =>
             {
                 if (generation != _generation || node.PendingBirth) return;
-                if (node is VBullet bullet) AdvanceBullet(bullet, delta, player, boss);
+                if (node is VBullet bullet) AdvanceBullet(bullet, delta, player, boss, ai);
                 else
                 {
                     node.Advance(delta);
@@ -151,7 +152,7 @@ public partial class VBulletManager : Node2D
         for (int index = 0; index < _active.Count;)
         {
             var bullet = _active[index];
-            if (bullet.Creator is null && !bullet.PendingBirth) AdvanceBullet(bullet, delta, player, boss);
+            if (bullet.Creator is null && !bullet.PendingBirth) AdvanceBullet(bullet, delta, player, boss, ai);
             if (index < _active.Count && ReferenceEquals(_active[index], bullet)) index++;
         }
     }
@@ -161,16 +162,27 @@ public partial class VBulletManager : Node2D
     /// <param name="delta">非负逻辑秒数。</param>
     /// <param name="player">敌弹目标。</param>
     /// <param name="boss">玩家弹目标。</param>
-    private void AdvanceBullet(VBullet bullet, double delta, PlayerController player, BossController boss)
+    /// <param name="ai">可选陪练AI，使用独立受击判定。</param>
+    private void AdvanceBullet(VBullet bullet, double delta, PlayerController player, BossController boss, AICharacter? ai)
     {
+        if (bullet is VLaser laser)
+        {
+            AdvanceLaser(laser, delta, player, ai);
+            return;
+        }
         var start = bullet.GlobalPosition;
         bullet.Advance(delta);
+        bullet.UpdateOutsideTime(delta);
+        // AI不消费子弹；先完成独立判定，再执行原玩家/Boss的命中释放流程。
+        if (ai is not null && bullet.Team == VBulletTeam.Enemy
+            && bullet.SweptRegionHit(start, ai.PreviousPosition, ai.GlobalPosition,
+                bullet.Radius + BattleConfig.PlayerRadius)) ai.TakeHit(bullet.Damage);
         var targetStart = bullet.Team == VBulletTeam.Enemy ? player.PreviousPosition : boss.PreviousPosition;
         var targetEnd = bullet.Team == VBulletTeam.Enemy ? player.GlobalPosition : boss.GlobalPosition;
         var radius = bullet.Radius + (bullet.Team == VBulletTeam.Enemy ? BattleConfig.PlayerRadius : boss.CollisionRadius);
-        bool hit = SweptHit(start - targetStart, bullet.GlobalPosition - targetEnd, radius)
+        bool hit = bullet.SweptRegionHit(start, targetStart, targetEnd, radius)
             && (bullet.Team == VBulletTeam.Enemy ? player.Health.TakeDamage(bullet.Damage, player.Dodge.IsActive) : boss.TakeDamage(bullet.Damage));
-        if (hit || bullet.Expired) Release(bullet);
+        if (hit || bullet.Expired || bullet.OutsideExpired) Release(bullet);
     }
 
     /// <summary>统一注销子弹及其后代生成，允许外部场景退出调用。</summary>

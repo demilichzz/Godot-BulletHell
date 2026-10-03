@@ -5,6 +5,8 @@ public partial class Main : Node2D
 {
 	/// <summary>入树前指定的 Boss 配置；为空时保留独立演示行为。</summary>
 	public BossData? BossData { get; set; }
+    /// <summary>入树前指定的AI创建配置，默认关闭。</summary>
+    public AICharConfig AIConfig { get; set; } = new();
 	/// <summary>当前战斗管理器，供所属 Stage 管理生命周期。</summary>
 	public BattleManager Battle => _battle;
 	// 统一驱动战斗的管理器。
@@ -18,7 +20,7 @@ public partial class Main : Node2D
 		AddBackground();
 		GameInput.EnsureBindings();
 		AddChild(_battle);
-		_battle.Initialize(this, BossData);
+		_battle.Initialize(this, BossData, AIConfig);
 		// 使用独立画布层使文字始终位于战斗图形上方。
 		var hud = new CanvasLayer();
 		AddChild(hud);
@@ -63,5 +65,6 @@ public partial class Main : Node2D
 		_status.Text = $"玩家 HP {_battle.Player.Health.Hp}/{BattleConfig.PlayerHp}    Boss HP {_battle.Boss.Hp}/{_battle.Boss.MaxHp}    {phaseName}\n"
 			+ $"闪避冷却 {_battle.Player.Dodge.Cooldown:0.0} 秒    时间 {_battle.Elapsed:0.0} 秒\n"
 			+ "WASD / 方向键移动 · 空格闪避 · Q/E 切换阶段 · 自动攻击 · Esc 返回选择\n" + result;
+        if (_battle.AI is not null) _status.Text += $"\nAI 被击中次数：{_battle.AI.HitCount}";
 	}
 }

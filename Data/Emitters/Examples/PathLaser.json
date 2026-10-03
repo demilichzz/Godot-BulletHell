@@ -1,0 +1,62 @@
+{
+  "Core": {
+    "Name": "PathLaserExample",
+    "RefObject": null,
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VLaser",
+      "Width": 8
+    },
+    "BaseAttributes": [
+      {
+        "RefMoveQueue": [
+          {
+            "Type": "XYMove",
+            "X": 160,
+            "Y": 620
+          }
+        ]
+      }
+    ],
+    "Laser": {
+      "Mode": "Path",
+      "Length": 240,
+      "HitWidth": 6,
+      "EndCap": "Round",
+      "Color": "#FF0000",
+      "CoreColor": "#FFFFFF",
+      "GlowColor": "#FF0000",
+      "TravelSpeed": 280,
+      "EndMs": 3500,
+      "PathPointCount": 128
+    },
+    "PathQueue": [
+      {
+        "PathMode": "Function",
+        "AxisMode": "Relative",
+        "EndMoveQueue": [
+          {
+            "Type": "XYMove",
+            "X": 960
+          }
+        ],
+        "X": "L*t",
+        "Y": "45*sin(TAU*t)",
+        "Samples": 1024
+      }
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0,
+        "IntervalMs": 4000
+      }
+    ],
+    "Display": {
+      "BlendMode": "CoreAdd"
+    }
+  }
+}

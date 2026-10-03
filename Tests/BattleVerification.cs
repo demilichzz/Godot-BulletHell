@@ -37,7 +37,29 @@ public partial class BattleVerification : Node
         try
         {
             var userArgs = OS.GetCmdlineUserArgs();
-            if (userArgs.Contains("--targeted-path"))
+            if (userArgs.Contains("--targeted-regions"))
+            {
+                VerifyRegions();
+                GD.Print($"PASS: {_checks} targeted region assertions");
+            }
+            else if (userArgs.Contains("--targeted-boss03"))
+            {
+                VerifyBoss03();
+                GD.Print($"PASS: {_checks} targeted Boss03 assertions");
+            }
+            else if (userArgs.Contains("--targeted-player-combat"))
+            {
+                VerifyPlayer();
+                VerifyCombat();
+                VerifyNegativePlayerHealth();
+                GD.Print($"PASS: {_checks} targeted player combat assertions");
+            }
+            else if (userArgs.Contains("--targeted-laser"))
+            {
+                VerifyLasers();
+                GD.Print($"PASS: {_checks} targeted laser assertions");
+            }
+            else if (userArgs.Contains("--targeted-path"))
             {
                 VerifyPaths();
                 GD.Print($"PASS: {_checks} targeted path assertions");

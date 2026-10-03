@@ -18,6 +18,10 @@ public partial class BattleManager : Node
 	public BattleState State { get; private set; }
 	/// <summary>当前玩家实例。</summary>
 	public PlayerController Player { get; private set; } = null!;
+    /// <summary>可选陪练AI，未启用时为空。</summary>
+    public AICharacter? AI { get; private set; }
+    // 重开复用创建配置，策略与随机状态始终重新创建。
+    private AICharConfig _aiConfig = new();
 	/// <summary>当前 Boss 实例。</summary>
 	public BossController Boss { get; private set; } = null!;
 	/// <summary>当前独立弹幕容器。</summary>
@@ -43,10 +47,12 @@ public partial class BattleManager : Node
 	/// <summary>绑定战场并开始第一场战斗。</summary>
 	/// <param name="world">容纳玩家、Boss 和独立弹幕节点的战场。</param>
 	/// <param name="bossData">当前 Boss 配置；默认空时使用Boss_01参数。</param>
-	public void Initialize(Node2D world, BossData? bossData = null)
+    /// <param name="aiConfig">可选AI配置，默认关闭。</param>
+	public void Initialize(Node2D world, BossData? bossData = null, AICharConfig? aiConfig = null)
 	{
 		_world = world;
 		_bossData = bossData;
+        _aiConfig = aiConfig ?? new AICharConfig();
 		StartBattle();
 	}
 	/// <summary>创建全新实例，重置随机序列、生命、阶段、位置及所有计时。</summary>
@@ -78,6 +84,12 @@ public partial class BattleManager : Node
 			Player.Health.Initialize(Player);
 			Boss.StartPhases();
 			Player.Attack.Initialize(Player, Bullets);
+            if (_aiConfig.Enabled)
+            {
+                AI = new AICharacter { Name = "AI", Position = BattleConfig.PlayerSpawn + new Vector2(60, 0) };
+                _world.AddChild(AI);
+                AI.InitializeAI(_aiConfig);
+            }
 			GlobalEvent.BindCurrent(this);
 			IsInitialized = true;
 		}
@@ -92,6 +104,13 @@ public partial class BattleManager : Node
 	/// <summary>清理本管理器当前拥有的实体、弹幕及计时器。</summary>
 	private void ClearOwnedBattle()
 	{
+        if (GodotObject.IsInstanceValid(AI))
+        {
+            AI!.StopAI();
+            if (AI.GetParent() is not null) AI.GetParent().RemoveChild(AI);
+            AI.QueueFree();
+        }
+        AI = null;
 		if (GodotObject.IsInstanceValid(Boss)) Boss.Stop();
 		Timers?.Clear();
 		Bullets?.Clear();
@@ -110,6 +129,7 @@ public partial class BattleManager : Node
 		_stopped = true;
 		IsInitialized = false;
 		SetPhysicsProcess(false);
+        AI?.StopAI();
 		if (GodotObject.IsInstanceValid(Boss)) Boss.Stop();
 		Timers?.Clear();
 		Bullets?.Clear();
@@ -151,15 +171,18 @@ public partial class BattleManager : Node
                 Boss.TrySwitchAdjacentPhase(previousPhasePressed ? -1 : 1);
             Player.Movement.ReadDirection(movement);
             if (dodgePressed) Player.Dodge.TryStart(Player.Movement.LastDirection);
+            AI?.Decide(VTimerProcessor.FixedStepUnits / (double)VTimerProcessor.UnitsPerSecond);
             clock.AdvanceByUnits(VTimerProcessor.FixedStepUnits, seconds =>
             {
                 Player.Advance(seconds, movement);
                 Boss.Advance(seconds);
-				Bullets.Advance(seconds, Player, Boss);
+                if (AI is not null) AI.Advance(seconds, AI.LastIntent.Movement);
+				Bullets.Advance(seconds, Player, Boss, AI);
                 // 运动碰撞完成后才派发本步计时动作；玩家零血和负血继续战斗。
                 if (Boss.Hp == 0) Finish(BattleState.Victory);
             }, Bullets.DispatchTimelines);
             Player.FinishStep();
+            AI?.FinishStep();
         }
         catch
         {
@@ -174,6 +197,7 @@ public partial class BattleManager : Node
 	{
 		if (_stopped || State != BattleState.Running) return;
 		State = result;
+        AI?.StopAI();
 		Timers.Clear();
 		Boss.Stop();
 		Bullets.Clear();
