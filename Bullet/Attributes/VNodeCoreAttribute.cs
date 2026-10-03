@@ -6,7 +6,7 @@ public record VNodeCoreAttribute
     public string Id { get; internal set; } = "";
     /// <summary>可选名称，同一Emitter内非空名称唯一。</summary>
     public string? Name { get; init; }
-    /// <summary>生成器类型，JSON必须显式填写VNode、VBullet、生成纯节点的VPath或VLaser。</summary>
+    /// <summary>生成器类型：VNode、VBullet、VPath或VLaser；原始JSON必须填写，CopySource可继承源类型。</summary>
     public string Type { get; init; } = "VNode";
     /// <summary>基础列表的正整数生成轮数；VPath限单基础项，此值为路径总节点数。</summary>
     public int Amount { get; init; } = 1;

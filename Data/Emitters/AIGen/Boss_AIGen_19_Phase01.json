@@ -1,0 +1,145 @@
+{
+  "Core": {
+    "Name": "弯月短激光双侧掠过",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "CrescentL",
+          "Amount": 1,
+          "Width": 9
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "AddAttributes": {},
+        "Display": {
+          "BlendMode": "CoreAdd"
+        },
+        "Laser": {
+          "Mode": "Path",
+          "Length": 125,
+          "HitWidth": 4,
+          "Color": "#88DDFF",
+          "EndCap": "Point",
+          "TravelSpeed": 240,
+          "EndMs": 4800,
+          "PathPointCount": 128
+        },
+        "PathQueue": [
+          {
+            "PathMode": "Bezier",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -240,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 480,
+                "Y": 450
+              }
+            ],
+            "ControlPoints": [
+              {
+                "X": -420,
+                "Y": 420
+              },
+              {
+                "X": 420,
+                "Y": 160
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 1800
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "CrescentR",
+          "Amount": 1,
+          "Width": 9
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "AddAttributes": {},
+        "Display": {
+          "BlendMode": "CoreAdd"
+        },
+        "Laser": {
+          "Mode": "Path",
+          "Length": 125,
+          "HitWidth": 4,
+          "Color": "#AA88FF",
+          "EndCap": "Point",
+          "TravelSpeed": 240,
+          "EndMs": 4800,
+          "PathPointCount": 128
+        },
+        "PathQueue": [
+          {
+            "PathMode": "Bezier",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 240,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -480,
+                "Y": 450
+              }
+            ],
+            "ControlPoints": [
+              {
+                "X": 420,
+                "Y": 420
+              },
+              {
+                "X": -420,
+                "Y": 160
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1900,
+            "IntervalMs": 1800
+          }
+        ]
+      }
+    ]
+  }
+}

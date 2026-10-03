@@ -1,0 +1,149 @@
+{
+  "Core": {
+    "Name": "琪露诺 · 冰符「Icicle Fall」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "Left",
+          "Amount": 1,
+          "LifeTimeMs": 800,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -260,
+                "Y": -40
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 2300
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "LeftIce",
+              "Amount": 9,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Scale",
+              "TextureIndex": 4
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.0471975511965976,
+                "Speed": 170
+              },
+              {
+                "Angle": 1.0471975511965976,
+                "Speed": 225
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.08975979010256552,
+              "SpawnDelayMs": 55
+            },
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "Right",
+          "Amount": 1,
+          "LifeTimeMs": 800,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 260,
+                "Y": -40
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1500,
+            "IntervalMs": 2300
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "RightIce",
+              "Amount": 9,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Scale",
+              "TextureIndex": 5
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 2.0943951023931953,
+                "Speed": 170
+              },
+              {
+                "Angle": 2.0943951023931953,
+                "Speed": 225
+              }
+            ],
+            "AddAttributes": {
+              "Angle": -0.08975979010256552,
+              "SpawnDelayMs": 55
+            },
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

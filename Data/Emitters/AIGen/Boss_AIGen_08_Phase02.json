@@ -1,0 +1,119 @@
+{
+  "Core": {
+    "Name": "芙兰朵露 · 禁忌「Four of a Kind」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "FourSources",
+          "Amount": 1,
+          "LifeTimeMs": 2600,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0,
+            "Speed": 45,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -230,
+                "Y": -20
+              }
+            ]
+          },
+          {
+            "Angle": 3.141592653589793,
+            "Speed": 45,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 230,
+                "Y": -20
+              }
+            ]
+          },
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 35,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -150,
+                "Y": 100
+              }
+            ]
+          },
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 35,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 150,
+                "Y": 100
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4200
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "CloneFan",
+              "Amount": 5,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2,
+              "AngleMode": "AimPlayer"
+            },
+            "Display": {
+              "TextureName": "Drop",
+              "TextureIndex": 0
+            },
+            "BaseAttributes": [
+              {
+                "Angle": -0.5235987755982988,
+                "Speed": 150
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.2617993877991494
+            },
+            "Timeline": [
+              {
+                "StartMs": 200,
+                "IntervalMs": 700
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

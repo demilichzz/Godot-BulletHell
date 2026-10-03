@@ -198,62 +198,70 @@ public partial class VNodeCreator
 
     /// <summary>读取一份队列JSON对象，直接构造对应属性对象。</summary>
     /// <param name="element">队列JSON根对象。</param>
+    /// <param name="path">展开后的Creator错误路径。</param>
     /// <returns>已完成公共及专用校验的模板。</returns>
-    internal static VNodeCreator ReadCreator(JsonElement element)
+    private static VNodeCreator ReadExpandedCreator(JsonElement element, string path)
     {
         // 类型必须由数据显式指定，ID只由树初始化过程生成。
-        JsonElement core = Required(element, "Core");
-        string type = Required(core, "Type").GetString() ?? "";
-        if (type is not ("VNode" or "VBullet" or "VPath" or "VLaser")) throw new JsonException("Core.Type只支持VNode、VBullet、VPath或VLaser。");
-        if (core.TryGetProperty("Id", out _)) throw new JsonException("Core.Id不属于JSON字段。");
-        bool bullet = type == "VBullet";
-        CheckFields(element, type == "VLaser"
-            ? new[] { "Core", "Laser", "Display", "PathQueue", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" }
-            : type == "VPath"
-            ? new[] { "Core", "PathQueue", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" }
-            : bullet
-            ? new[] { "Core", "Display", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" }
-            : new[] { "Core", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" });
-        VNodeCreator queue = type == "VLaser" ? new VLaserCreator() : type == "VPath" ? new VPathCreator() : bullet ? new VBulletCreator() : new VNodeCreator();
-        queue.Core = type == "VLaser" ? Read<VLaserCoreAttribute>(core) : bullet ? Read<VBulletCoreAttribute>(core) : Read<VNodeCoreAttribute>(core);
-        // 仅路径允许省略基础项，其他类型保留原有必填约束。
-        if (type != "VPath" || element.TryGetProperty("BaseAttributes", out _))
+        try
         {
-            JsonElement baseValues = Required(element, "BaseAttributes");
-            if (baseValues.ValueKind != JsonValueKind.Array || baseValues.GetArrayLength() == 0)
-                throw new JsonException("BaseAttributes必须为非空数组。");
-            queue.BaseAttributes = Array.AsReadOnly(baseValues.EnumerateArray().Select(value =>
+            JsonElement core = Required(element, "Core");
+            string type = Required(core, "Type").GetString() ?? "";
+            if (type is not ("VNode" or "VBullet" or "VPath" or "VLaser")) throw new JsonException("Core.Type只支持VNode、VBullet、VPath或VLaser。");
+            if (core.TryGetProperty("Id", out _)) throw new JsonException("Core.Id不属于JSON字段。");
+            bool bullet = type == "VBullet";
+            CheckFields(element, type == "VLaser"
+                ? new[] { "Core", "Laser", "Display", "PathQueue", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" }
+                : type == "VPath"
+                ? new[] { "Core", "PathQueue", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" }
+                : bullet
+                ? new[] { "Core", "Display", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" }
+                : new[] { "Core", "BaseAttributes", "AddAttributes", "RandDiffAttributes", "Timeline", "MemberTimeline", "Children" });
+            VNodeCreator queue = type == "VLaser" ? new VLaserCreator() : type == "VPath" ? new VPathCreator() : bullet ? new VBulletCreator() : new VNodeCreator();
+            queue.Core = type == "VLaser" ? Read<VLaserCoreAttribute>(core) : bullet ? Read<VBulletCoreAttribute>(core) : Read<VNodeCoreAttribute>(core);
+            // 仅路径允许省略基础项，其他类型保留原有必填约束。
+            if (type != "VPath" || element.TryGetProperty("BaseAttributes", out _))
             {
-                var spawn = ReadSpawn(value, false);
-                return bullet && !value.TryGetProperty("Speed", out _) ? spawn with { Speed = 180 } : spawn;
-            }).ToArray());
-        }
-        queue.AddAttributes = element.TryGetProperty("AddAttributes", out var add) ? ReadSpawn(add, false) : new();
-        if (element.TryGetProperty("RandDiffAttributes", out var random))
-        {
-            CheckFields(random, new[] { "Batch", "Member" });
-            queue.RandDiffAttributes = new VNodeRandDiffAttribute
+                JsonElement baseValues = Required(element, "BaseAttributes");
+                if (baseValues.ValueKind != JsonValueKind.Array || baseValues.GetArrayLength() == 0)
+                    throw new JsonException("BaseAttributes必须为非空数组。");
+                queue.BaseAttributes = Array.AsReadOnly(baseValues.EnumerateArray().Select(value =>
+                {
+                    var spawn = ReadSpawn(value, false);
+                    return bullet && !value.TryGetProperty("Speed", out _) ? spawn with { Speed = 180 } : spawn;
+                }).ToArray());
+            }
+            queue.AddAttributes = element.TryGetProperty("AddAttributes", out var add) ? ReadSpawn(add, false) : new();
+            if (element.TryGetProperty("RandDiffAttributes", out var random))
             {
-                Batch = random.TryGetProperty("Batch", out var batch) ? ReadSpawn(batch, true) : new(),
-                Member = random.TryGetProperty("Member", out var member) ? ReadSpawn(member, true) : new()
-            };
+                CheckFields(random, new[] { "Batch", "Member" });
+                queue.RandDiffAttributes = new VNodeRandDiffAttribute
+                {
+                    Batch = random.TryGetProperty("Batch", out var batch) ? ReadSpawn(batch, true) : new(),
+                    Member = random.TryGetProperty("Member", out var member) ? ReadSpawn(member, true) : new()
+                };
+            }
+            queue.Timeline = ReadTimes(element, "Timeline");
+            queue.MemberTimeline = ReadTimes(element, "MemberTimeline");
+            if (queue is VBulletCreator bullets)
+            {
+                bullets.ReadDisplay(Required(element, "Display"));
+                bullets.ReadRegions(core);
+            }
+            if (queue is VPathCreator pathCreator) pathCreator.ReadPathQueue(Required(element, "PathQueue"));
+            if (queue is VLaserCreator laser) laser.ReadLaser(element);
+            queue.ValidateAttributes();
+            if (element.TryGetProperty("Children", out var children))
+            {
+                if (children.ValueKind != JsonValueKind.Array) throw new JsonException("Children必须为数组。");
+                queue.Children = Array.AsReadOnly(children.EnumerateArray().Select((child, index) => ReadExpandedCreator(child, $"{path}.Children[{index}]")).ToArray());
+            }
+            return queue;
         }
-        queue.Timeline = ReadTimes(element, "Timeline");
-        queue.MemberTimeline = ReadTimes(element, "MemberTimeline");
-        if (queue is VBulletCreator bullets)
+        catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException or OverflowException or FormatException)
         {
-            bullets.ReadDisplay(Required(element, "Display"));
-            bullets.ReadReflectionRegion(core);
+            throw new JsonException($"{path}: {error.Message}", error);
         }
-        if (queue is VPathCreator path) path.ReadPathQueue(Required(element, "PathQueue"));
-        if (queue is VLaserCreator laser) laser.ReadLaser(element);
-        queue.ValidateAttributes();
-        if (element.TryGetProperty("Children", out var children))
-        {
-            if (children.ValueKind != JsonValueKind.Array) throw new JsonException("Children必须为数组。");
-            queue.Children = Array.AsReadOnly(children.EnumerateArray().Select(ReadCreator).ToArray());
-        }
-        return queue;
     }
 
     /// <summary>建立稳定路径ID并验证名称和父索引时间边界。</summary>

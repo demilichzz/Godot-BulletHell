@@ -1,0 +1,143 @@
+{
+  "Core": {
+    "Name": "直角转向的阶梯弹列",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "TurnRight",
+          "Amount": 9,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 3
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 145,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -210,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 120,
+          "RefMoveQueue": [
+            {
+              "Type": "XYMove",
+              "X": 25,
+              "Y": 0
+            }
+          ]
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3200
+          }
+        ],
+        "MemberTimeline": [
+          {
+            "StartMs": 1300,
+            "Set": {
+              "Angle": 0,
+              "Speed": 180
+            }
+          },
+          {
+            "StartMs": 2400,
+            "Set": {
+              "Angle": 1.5707963267948966,
+              "Speed": 130
+            }
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "TurnLeft",
+          "Amount": 9,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 8
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 145,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 210,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 120,
+          "RefMoveQueue": [
+            {
+              "Type": "XYMove",
+              "X": -25,
+              "Y": 0
+            }
+          ]
+        },
+        "Timeline": [
+          {
+            "StartMs": 2000,
+            "IntervalMs": 3200
+          }
+        ],
+        "MemberTimeline": [
+          {
+            "StartMs": 1300,
+            "Set": {
+              "Angle": 3.141592653589793,
+              "Speed": 180
+            }
+          },
+          {
+            "StartMs": 2400,
+            "Set": {
+              "Angle": 1.5707963267948966,
+              "Speed": 130
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "Core": {
+    "Name": "双拱曲线帘幕缓降",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "LeftArch",
+          "Amount": 23,
+          "LifeTimeMs": 100,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "Bezier",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -280,
+                "Y": 40
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 280,
+                "Y": 0
+              }
+            ],
+            "ControlPoints": [
+              {
+                "X": -220,
+                "Y": -160
+              },
+              {
+                "X": -60,
+                "Y": -160
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 2900
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "ArchFall",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 4
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 95
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "RightArch",
+          "Amount": 23,
+          "LifeTimeMs": 100,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "Bezier",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 40
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 280,
+                "Y": 0
+              }
+            ],
+            "ControlPoints": [
+              {
+                "X": 60,
+                "Y": -160
+              },
+              {
+                "X": 220,
+                "Y": -160
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1800,
+            "IntervalMs": 2900
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "ArchFallRight",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 6
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 130
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

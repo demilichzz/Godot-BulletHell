@@ -1,0 +1,106 @@
+{
+  "Core": {
+    "Name": "蕾米莉亚 · 狱符「千根针的针山」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "NeedleRain",
+          "Amount": 17,
+          "LifeTimeMs": 5300,
+          "Radius": 4,
+          "VisualScale": 2,
+          "Reflectable": true,
+          "ReflectionRegion": {
+            "Type": "Rectangle",
+            "X": 270,
+            "Y": 80,
+            "Width": 740,
+            "Height": 650,
+            "Edges": [
+              "Left",
+              "Right",
+              "Top"
+            ]
+          },
+          "AAngleIsSameAsAngle": false
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 0
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.3141592653589793,
+            "Speed": 225
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.23561944901923448
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 2600
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "FallingNeedles",
+          "Amount": 8,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AAngleIsSameAsAngle": false
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 1
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -1.0471975511965976,
+            "Speed": 160,
+            "AAngle": 1.5707963267948966,
+            "ASpeed": 90
+          },
+          {
+            "Angle": 4.1887902047863905,
+            "Speed": 160,
+            "AAngle": 1.5707963267948966,
+            "ASpeed": 90
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 110
+        },
+        "Timeline": [
+          {
+            "StartMs": 1800,
+            "IntervalMs": 2600
+          }
+        ]
+      }
+    ]
+  }
+}

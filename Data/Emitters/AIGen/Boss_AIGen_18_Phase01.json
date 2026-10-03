@@ -1,0 +1,97 @@
+{
+  "Core": {
+    "Name": "扩散圆环急停后原路回收",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "ReturnRing",
+          "Amount": 36,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 6
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 155
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.17453292519943295
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4100
+          }
+        ],
+        "MemberTimeline": [
+          {
+            "StartMs": 1050,
+            "Set": {
+              "Speed": 0
+            }
+          },
+          {
+            "StartMs": 1950,
+            "Set": {
+              "Speed": -190
+            }
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "EscapeFan",
+          "Amount": 9,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 2
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0.7853981633974483,
+            "Speed": 150
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.19634954084936207
+        },
+        "Timeline": [
+          {
+            "StartMs": 3100,
+            "IntervalMs": 4100
+          }
+        ]
+      }
+    ]
+  }
+}

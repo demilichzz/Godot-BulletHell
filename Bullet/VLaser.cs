@@ -14,7 +14,7 @@ public enum VLaserStage
     Active,
     // 收束消退，不参与碰撞。
     Fade,
-    // 到达寿命或完整路径末端，等待管理器释放。
+    // 达到配置持续时间，等待管理器释放。
     End
 }
 
@@ -31,9 +31,8 @@ public partial class VLaser : VBullet
     public double TailDistance => Settings.Mode == "Fixed" ? 0 : Math.Max(0, HeadDistance - Settings.Length);
     /// <summary>当前主体显示全宽，像素，不含外发光，仅由自身年龄计算。</summary>
     public double VisualWidth { get; private set; }
-    /// <summary>路径尾部已经离开或实体达到配置结束时刻。</summary>
-    public bool HasFinished => Units >= Settings.DurationMs * VTimerProcessor.UnitsPerMillisecond
-        || (Settings.Mode == "Path" && TailDistance >= PathLength);
+    /// <summary>实体达到配置结束时刻；路径终点不触发提前结束。</summary>
+    public bool HasFinished => Units >= Settings.DurationMs * VTimerProcessor.UnitsPerMillisecond;
     /// <summary>当前逻辑阶段，路径模式只经历Active和End。</summary>
     public VLaserStage Stage
     {
@@ -54,6 +53,9 @@ public partial class VLaser : VBullet
     // 世界路径与累计弧长只在初始化时复制，显示点不会成为逻辑几何来源。
     private Vector2[] _path = Array.Empty<Vector2>();
     private double[] _distances = Array.Empty<double>();
+    // 移动激光追加末段延长线供碰撞与危险查询使用；定点直接复用原路径。
+    private Vector2[] _collisionPath = Array.Empty<Vector2>();
+    private double[] _collisionDistances = Array.Empty<double>();
     // 外光由6层半透明色带近似柔和渐变；固定宽度比例仅影响显示，不参与判定。
     private const int GlowLayerCount = 6;
     private const double GlowWidthRatio = 5;
@@ -121,6 +123,15 @@ public partial class VLaser : VBullet
         // 累计距离仅在生成时计算，内部保留双精度。
         for (int index = 1; index < points.Length; index++)
             _distances[index] = _distances[index - 1] + VMath.GetDistanceBetween2Points(points[index - 1], points[index]);
+        // 只在出生时扩展到寿命内头部可达的最大弧长，不改变公开的原路径长度。
+        _collisionPath = _path;
+        _collisionDistances = _distances;
+        double travelLimit = settings.DurationMs / 1000.0 * settings.TravelSpeed;
+        if (settings.Mode == "Path" && travelLimit > PathLength)
+        {
+            _collisionPath = _path.Append(ExtendedPointAt(travelLimit)).ToArray();
+            _collisionDistances = _distances.Append(travelLimit).ToArray();
+        }
         var spawn = VBulletDefaultSet.Get(VBulletType.PlayerSet) with
         {
             Position = position,
@@ -190,8 +201,8 @@ public partial class VLaser : VBullet
     internal void RefreshGeometry()
     {
         // 定点实体保持在起点，移动实体位置代表沿路径前进的头部。
-        double head = Math.Clamp(HeadDistance, 0, PathLength), tail = Math.Clamp(TailDistance, 0, PathLength);
-        _lockedWorld = PointAt(Settings.Mode == "Fixed" ? 0 : head);
+        double head = HeadDistance, tail = TailDistance;
+        _lockedWorld = Settings.Mode == "Fixed" ? _path[0] : ExtendedPointAt(head);
         LockTransform();
         _line.Visible = _coreLine.Visible = !HasFinished && head > tail;
         // 结束或头尾重合时，各层同时隐藏，不留下外发光残影。
@@ -275,22 +286,28 @@ public partial class VLaser : VBullet
         double previous = double.NegativeInfinity;
         foreach (double distance in _visibleDistances)
         {
-            if (distance != previous) _visiblePoints.Add(ToLocal(VisualPointAt(distance)));
+            if (distance != previous) _visiblePoints.Add(ToLocal(ExtendedPointAt(distance)));
             previous = distance;
         }
         return _visiblePoints.ToArray();
     }
 
-    /// <summary>查询显示坐标，超出完整路径时沿首末段切线外延，不改写逻辑路径。</summary>
-    /// <param name="distance">显示弧长，像素，可小于0或大于完整路径长度。</param>
-    /// <returns>显示专用的世界像素坐标。</returns>
-    private Vector2 VisualPointAt(double distance)
+    /// <summary>沿原折线查询，越过两端时沿首末非零段外延；末端同时供移动、显示和碰撞使用。</summary>
+    /// <param name="distance">累计弧长，像素；负数仅用于起点前的显示尖端。</param>
+    /// <returns>有限世界像素坐标，超过坐标范围时拒绝。</returns>
+    private Vector2 ExtendedPointAt(double distance)
     {
-        if (distance < 0) return _path[0] + (_path[1] - _path[0]).Normalized() * (float)distance;
-        if (distance > PathLength) return _path[^1] + (_path[^1] - _path[^2]).Normalized() * (float)(distance - PathLength);
-        return PointAt(distance);
+        if (distance >= 0 && distance <= PathLength) return PointAt(distance);
+        // 使用累计弧长归一化双精度方向，避免单精度方向相减或距离乘法溢出。
+        int index = distance < 0 ? 1 : _path.Length - 1;
+        double span = _distances[index] - _distances[index - 1];
+        double offset = distance < 0 ? distance : distance - PathLength;
+        Vector2 origin = distance < 0 ? _path[0] : _path[^1];
+        var point = VMath.ValidatePathPoint((
+            origin.X + ((double)_path[index].X - _path[index - 1].X) / span * offset,
+            origin.Y + ((double)_path[index].Y - _path[index - 1].Y) / span * offset));
+        return new Vector2((float)point.X, (float)point.Y);
     }
-
     /// <summary>设置单层光束的裁剪路径、颜色、宽度和端部形状。</summary>
     /// <param name="line">对应外光、主体或亮芯的显示节点。</param>
     /// <param name="points">当前裁剪路径的局部像素坐标。</param>
@@ -345,7 +362,7 @@ public partial class VLaser : VBullet
         double h1 = Settings.Mode == "Fixed" ? PathLength : to / VTimerProcessor.UnitsPerSecond * Settings.TravelSpeed;
         // 尖角只在足够宽的主体内判定，额外收进半宽，避免圆判定伸入透明尖端。
         double inset = Settings.EndCap == "Point" ? Settings.TipLength + Settings.HitWidth * 0.5 : 0;
-        return VMath.SweptPolylineWindowHit(_path, _distances, p0, p1, h0, h1,
+        return VMath.SweptPolylineWindowHit(_collisionPath, _collisionDistances, p0, p1, h0, h1,
             Settings.Mode == "Fixed" ? PathLength : Settings.Length, inset, Settings.HitWidth * 0.5 + targetRadius);
     }
 

@@ -7,7 +7,9 @@ public partial class VBullet
 {
     /// <summary>中心连续出界后的强制消失阈值，非负整数毫秒，默认2000；0表示出界即消失。</summary>
     public long OutsideTimeoutMs { get; private set; } = 2000;
-    /// <summary>当前连续位于游戏区域外的逻辑秒数，回到区域内时清零。</summary>
+    /// <summary>世界出界判定区域，默认游戏区域；与反射区域独立，按弹幕中心判断。</summary>
+    public IRegionShape OutsideRegion { get; private set; } = BattleConfig.GameRegion;
+    /// <summary>当前连续位于指定区域外的逻辑秒数，回到区域内时清零。</summary>
     public double OutsideAge => _outsideUnits / (double)VTimerProcessor.UnitsPerSecond;
     // 固定步整数计时；单独保存出界标记，区分阈值为0与位于区域内。
     private long _outsideUnits;
@@ -30,7 +32,7 @@ public partial class VBullet
     internal void UpdateOutsideTime(double delta)
     {
         // 回到区域内立即结束上一段计时；不占用时间线动作。
-        _isOutside = !BattleConfig.GameRegion.Contains(WorldPosition);
+        _isOutside = !OutsideRegion.Contains(WorldPosition);
         if (!_isOutside) _outsideUnits = 0;
         else
         {
@@ -50,7 +52,7 @@ public partial class VBullet
 
     /// <summary>是否启用边界反射，默认false，仅用于普通子弹。</summary>
     public bool Reflectable { get; private set; }
-    /// <summary>不可变世界反射区域，不改变游戏区域出界判断。</summary>
+    /// <summary>不可变世界反射区域，不改变OutsideRegion的出界判断。</summary>
     public VReflectionRegion? ReflectionRegion { get; private set; }
     // 仅反射弹幕创建并复用本步折线路径，供连续碰撞判断使用。
     private List<ReflectionMotionSegment>? _reflectionMotion;

@@ -55,6 +55,7 @@ public partial class VBullet : VNode
             ASpeed = settings.ASpeed
         }, settings.LifeTimeMs, settings.AAngleIsSameAsAngle, settings.Behavior);
         ConfigureOutside(settings.OutsideTimeoutMs);
+        OutsideRegion = settings.OutsideRegion ?? BattleConfig.GameRegion;
         Reflectable = settings.Reflectable;
         ReflectionRegion = settings.ReflectionRegion;
         Team = settings.Team;

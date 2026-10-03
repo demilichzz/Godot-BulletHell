@@ -1,0 +1,147 @@
+{
+  "Core": {
+    "Name": "十六夜咲夜 · 时符「The World」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "KnifeLine",
+          "Amount": 27,
+          "LifeTimeMs": 200,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "Function",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -270,
+                "Y": 90
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 540,
+                "Y": 0
+              }
+            ],
+            "AxisMode": "Relative",
+            "X": "L*t",
+            "Y": "70*sin(1*TAU*t)",
+            "Samples": 256
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4500
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "StoppedKnife",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Scale",
+              "TextureIndex": 7
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 0
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ],
+            "MemberTimeline": [
+              {
+                "StartMs": 1600,
+                "Set": {
+                  "AngleSource": "AimPlayer",
+                  "Angle": 0,
+                  "Speed": 200
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "TimeDial",
+          "Amount": 32,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 6
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 70
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.19634954084936207
+        },
+        "Timeline": [
+          {
+            "StartMs": 1200,
+            "IntervalMs": 4500
+          }
+        ],
+        "MemberTimeline": [
+          {
+            "StartMs": 800,
+            "Set": {
+              "Speed": 0
+            }
+          },
+          {
+            "StartMs": 2400,
+            "Set": {
+              "Speed": 180
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

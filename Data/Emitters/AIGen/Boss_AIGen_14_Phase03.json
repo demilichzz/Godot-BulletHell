@@ -1,0 +1,165 @@
+{
+  "Core": {
+    "Name": "双曲光墙间穿行的瞄准水滴",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "WaveWallL",
+          "Amount": 1,
+          "Width": 9
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "AddAttributes": {},
+        "Display": {
+          "BlendMode": "CoreAdd"
+        },
+        "Laser": {
+          "Mode": "Fixed",
+          "Length": 900,
+          "HitWidth": 4,
+          "Color": "#44DDCC",
+          "EndCap": "Point",
+          "WarningMs": 1300,
+          "ExpandMs": 150,
+          "ActiveMs": 1100,
+          "FadeMs": 250
+        },
+        "PathQueue": [
+          {
+            "PathMode": "Function",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -180,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 570
+              }
+            ],
+            "AxisMode": "Relative",
+            "X": "L*t",
+            "Y": "60*sin(1*TAU*t)",
+            "Samples": 256
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4100
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "WaveWallR",
+          "Amount": 1,
+          "Width": 9
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "AddAttributes": {},
+        "Display": {
+          "BlendMode": "CoreAdd"
+        },
+        "Laser": {
+          "Mode": "Fixed",
+          "Length": 900,
+          "HitWidth": 4,
+          "Color": "#5599FF",
+          "EndCap": "Point",
+          "WarningMs": 1300,
+          "ExpandMs": 150,
+          "ActiveMs": 1100,
+          "FadeMs": 250
+        },
+        "PathQueue": [
+          {
+            "PathMode": "Function",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 180,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 570
+              }
+            ],
+            "AxisMode": "Relative",
+            "X": "L*t",
+            "Y": "-60*sin(1*TAU*t)",
+            "Samples": 256
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1800,
+            "IntervalMs": 4100
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "BetweenWalls",
+          "Amount": 5,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AngleMode": "AimPlayer"
+        },
+        "Display": {
+          "TextureName": "Drop",
+          "TextureIndex": 5
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.39269908169872414,
+            "Speed": 190
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.19634954084936207
+        },
+        "Timeline": [
+          {
+            "StartMs": 1500,
+            "IntervalMs": 850
+          }
+        ]
+      }
+    ]
+  }
+}

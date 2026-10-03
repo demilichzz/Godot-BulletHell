@@ -1,0 +1,120 @@
+{
+  "Core": {
+    "Name": "五角星轮流绽放",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "FiveTips",
+          "Amount": 5,
+          "LifeTimeMs": 1000,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": -1.5707963267948966,
+                "Dist": 160
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "RefMoveQueue": [
+            {
+              "Type": "PMove",
+              "Angle": 1.2566370614359172,
+              "Dist": 0
+            }
+          ],
+          "SpawnDelayMs": 360
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3800
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "TipBurst",
+              "Amount": 16,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Star",
+              "TextureIndex": 1
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 115
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.39269908169872414
+            },
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          },
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "TipAim",
+              "Amount": 3,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2,
+              "AngleMode": "AimPlayer"
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 5
+            },
+            "BaseAttributes": [
+              {
+                "Angle": -0.1,
+                "Speed": 190
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.1
+            },
+            "Timeline": [
+              {
+                "StartMs": 450
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

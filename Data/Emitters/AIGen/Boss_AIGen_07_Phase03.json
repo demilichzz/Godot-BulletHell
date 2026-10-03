@@ -1,0 +1,277 @@
+{
+  "Core": {
+    "Name": "芙兰朵露 · 禁弹「Starbow Break」",
+    "RefObject": null,
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "StarColumn0",
+          "Amount": 7,
+          "LifeTimeMs": 4800,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 0
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 170,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 370,
+                "Y": 120
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 95
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3000
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "StarColumn1",
+          "Amount": 7,
+          "LifeTimeMs": 4800,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 1
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 170,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 460,
+                "Y": 120
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 95
+        },
+        "Timeline": [
+          {
+            "StartMs": 1280,
+            "IntervalMs": 3000
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "StarColumn2",
+          "Amount": 7,
+          "LifeTimeMs": 4800,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 2
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 170,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 550,
+                "Y": 120
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 95
+        },
+        "Timeline": [
+          {
+            "StartMs": 1560,
+            "IntervalMs": 3000
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "StarColumn3",
+          "Amount": 7,
+          "LifeTimeMs": 4800,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 3
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 170,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 120
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 95
+        },
+        "Timeline": [
+          {
+            "StartMs": 1840,
+            "IntervalMs": 3000
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "StarColumn4",
+          "Amount": 7,
+          "LifeTimeMs": 4800,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 4
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 170,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 730,
+                "Y": 120
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 95
+        },
+        "Timeline": [
+          {
+            "StartMs": 2120,
+            "IntervalMs": 3000
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "StarColumn5",
+          "Amount": 7,
+          "LifeTimeMs": 4800,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 5
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 170,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 820,
+                "Y": 120
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 95
+        },
+        "Timeline": [
+          {
+            "StartMs": 2400,
+            "IntervalMs": 3000
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "StarColumn6",
+          "Amount": 7,
+          "LifeTimeMs": 4800,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 6
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 170,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 910,
+                "Y": 120
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 95
+        },
+        "Timeline": [
+          {
+            "StartMs": 2680,
+            "IntervalMs": 3000
+          }
+        ]
+      }
+    ]
+  }
+}

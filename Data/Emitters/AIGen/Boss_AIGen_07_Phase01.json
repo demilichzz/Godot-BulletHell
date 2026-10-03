@@ -1,0 +1,122 @@
+{
+  "Core": {
+    "Name": "芙兰朵露 · 禁忌「Cranberry Trap」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "CranberrySources",
+          "Amount": 1,
+          "LifeTimeMs": 1900,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -220,
+                "Y": 20
+              }
+            ]
+          },
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 220,
+                "Y": 20
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3300
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "TrapAim",
+              "Amount": 3,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2,
+              "AngleMode": "AimPlayer"
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 0
+            },
+            "BaseAttributes": [
+              {
+                "Angle": -0.11,
+                "Speed": 190
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.11
+            },
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "IntervalMs": 500
+              }
+            ]
+          },
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "TrapCross",
+              "Amount": 7,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 6
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 120
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.2617993877991494
+            },
+            "Timeline": [
+              {
+                "StartMs": 100,
+                "IntervalMs": 800
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

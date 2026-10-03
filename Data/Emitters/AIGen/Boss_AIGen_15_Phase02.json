@@ -1,0 +1,70 @@
+{
+  "Core": {
+    "Name": "圆壁反射的三束弹球",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Billiard",
+          "Amount": 6,
+          "LifeTimeMs": 6500,
+          "Radius": 6,
+          "VisualScale": 3,
+          "Reflectable": true,
+          "ReflectionRegion": {
+            "Type": "Circle",
+            "X": 640,
+            "Y": 400,
+            "Radius": 390
+          }
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 6
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0.5235987755982988,
+            "Speed": 175
+          },
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 175
+          },
+          {
+            "Angle": 2.6179938779914944,
+            "Speed": 175
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.028,
+          "SpawnDelayMs": 150
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3300
+          }
+        ]
+      }
+    ]
+  }
+}

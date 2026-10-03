@@ -1,0 +1,131 @@
+{
+  "Core": {
+    "Name": "移动花蕊二次开花",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "FlowerCenters",
+          "Amount": 1,
+          "LifeTimeMs": 1400,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0,
+            "Speed": 90
+          },
+          {
+            "Angle": 1.0471975511965976,
+            "Speed": 90
+          },
+          {
+            "Angle": 2.0943951023931953,
+            "Speed": 90
+          },
+          {
+            "Angle": 3.141592653589793,
+            "Speed": 90
+          },
+          {
+            "Angle": 4.1887902047863905,
+            "Speed": 90
+          },
+          {
+            "Angle": 5.235987755982989,
+            "Speed": 90
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3800
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "SmallPetals",
+              "Amount": 8,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Drop",
+              "TextureIndex": 2
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 0,
+                "Speed": 75
+              },
+              {
+                "Angle": 0.09,
+                "Speed": 105
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.7853981633974483
+            },
+            "Timeline": [
+              {
+                "StartMs": 1150
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "PollenAim",
+          "Amount": 5,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AngleMode": "AimPlayer"
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 3
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.5235987755982988,
+            "Speed": 170
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.2617993877991494
+        },
+        "Timeline": [
+          {
+            "StartMs": 2800,
+            "IntervalMs": 3800
+          }
+        ]
+      }
+    ]
+  }
+}

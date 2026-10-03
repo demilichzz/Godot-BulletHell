@@ -1,0 +1,93 @@
+{
+  "Core": {
+    "Name": "红美铃 · 彩符「极彩台风」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Clockwise",
+          "Amount": 70,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 2
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0,
+            "Speed": 150
+          },
+          {
+            "Angle": 3.141592653589793,
+            "Speed": 150
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.17,
+          "SpawnDelayMs": 40
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4000
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Counter",
+          "Amount": 50,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 7
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 195
+          },
+          {
+            "Angle": 4.71238898038469,
+            "Speed": 195
+          }
+        ],
+        "AddAttributes": {
+          "Angle": -0.2,
+          "SpawnDelayMs": 55
+        },
+        "Timeline": [
+          {
+            "StartMs": 1300,
+            "IntervalMs": 4000
+          }
+        ]
+      }
+    ]
+  }
+}

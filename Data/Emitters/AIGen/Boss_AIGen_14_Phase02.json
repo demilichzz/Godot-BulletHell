@@ -1,0 +1,159 @@
+{
+  "Core": {
+    "Name": "交错斜光栅与中心弹列",
+    "RefObject": null,
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "SlashL",
+          "Amount": 4,
+          "Width": 9
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.0471975511965976,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 360,
+                "Y": 100
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "RefMoveQueue": [
+            {
+              "Type": "XYMove",
+              "X": 130,
+              "Y": 0
+            }
+          ]
+        },
+        "Display": {
+          "BlendMode": "CoreAdd"
+        },
+        "Laser": {
+          "Mode": "Fixed",
+          "Length": 680,
+          "HitWidth": 4,
+          "Color": "#FF7799",
+          "EndCap": "Point",
+          "WarningMs": 1000,
+          "ExpandMs": 150,
+          "ActiveMs": 600,
+          "FadeMs": 250
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4400
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "SlashR",
+          "Amount": 4,
+          "Width": 9
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 2.0943951023931953,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 920,
+                "Y": 100
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "RefMoveQueue": [
+            {
+              "Type": "XYMove",
+              "X": -130,
+              "Y": 0
+            }
+          ]
+        },
+        "Display": {
+          "BlendMode": "CoreAdd"
+        },
+        "Laser": {
+          "Mode": "Fixed",
+          "Length": 680,
+          "HitWidth": 4,
+          "Color": "#AA88FF",
+          "EndCap": "Point",
+          "WarningMs": 1000,
+          "ExpandMs": 150,
+          "ActiveMs": 600,
+          "FadeMs": 250
+        },
+        "Timeline": [
+          {
+            "StartMs": 3000,
+            "IntervalMs": 4400
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "MiddleStream",
+          "Amount": 3,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 7
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 175,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 200
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.13
+        },
+        "Timeline": [
+          {
+            "StartMs": 1500,
+            "IntervalMs": 900
+          }
+        ]
+      }
+    ]
+  }
+}

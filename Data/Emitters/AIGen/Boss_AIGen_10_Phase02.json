@@ -1,0 +1,133 @@
+{
+  "Core": {
+    "Name": "正弦花边逐点亮起后斜落",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "SineLace",
+          "Amount": 41,
+          "LifeTimeMs": 1800,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "Function",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -270,
+                "Y": 40
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 540,
+                "Y": 0
+              }
+            ],
+            "AxisMode": "Relative",
+            "X": "L*t",
+            "Y": "75*sin(2*TAU*t)",
+            "Samples": 256
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3500
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "LaceBead",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 3
+            },
+            "BaseAttributes": [
+              {
+                "Speed": 0
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "StartMsAdd": 25
+              }
+            ],
+            "MemberTimeline": [
+              {
+                "StartMs": 1100,
+                "Set": {
+                  "Angle": 1.7907963267948965,
+                  "Speed": 125
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "LaceAim",
+          "Amount": 5,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AngleMode": "AimPlayer"
+        },
+        "Display": {
+          "TextureName": "Drop",
+          "TextureIndex": 8
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.5235987755982988,
+            "Speed": 190
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.2617993877991494
+        },
+        "Timeline": [
+          {
+            "StartMs": 2600,
+            "IntervalMs": 3500
+          }
+        ]
+      }
+    ]
+  }
+}

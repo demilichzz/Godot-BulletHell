@@ -1,0 +1,122 @@
+{
+  "Core": {
+    "Name": "帕秋莉 · 金符「Metal Fatigue」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "MetalSeeds",
+          "Amount": 1,
+          "LifeTimeMs": 1700,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0.5235987755982988,
+            "Speed": 155
+          },
+          {
+            "Angle": 1.0471975511965976,
+            "Speed": 155
+          },
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 155
+          },
+          {
+            "Angle": 2.0943951023931953,
+            "Speed": 155
+          },
+          {
+            "Angle": 2.617993877991494,
+            "Speed": 155
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3000
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "Shards",
+              "Amount": 12,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Scale",
+              "TextureIndex": 7
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 125
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.5235987755982988
+            },
+            "Timeline": [
+              {
+                "StartMs": 900
+              }
+            ]
+          },
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "MetalAim",
+              "Amount": 3,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2,
+              "AngleMode": "AimPlayer"
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 1
+            },
+            "BaseAttributes": [
+              {
+                "Angle": -0.075,
+                "Speed": 210
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.075
+            },
+            "Timeline": [
+              {
+                "StartMs": 1250
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

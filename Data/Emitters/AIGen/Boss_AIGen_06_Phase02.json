@@ -1,0 +1,90 @@
+{
+  "Core": {
+    "Name": "蕾米莉亚 · 神术「吸血鬼幻想」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "BatSources",
+          "Amount": 1,
+          "LifeTimeMs": 2100,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0,
+            "Speed": 100
+          },
+          {
+            "Angle": 3.141592653589793,
+            "Speed": 100
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3500
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "BatTrail",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Drop",
+              "TextureIndex": 0
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 0
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "IntervalMs": 180
+              }
+            ],
+            "MemberTimeline": [
+              {
+                "StartMs": 900,
+                "Set": {
+                  "AngleSource": "AimPlayer",
+                  "Angle": 0,
+                  "Speed": 180
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

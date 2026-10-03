@@ -1,0 +1,94 @@
+{
+  "Core": {
+    "Name": "芙兰朵露 · 禁弹「Catadioptric」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "BouncingMother",
+          "Amount": 1,
+          "LifeTimeMs": 5000,
+          "Radius": 9,
+          "VisualScale": 4,
+          "Reflectable": true,
+          "ReflectionRegion": {
+            "Type": "Circle",
+            "X": 640,
+            "Y": 400,
+            "Radius": 390
+          }
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 2
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0.7853981633974483,
+            "Speed": 220
+          },
+          {
+            "Angle": 2.356194490192345,
+            "Speed": 220
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4000
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "PrismDust",
+              "Amount": 8,
+              "LifeTimeMs": 3000,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 6
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 85
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.7853981633974483
+            },
+            "Timeline": [
+              {
+                "StartMs": 400,
+                "IntervalMs": 800
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

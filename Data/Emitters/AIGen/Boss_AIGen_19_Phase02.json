@@ -1,0 +1,142 @@
+{
+  "Core": {
+    "Name": "分段曲线光龙穿梭",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "Dragon",
+          "Amount": 1,
+          "Width": 9
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "AddAttributes": {},
+        "Display": {
+          "BlendMode": "CoreAdd"
+        },
+        "Laser": {
+          "Mode": "Path",
+          "Length": 170,
+          "HitWidth": 4,
+          "Color": "#44FFAA",
+          "EndCap": "Point",
+          "TravelSpeed": 245,
+          "EndMs": 7500,
+          "PathPointCount": 128
+        },
+        "PathQueue": [
+          {
+            "PathMode": "Bezier",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -260,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 520,
+                "Y": 160
+              }
+            ],
+            "ControlPoints": [
+              {
+                "X": -80,
+                "Y": -160
+              },
+              {
+                "X": 150,
+                "Y": 300
+              }
+            ]
+          },
+          {
+            "PathMode": "Bezier",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -500,
+                "Y": 290
+              }
+            ],
+            "ControlPoints": [
+              {
+                "X": -40,
+                "Y": 240
+              },
+              {
+                "X": -440,
+                "Y": -80
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 1050
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "DragonPearls",
+          "Amount": 3,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AngleMode": "AimPlayer"
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 3
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.225,
+            "Speed": 150
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.225
+        },
+        "Timeline": [
+          {
+            "StartMs": 2000,
+            "IntervalMs": 2400
+          }
+        ]
+      }
+    ]
+  }
+}

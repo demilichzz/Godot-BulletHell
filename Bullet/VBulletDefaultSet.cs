@@ -43,9 +43,11 @@ public sealed record VBulletDefaultSet
     public long LifeTimeMs { get; init; }
     /// <summary>中心连续出界后的强制消失阈值，非负整数毫秒，默认2000；回区清零。</summary>
     public long OutsideTimeoutMs { get; init; } = 2000;
+    /// <summary>出界判定形状，世界坐标；null默认使用游戏区域，与反射区域独立。</summary>
+    public IRegionShape? OutsideRegion { get; init; }
     /// <summary>是否启用选定边界反射，默认false；true时必须配置ReflectionRegion。</summary>
     public bool Reflectable { get; init; }
-    /// <summary>以世界坐标定义的反射关联区域，默认null；不替代游戏区域的出界计时。</summary>
+    /// <summary>以世界坐标定义的反射关联区域，默认null；不改变OutsideRegion的出界判定。</summary>
     public VReflectionRegion? ReflectionRegion { get; init; }
     /// <summary>正数碰撞半径，单位为逻辑像素。</summary>
     public double Radius { get; init; }

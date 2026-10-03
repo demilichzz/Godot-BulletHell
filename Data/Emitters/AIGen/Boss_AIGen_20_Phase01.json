@@ -1,0 +1,199 @@
+{
+  "Core": {
+    "Name": "三色移动弹源轮奏",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "RedVoice",
+          "Amount": 1,
+          "LifeTimeMs": 3000,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0,
+            "Speed": 70,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -230,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 5000
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "RedChords",
+              "Amount": 7,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 0
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 0.7853981633974483,
+                "Speed": 145
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.2617993877991494
+            },
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "IntervalMs": 900
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "BlueVoice",
+          "Amount": 1,
+          "LifeTimeMs": 3000,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 3.141592653589793,
+            "Speed": 70,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 230,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1900,
+            "IntervalMs": 5000
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "BlueChords",
+              "Amount": 5,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2,
+              "AngleMode": "AimPlayer"
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 4
+            },
+            "BaseAttributes": [
+              {
+                "Angle": -0.5235987755982988,
+                "Speed": 190
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.2617993877991494
+            },
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "IntervalMs": 1100
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "GoldVoice",
+          "Amount": 1,
+          "LifeTimeMs": 3000,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 35
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 2800,
+            "IntervalMs": 5000
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "GoldChords",
+              "Amount": 12,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Star",
+              "TextureIndex": 1
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 90
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.5235987755982988
+            },
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "IntervalMs": 1400
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

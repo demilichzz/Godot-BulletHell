@@ -1,0 +1,133 @@
+{
+  "Core": {
+    "Name": "双螺旋短光束穿流",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "HelixLeft",
+          "Amount": 1,
+          "Width": 9
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "AddAttributes": {},
+        "Display": {
+          "BlendMode": "CoreAdd"
+        },
+        "Laser": {
+          "Mode": "Path",
+          "Length": 90,
+          "HitWidth": 4,
+          "Color": "#55CCFF",
+          "EndCap": "Point",
+          "TravelSpeed": 220,
+          "EndMs": 4600,
+          "PathPointCount": 128
+        },
+        "PathQueue": [
+          {
+            "PathMode": "Function",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -100,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 600
+              }
+            ],
+            "AxisMode": "Relative",
+            "X": "L*t",
+            "Y": "110*sin(2*TAU*t)",
+            "Samples": 256
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 1200
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "HelixRight",
+          "Amount": 1,
+          "Width": 9
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "AddAttributes": {},
+        "Display": {
+          "BlendMode": "CoreAdd"
+        },
+        "Laser": {
+          "Mode": "Path",
+          "Length": 90,
+          "HitWidth": 4,
+          "Color": "#DD66FF",
+          "EndCap": "Point",
+          "TravelSpeed": 220,
+          "EndMs": 4600,
+          "PathPointCount": 128
+        },
+        "PathQueue": [
+          {
+            "PathMode": "Function",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 100,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 600
+              }
+            ],
+            "AxisMode": "Relative",
+            "X": "L*t",
+            "Y": "-110*sin(2*TAU*t)",
+            "Samples": 256
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1600,
+            "IntervalMs": 1200
+          }
+        ]
+      }
+    ]
+  }
+}

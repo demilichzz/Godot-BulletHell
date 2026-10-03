@@ -1,0 +1,605 @@
+{
+  "Core": {
+    "Name": "圆环向心收缩后下落",
+    "RefObject": null,
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "InwardRing",
+          "Amount": 1,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 6
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 3.141592653589793,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 0,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 3.3379421944391554,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 0.19634954084936207,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 3.5342917352885173,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 0.39269908169872414,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 3.730641276137879,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 0.5890486225480862,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 3.9269908169872414,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 0.7853981633974483,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 4.123340357836604,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 0.9817477042468103,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 4.319689898685965,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 1.1780972450961724,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 4.516039439535327,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 1.3744467859455345,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 4.71238898038469,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 1.5707963267948966,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 4.908738521234052,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 1.7671458676442586,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 5.105088062083414,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 1.9634954084936207,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 5.301437602932776,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 2.1598449493429825,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 5.497787143782138,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 2.356194490192345,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 5.6941366846315,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 2.552544031041707,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 5.890486225480862,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 2.748893571891069,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 6.086835766330224,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 2.945243112740431,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 6.283185307179586,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 3.141592653589793,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 6.4795348480289485,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 3.3379421944391554,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 6.675884388878311,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 3.5342917352885173,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 6.872233929727672,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 3.730641276137879,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 7.0685834705770345,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 3.9269908169872414,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 7.264933011426397,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 4.123340357836604,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 7.461282552275758,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 4.319689898685965,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 7.6576320931251205,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 4.516039439535327,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 7.853981633974483,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 4.71238898038469,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 8.050331174823846,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 4.908738521234052,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 8.246680715673207,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 5.105088062083414,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 8.443030256522569,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 5.301437602932776,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 8.63937979737193,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 5.497787143782138,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 8.835729338221293,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 5.6941366846315,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 9.032078879070655,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 5.890486225480862,
+                "Dist": 265
+              }
+            ]
+          },
+          {
+            "Angle": 9.228428419920018,
+            "Speed": 105,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 340
+              },
+              {
+                "Type": "PMove",
+                "Angle": 6.086835766330224,
+                "Dist": 265
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3800
+          }
+        ],
+        "MemberTimeline": [
+          {
+            "StartMs": 1400,
+            "Set": {
+              "Angle": 1.5707963267948966,
+              "Speed": 150
+            }
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "RingNeedles",
+          "Amount": 3,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 2
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 240,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 130
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.22
+        },
+        "Timeline": [
+          {
+            "StartMs": 2400,
+            "IntervalMs": 3800
+          }
+        ]
+      }
+    ]
+  }
+}

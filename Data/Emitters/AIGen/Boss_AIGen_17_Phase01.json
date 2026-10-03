@@ -1,0 +1,145 @@
+{
+  "Core": {
+    "Name": "左右巡航源交替扫射",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "SweepRight",
+          "Amount": 1,
+          "LifeTimeMs": 3400,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0,
+            "Speed": 140,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -260,
+                "Y": -30
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4400
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "SweepFan",
+              "Amount": 5,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 3
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.0471975511965979,
+                "Speed": 145
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.2617993877991494
+            },
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "IntervalMs": 250
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "SweepLeft",
+          "Amount": 1,
+          "LifeTimeMs": 3400,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 3.141592653589793,
+            "Speed": 140,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 260,
+                "Y": 20
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 3200,
+            "IntervalMs": 4400
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "ReverseFan",
+              "Amount": 4,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 8
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.1780972450961724,
+                "Speed": 165
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.2617993877991494
+            },
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "IntervalMs": 300
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

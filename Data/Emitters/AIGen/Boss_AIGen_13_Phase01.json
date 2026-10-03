@@ -1,0 +1,110 @@
+{
+  "Core": {
+    "Name": "重力流星与斜向碎屑",
+    "RefObject": null,
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Meteors",
+          "Amount": 11,
+          "LifeTimeMs": 3600,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 1
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.2207963267948965,
+            "Speed": 65,
+            "ASpeed": 100,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 80
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 120
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 2800
+          }
+        ],
+        "RandDiffAttributes": {
+          "Member": {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 530,
+                "Y": 60
+              }
+            ],
+            "Speed": 30
+          }
+        }
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "MeteorDust",
+          "Amount": 15,
+          "LifeTimeMs": 4000,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 7
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0.3141592653589793,
+            "Speed": 160,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 180
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.17951958020513104
+        },
+        "Timeline": [
+          {
+            "StartMs": 2100,
+            "IntervalMs": 2800
+          }
+        ]
+      }
+    ]
+  }
+}

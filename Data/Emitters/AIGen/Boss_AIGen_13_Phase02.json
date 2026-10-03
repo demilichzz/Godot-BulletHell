@@ -1,0 +1,107 @@
+{
+  "Core": {
+    "Name": "彗星划过并留下延迟弹尾",
+    "RefObject": null,
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Comet",
+          "Amount": 1,
+          "LifeTimeMs": 3000,
+          "Radius": 9,
+          "VisualScale": 4
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 4
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0.45,
+            "Speed": 170,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 360,
+                "Y": 160
+              }
+            ]
+          },
+          {
+            "Angle": 2.691592653589793,
+            "Speed": 170,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 920,
+                "Y": 160
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4200
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "CometTail",
+              "Amount": 1,
+              "LifeTimeMs": 4200,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 5
+            },
+            "BaseAttributes": [
+              {
+                "Speed": 0
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "IntervalMs": 140
+              }
+            ],
+            "MemberTimeline": [
+              {
+                "StartMs": 1200,
+                "Set": {
+                  "Angle": 1.5707963267948966,
+                  "Speed": 150
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

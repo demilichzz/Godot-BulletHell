@@ -1,0 +1,133 @@
+{
+  "Core": {
+    "Name": "芙兰朵露 · QED「495年的波纹」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "RippleCycle",
+          "Amount": 1,
+          "LifeTimeMs": 6200,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 7600
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "WideRipples",
+              "Amount": 24,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 2
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 100
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.2617993877991494
+            },
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "IntervalMs": 900
+              }
+            ]
+          },
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "FineRipples",
+              "Amount": 36,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 0
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 145
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.17453292519943295
+            },
+            "Timeline": [
+              {
+                "StartMs": 2700,
+                "IntervalMs": 650
+              }
+            ]
+          },
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "FastRipples",
+              "Amount": 48,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 7
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 190
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.1308996938995747
+            },
+            "Timeline": [
+              {
+                "StartMs": 4800,
+                "IntervalMs": 500
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -11,8 +11,8 @@ public partial class VLaser
     {
         VMath.ValidateQueryRectangle(rectangle);
         if (!TryGetQueryWindow(out double tail, out double head)) return false;
-        // 按原路径顺序检查裁剪到当前窗口的线段。
-        for (int index = 1; index < _path.Length; index++)
+        // 按原路径及出生时冻结的末段延长线检查当前窗口。
+        for (int index = 1; index < _collisionPath.Length; index++)
             if (TryGetQuerySegment(index, tail, head, out var start, out var end)
                 && VMath.CapsuleIntersectsRect(start, end, Settings.HitWidth * 0.5, rectangle)) return true;
         return false;
@@ -30,7 +30,7 @@ public partial class VLaser
         if (!TryGetQueryWindow(out double tail, out double head)) return false;
         // 最短距离平方，遍历时不开方。
         double best = double.PositiveInfinity;
-        for (int index = 1; index < _path.Length; index++)
+        for (int index = 1; index < _collisionPath.Length; index++)
         {
             if (!TryGetQuerySegment(index, tail, head, out var start, out var end)) continue;
             // 当前段上的投影位置和距离平方。
@@ -56,7 +56,7 @@ public partial class VLaser
         // 尖端裁剪与实际碰撞保持一致，不使用外发光几何。
         double inset = Settings.EndCap == "Point" ? Settings.TipLength + Settings.HitWidth * 0.5 : 0;
         tail = TailDistance + inset;
-        head = Math.Min(PathLength, HeadDistance) - inset;
+        head = Math.Min(_collisionDistances[^1], HeadDistance) - inset;
         return head > tail;
     }
 
@@ -71,11 +71,11 @@ public partial class VLaser
     {
         start = end = Vector2.Zero;
         // 当前线段累计弧长与查询窗口的交集。
-        double first = _distances[index - 1], last = _distances[index];
+        double first = _collisionDistances[index - 1], last = _collisionDistances[index];
         double from = Math.Max(first, tail), to = Math.Min(last, head);
         if (to <= from) return false;
-        start = _path[index - 1].Lerp(_path[index], (float)((from - first) / (last - first)));
-        end = _path[index - 1].Lerp(_path[index], (float)((to - first) / (last - first)));
+        start = _collisionPath[index - 1].Lerp(_collisionPath[index], (float)((from - first) / (last - first)));
+        end = _collisionPath[index - 1].Lerp(_collisionPath[index], (float)((to - first) / (last - first)));
         return true;
     }
 }

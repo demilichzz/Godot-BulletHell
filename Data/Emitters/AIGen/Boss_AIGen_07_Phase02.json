@@ -1,0 +1,189 @@
+{
+  "Core": {
+    "Name": "芙兰朵露 · 禁忌「Kagome Kagome」",
+    "RefObject": null,
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "HorizontalBars",
+          "Amount": 19,
+          "LifeTimeMs": 100,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 330,
+                "Y": 130
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 620,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 2200
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "Down",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Scale",
+              "TextureIndex": 6
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 100
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "VerticalBars",
+          "Amount": 13,
+          "LifeTimeMs": 100,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 330,
+                "Y": 170
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 390
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 2100,
+            "IntervalMs": 3300
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "Across",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 2
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 0,
+                "Speed": 115
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "LargePearl",
+          "Amount": 1,
+          "LifeTimeMs": 6500,
+          "Radius": 10,
+          "VisualScale": 4
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 0
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 130,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 640,
+                "Y": 200
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 2500,
+            "IntervalMs": 1500
+          }
+        ]
+      }
+    ]
+  }
+}

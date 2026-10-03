@@ -1,0 +1,103 @@
+{
+  "Core": {
+    "Name": "螺线逐点展开再整体坠落",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "SpiralTrace",
+          "Amount": 70,
+          "LifeTimeMs": 2100,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "Function",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 40,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 190,
+                "Y": 0
+              }
+            ],
+            "AxisMode": "Absolute",
+            "X": "SX-40+(40+190*t)*cos(2*TAU*t)",
+            "Y": "SY+(40+190*t)*sin(2*TAU*t)",
+            "Samples": 512
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 5600
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "Trace",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 5
+            },
+            "BaseAttributes": [
+              {
+                "Speed": 0
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "StartMsAdd": 25
+              }
+            ],
+            "MemberTimeline": [
+              {
+                "StartMs": 1600,
+                "Set": {
+                  "Angle": 1.5707963267948966,
+                  "Speed": 110
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

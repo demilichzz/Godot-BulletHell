@@ -1,0 +1,263 @@
+{
+  "Core": {
+    "Name": "菱形阵列左右分离",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "DiamondLeft",
+          "Amount": 29,
+          "LifeTimeMs": 100,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -110,
+                "Y": -100
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 150,
+                "Y": 180
+              }
+            ]
+          },
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -150,
+                "Y": 180
+              }
+            ]
+          },
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -150,
+                "Y": -180
+              }
+            ]
+          },
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 150,
+                "Y": -180
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3400
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "DiamondDriftL",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2,
+              "AAngleIsSameAsAngle": false
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 5
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 2.741592653589793,
+                "Speed": 70,
+                "AAngle": 1.5707963267948966,
+                "ASpeed": 25
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "DiamondRight",
+          "Amount": 29,
+          "LifeTimeMs": 100,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 110,
+                "Y": -100
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 150,
+                "Y": 180
+              }
+            ]
+          },
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -150,
+                "Y": 180
+              }
+            ]
+          },
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -150,
+                "Y": -180
+              }
+            ]
+          },
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 150,
+                "Y": -180
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1500,
+            "IntervalMs": 3400
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "DiamondDriftR",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2,
+              "AAngleIsSameAsAngle": false
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 6
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 0.4,
+                "Speed": 70,
+                "AAngle": 1.5707963267948966,
+                "ASpeed": 25
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

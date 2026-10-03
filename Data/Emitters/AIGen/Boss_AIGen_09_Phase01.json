@@ -1,0 +1,89 @@
+{
+  "Core": {
+    "Name": "双臂螺旋与逆向细流",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "SpiralArms",
+          "Amount": 90,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Drop",
+          "TextureIndex": 4
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0,
+            "Speed": 145
+          },
+          {
+            "Angle": 3.141592653589793,
+            "Speed": 145
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.12,
+          "SpawnDelayMs": 35
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4200
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "ReverseThread",
+          "Amount": 70,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 1
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 200
+          }
+        ],
+        "AddAttributes": {
+          "Angle": -0.19,
+          "SpawnDelayMs": 45
+        },
+        "Timeline": [
+          {
+            "StartMs": 1400,
+            "IntervalMs": 4200
+          }
+        ]
+      }
+    ]
+  }
+}

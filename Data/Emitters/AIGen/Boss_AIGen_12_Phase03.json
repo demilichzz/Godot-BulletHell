@@ -1,0 +1,95 @@
+{
+  "Core": {
+    "Name": "向日葵光瓣与金色旋流",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VLaser",
+          "Name": "SunPetals",
+          "Amount": 12,
+          "Width": 9
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0.2617993877991494
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.5235987755982988
+        },
+        "Display": {
+          "BlendMode": "CoreAdd"
+        },
+        "Laser": {
+          "Mode": "Fixed",
+          "Length": 700,
+          "HitWidth": 4,
+          "Color": "#FFCC44",
+          "EndCap": "Point",
+          "WarningMs": 1300,
+          "ExpandMs": 150,
+          "ActiveMs": 500,
+          "FadeMs": 250
+        },
+        "Timeline": [
+          {
+            "StartMs": 1200,
+            "IntervalMs": 4400
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "SunSpiral",
+          "Amount": 48,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 1
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0,
+            "Speed": 140
+          },
+          {
+            "Angle": 3.141592653589793,
+            "Speed": 140
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.2,
+          "SpawnDelayMs": 55
+        },
+        "Timeline": [
+          {
+            "StartMs": 1800,
+            "IntervalMs": 4400
+          }
+        ]
+      }
+    ]
+  }
+}

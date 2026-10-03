@@ -1,0 +1,126 @@
+{
+  "Core": {
+    "Name": "露米娅 · 月符「Moonlight Ray」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "Sides",
+          "Amount": 1,
+          "LifeTimeMs": 2200,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -180,
+                "Y": 0
+              }
+            ]
+          },
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 180,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1200,
+            "IntervalMs": 3400
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VLaser",
+              "Name": "Moon",
+              "Amount": 1,
+              "Width": 9,
+              "AngleMode": "AimPlayer"
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 0
+              }
+            ],
+            "AddAttributes": {},
+            "Display": {
+              "BlendMode": "CoreAdd"
+            },
+            "Laser": {
+              "Mode": "Fixed",
+              "Length": 900,
+              "HitWidth": 4,
+              "Color": "#A89AFF",
+              "EndCap": "Point",
+              "WarningMs": 1000,
+              "ExpandMs": 150,
+              "ActiveMs": 650,
+              "FadeMs": 250
+            },
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "MoonDust",
+          "Amount": 13,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 6
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0.23561944901923448,
+            "Speed": 140
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.22252947962927702
+        },
+        "Timeline": [
+          {
+            "StartMs": 2000,
+            "IntervalMs": 1700
+          }
+        ]
+      }
+    ]
+  }
+}

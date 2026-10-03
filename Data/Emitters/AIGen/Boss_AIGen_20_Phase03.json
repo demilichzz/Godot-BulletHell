@@ -1,0 +1,307 @@
+{
+  "Core": {
+    "Name": "缺口星环与交错预警光束",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "GalaxyGap",
+          "Amount": 1,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 6
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.9507963267948965,
+            "Speed": 125
+          },
+          {
+            "Angle": 2.100071605367318,
+            "Speed": 125
+          },
+          {
+            "Angle": 2.249346883939739,
+            "Speed": 125
+          },
+          {
+            "Angle": 2.39862216251216,
+            "Speed": 125
+          },
+          {
+            "Angle": 2.5478974410845816,
+            "Speed": 125
+          },
+          {
+            "Angle": 2.6971727196570026,
+            "Speed": 125
+          },
+          {
+            "Angle": 2.846447998229424,
+            "Speed": 125
+          },
+          {
+            "Angle": 2.9957232768018454,
+            "Speed": 125
+          },
+          {
+            "Angle": 3.1449985553742668,
+            "Speed": 125
+          },
+          {
+            "Angle": 3.2942738339466877,
+            "Speed": 125
+          },
+          {
+            "Angle": 3.443549112519109,
+            "Speed": 125
+          },
+          {
+            "Angle": 3.59282439109153,
+            "Speed": 125
+          },
+          {
+            "Angle": 3.7420996696639515,
+            "Speed": 125
+          },
+          {
+            "Angle": 3.891374948236373,
+            "Speed": 125
+          },
+          {
+            "Angle": 4.040650226808793,
+            "Speed": 125
+          },
+          {
+            "Angle": 4.189925505381215,
+            "Speed": 125
+          },
+          {
+            "Angle": 4.339200783953636,
+            "Speed": 125
+          },
+          {
+            "Angle": 4.488476062526058,
+            "Speed": 125
+          },
+          {
+            "Angle": 4.637751341098479,
+            "Speed": 125
+          },
+          {
+            "Angle": 4.7870266196709,
+            "Speed": 125
+          },
+          {
+            "Angle": 4.936301898243322,
+            "Speed": 125
+          },
+          {
+            "Angle": 5.085577176815743,
+            "Speed": 125
+          },
+          {
+            "Angle": 5.234852455388165,
+            "Speed": 125
+          },
+          {
+            "Angle": 5.384127733960585,
+            "Speed": 125
+          },
+          {
+            "Angle": 5.533403012533006,
+            "Speed": 125
+          },
+          {
+            "Angle": 5.682678291105428,
+            "Speed": 125
+          },
+          {
+            "Angle": 5.831953569677848,
+            "Speed": 125
+          },
+          {
+            "Angle": 5.981228848250271,
+            "Speed": 125
+          },
+          {
+            "Angle": 6.130504126822691,
+            "Speed": 125
+          },
+          {
+            "Angle": 6.2797794053951135,
+            "Speed": 125
+          },
+          {
+            "Angle": 6.429054683967534,
+            "Speed": 125
+          },
+          {
+            "Angle": 6.578329962539955,
+            "Speed": 125
+          },
+          {
+            "Angle": 6.727605241112377,
+            "Speed": 125
+          },
+          {
+            "Angle": 6.876880519684797,
+            "Speed": 125
+          },
+          {
+            "Angle": 7.02615579825722,
+            "Speed": 125
+          },
+          {
+            "Angle": 7.17543107682964,
+            "Speed": 125
+          },
+          {
+            "Angle": 7.3247063554020615,
+            "Speed": 125
+          },
+          {
+            "Angle": 7.473981633974483,
+            "Speed": 125
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 1850
+          }
+        ],
+        "RandDiffAttributes": {
+          "Batch": {
+            "Angle": 0.32
+          }
+        }
+      },
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "FinalPrisms",
+          "Amount": 1,
+          "LifeTimeMs": 2400,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -230,
+                "Y": 0
+              }
+            ]
+          },
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 230,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 2100,
+            "IntervalMs": 4300
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VLaser",
+              "Name": "FinalRay",
+              "Amount": 1,
+              "Width": 9,
+              "AngleMode": "AimPlayer"
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 0
+              }
+            ],
+            "AddAttributes": {},
+            "Display": {
+              "BlendMode": "CoreAdd"
+            },
+            "Laser": {
+              "Mode": "Fixed",
+              "Length": 900,
+              "HitWidth": 4,
+              "Color": "#EEBBFF",
+              "EndCap": "Point",
+              "WarningMs": 1400,
+              "ExpandMs": 150,
+              "ActiveMs": 450,
+              "FadeMs": 250
+            },
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "FinalPulse",
+          "Amount": 3,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AngleMode": "AimPlayer"
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 1
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.09,
+            "Speed": 205
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.09
+        },
+        "Timeline": [
+          {
+            "StartMs": 3300,
+            "IntervalMs": 2150
+          }
+        ]
+      }
+    ]
+  }
+}

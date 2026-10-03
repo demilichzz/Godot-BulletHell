@@ -1,0 +1,152 @@
+{
+  "Core": {
+    "Name": "奇偶瞄准交替形成窄门",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "OddGate",
+          "Amount": 7,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AngleMode": "AimPlayer"
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 0
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.7853981633974483,
+            "Speed": 185
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.2617993877991494
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 2600
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "EvenGate",
+          "Amount": 8,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AngleMode": "AimPlayer"
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 4
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.7853981633974483,
+            "Speed": 150
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.2243994752564138
+        },
+        "Timeline": [
+          {
+            "StartMs": 2300,
+            "IntervalMs": 2600
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "SideGate",
+          "Amount": 1,
+          "LifeTimeMs": 100,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -200,
+                "Y": 80
+              }
+            ]
+          },
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 200,
+                "Y": 80
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1900,
+            "IntervalMs": 2600
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "GateSmall",
+              "Amount": 2,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2,
+              "AngleMode": "AimPlayer"
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 7
+            },
+            "BaseAttributes": [
+              {
+                "Angle": -0.11,
+                "Speed": 230
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.22
+            },
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

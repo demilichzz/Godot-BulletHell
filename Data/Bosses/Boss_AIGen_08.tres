@@ -1,12 +1,12 @@
 [gd_resource type="Resource" script_class="BossData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://Boss/BossData.cs" id="1"]
-[ext_resource type="Texture2D" path="res://Assets/Units/Boss_05.png" id="2"]
+[ext_resource type="Texture2D" path="res://Assets/Units/Boss_11.png" id="2"]
 
 [resource]
 script = ExtResource("1")
-Id = "Boss_05"
-DisplayName = "Boss 05"
+Id = "Boss_AIGen_08"
+DisplayName = "Boss_AIGen_08"
 Texture = ExtResource("2")
 Hframes = 2
 Vframes = 2
@@ -15,4 +15,4 @@ MaxHp = 300
 CollisionRadius = 32.0
 VisualScale = 3.0
 SpawnPosition = Vector2(640, 250)
-PhaseProfile = "Boss_05"
+PhaseProfile = "Boss_AIGen_08"

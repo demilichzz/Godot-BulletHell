@@ -24,6 +24,7 @@ public partial class BattleVerification
     /// <summary>运行路径定向验证，不触发完整回归。</summary>
     private void VerifyPaths()
     {
+        VerifyAimPlayerPaths();
         VerifyPathGeometry();
         VerifyPathCurves();
         VerifyPathValidation();

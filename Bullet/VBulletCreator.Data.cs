@@ -28,11 +28,15 @@ public sealed partial class VBulletCreator
 
     // 加载阶段冻结的反射配置，所有本Creator出生的弹幕只读共享。
     private VReflectionRegion? _reflectionRegion;
+    // 加载阶段冻结的可选出界判定形状，省略时由出生入口使用游戏区域。
+    private IRegionShape? _outsideRegion;
 
-    /// <summary>校验反射区域的模式专属字段并冻结形状。</summary>
+    /// <summary>校验出界和反射区域的模式专属字段并冻结形状。</summary>
     /// <param name="core">子弹Core对象。</param>
-    internal void ReadReflectionRegion(JsonElement core)
+    internal void ReadRegions(JsonElement core)
     {
+        if (core.TryGetProperty("OutsideRegion", out var outside))
+            _outsideRegion = VRegionShapeAttribute.Read(outside).Create();
         if (core.TryGetProperty("ReflectionRegion", out var region))
             _reflectionRegion = VReflectionRegionAttribute.Read(region).Create();
     }
@@ -56,6 +60,7 @@ public sealed partial class VBulletCreator
             BlendMode = Display.BlendMode,
             LifeTimeMs = Core.LifeTimeMs.Value,
             OutsideTimeoutMs = Core.OutsideTimeoutMs,
+            OutsideRegion = _outsideRegion,
             Reflectable = Core.Reflectable,
             ReflectionRegion = _reflectionRegion,
             Radius = Core.Radius,

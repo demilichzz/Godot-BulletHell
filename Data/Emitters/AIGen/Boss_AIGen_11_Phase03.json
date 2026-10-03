@@ -1,0 +1,167 @@
+{
+  "Core": {
+    "Name": "五芒星阵列延迟瞄准",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "Pentagram",
+          "Amount": 61,
+          "LifeTimeMs": 100,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 1.3471114790620885e-14,
+                "Y": -190
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 129.3127555043441,
+                "Y": 397.98373876248843
+              }
+            ]
+          },
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -338.54518908927787,
+                "Y": -245.96747752497683
+              }
+            ]
+          },
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 418.4648671698676,
+                "Y": -2.842170943040401e-14
+              }
+            ]
+          },
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -338.54518908927787,
+                "Y": 245.96747752497686
+              }
+            ]
+          },
+          {
+            "PathMode": "XY",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 129.31275550434407,
+                "Y": -397.98373876248843
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 5500
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "StarTipKnife",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Scale",
+              "TextureIndex": 1
+            },
+            "BaseAttributes": [
+              {
+                "Speed": 0
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ],
+            "MemberTimeline": [
+              {
+                "StartMs": 1600,
+                "Set": {
+                  "AngleSource": "AimPlayer",
+                  "Angle": 0,
+                  "Speed": 160
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

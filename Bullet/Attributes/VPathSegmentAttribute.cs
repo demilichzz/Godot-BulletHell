@@ -4,7 +4,9 @@ using System.Collections.Generic;
 /// <summary>从参考点依次求起终点的一段路径；位移单位为逻辑像素。</summary>
 public sealed record VPathSegmentAttribute
 {
-    /// <summary>路径模式：XY、Bezier或Function。</summary>
+    /// <summary>Type=AimPlayer简写段的玩家位置偏移，屏幕右/下方向、逻辑像素；为空时使用普通端点队列。</summary>
+    public VPathPointAttribute? AimPlayerOffset { get; init; }
+    /// <summary>路径模式：XY、Bezier或Function；AimPlayer简写统一使用XY直线。</summary>
     public string PathMode { get; init; } = "XY";
     /// <summary>从本段参考点计算起点的动作；首段参考父位置，后续段参考上一段终点。</summary>
     public IReadOnlyList<VNodeMoveActionAttribute> StartMoveQueue { get; init; } = Array.Empty<VNodeMoveActionAttribute>();

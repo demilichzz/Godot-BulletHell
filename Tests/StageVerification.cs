@@ -40,8 +40,8 @@ public partial class StageVerification : Node
             // 正式目录使用四帧图集，每帧仍为64像素。
             var production = GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
             production.Validate();
-            Check(production.Entries.Count == 5, "正式目录包含五个Boss");
-            for (int index = 0; index < production.Entries.Count; index++)
+            Check(production.Entries.Count == 23, "正式目录包含3个原Boss和20个AI生成Boss");
+            for (int index = 0; index < 3; index++)
                 Check(production.Entries[index].Id == $"Boss_0{index + 1}"
                     && production.Entries[index].PhaseProfile == $"Boss_0{index + 1}",
                     "正式Boss目录按编号排序且阶段配置匹配");
@@ -188,11 +188,11 @@ public partial class StageVerification : Node
     {
         var catalog = GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
         catalog.Validate();
-        Check(catalog.Entries.Count == 5, "正式选择目录包含Boss_01～05");
+        Check(catalog.Entries.Count == 23, "正式选择目录包含3个原Boss和20个AI生成Boss");
         var game = new GameManager { Catalog = catalog };
         AddChild(game);
         await Settle();
-        for (int index = 1; index <= 4; index++)
+        for (int index = 1; index <= 2; index++)
         {
             // 逐项验证资源、卡片和进入战斗后的首个阶段与对应发射器。
             var data = catalog.Entries[index];

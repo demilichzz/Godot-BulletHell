@@ -1,0 +1,177 @@
+{
+  "Core": {
+    "Name": "贝塞尔羽翼逐羽射出",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "Wing0",
+          "Amount": 23,
+          "LifeTimeMs": 1800,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "Bezier",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -280,
+                "Y": 140
+              }
+            ],
+            "ControlPoints": [
+              {
+                "X": -40,
+                "Y": -170
+              },
+              {
+                "X": -270,
+                "Y": -80
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3300
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "Feather0",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Scale",
+              "TextureIndex": 4
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.3707963267948966,
+                "Speed": 140
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "StartMsAdd": 50
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VPath",
+          "Name": "Wing1",
+          "Amount": 23,
+          "LifeTimeMs": 1800,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {}
+        ],
+        "PathQueue": [
+          {
+            "PathMode": "Bezier",
+            "StartMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ],
+            "EndMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 280,
+                "Y": 140
+              }
+            ],
+            "ControlPoints": [
+              {
+                "X": 40,
+                "Y": -170
+              },
+              {
+                "X": 270,
+                "Y": -80
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 1600,
+            "IntervalMs": 3300
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "Feather1",
+              "Amount": 1,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Scale",
+              "TextureIndex": 5
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.7707963267948965,
+                "Speed": 140
+              }
+            ],
+            "AddAttributes": {},
+            "Timeline": [
+              {
+                "StartMs": 0,
+                "StartMsAdd": 50
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

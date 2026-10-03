@@ -44,7 +44,7 @@ public sealed record VLaserAttribute
     /// <summary>VPath几何采样点数，包含连接点，范围2至4096，默认128；不表示激光条数。</summary>
     public int PathPointCount { get; init; } = 128;
 
-    /// <summary>配置总寿命，正整数毫秒；路径实际走完时可以提前释放。</summary>
+    /// <summary>配置总寿命，正整数毫秒；路径走完后沿末段继续移动，持续至此时刻。</summary>
     [JsonIgnore]
     public long DurationMs => Mode == "Path" ? EndMs!.Value : checked(WarningMs + ExpandMs + ActiveMs + FadeMs);
 

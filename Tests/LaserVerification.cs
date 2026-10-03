@@ -29,6 +29,8 @@ public partial class BattleVerification
     {
         VerifyLaserStages();
         VerifyLaserPaths();
+        VerifyAimPlayerLasers();
+        VerifyLaserEndExtension();
         VerifyFixedLaserPath();
         VerifyLaserContours();
         VerifyLaserCoreEndpoints();
@@ -90,7 +92,7 @@ public partial class BattleVerification
         world.Free();
     }
 
-    /// <summary>验证按弧长移动、头尾生长退出、提前结束以及禁止外部修改。</summary>
+    /// <summary>验证按弧长移动、末段持续外延、到期释放以及禁止外部修改。</summary>
     private void VerifyLaserPaths()
     {
         var battle = CreateBattle(out var world);
@@ -121,10 +123,25 @@ public partial class BattleVerification
         Check(laser.GlobalPosition.DistanceTo(saved) < 0.001 && laser.GlobalRotation == 0 && laser.GlobalScale == Vector2.One,
             "原生姿态修改立即恢复固定路径");
         VerificationClock.BattleSeconds(battle, 5.0 / 6, Vector2.Zero, false);
-        Check(laser.IsAlive && laser.GlobalPosition.DistanceTo(new Vector2(100, 100)) < 0.001 && laser.TailDistance == 180,
+        Check(laser.IsAlive && laser.GlobalPosition.DistanceTo(new Vector2(100, 120)) < 0.001 && laser.TailDistance == 180,
             "头部越过终点后尾部继续前进");
         VerificationClock.BattleSeconds(battle, 1.0 / 6, Vector2.Zero, false);
-        Check(!laser.IsAlive && emitter.Bullets.Count == 0 && emitter.Root.Batches.Count == 0, "尾部走完在2秒自然释放，不等待5秒EndMs");
+        Check(laser.IsAlive && laser.GlobalPosition.DistanceTo(new Vector2(100, 140)) < 0.001,
+            "尾部越过原终点后继续沿末段向下移动");
+        Check(laser.Intersects(laser.Timeline!.ElapsedUnits, new Vector2(100, 130), new Vector2(100, 130), 0)
+            && !laser.Intersects(laser.Timeline.ElapsedUnits, new Vector2(130, 100), new Vector2(130, 100), 0),
+            "延长线碰撞沿最后一段方向，不能沿首段或端点切弦");
+        Check(laser.IntersectsRect(new Rect2(99, 125, 2, 2))
+            && laser.TryGetNearestHazard(new Vector2(105, 130), out var nearest, out var tangent)
+            && nearest.DistanceTo(new Vector2(100, 130)) < 0.001 && tangent == Vector2.Down,
+            "矩形查询和AI最近危险点包含末段延长线");
+        Check(laser.GetNode<Line2D>("LaserCore").Visible && laser.VisualWidth == 20,
+            "越过终点后光束持续显示原宽度");
+        VerificationClock.BattleSeconds(battle, 179.0 / 60, Vector2.Zero, false);
+        Check(laser.IsAlive && !laser.HasFinished, "EndMs前一个固定步仍存活");
+        battle.StepFixed(Vector2.Zero, false);
+        Check(!laser.IsAlive && emitter.Bullets.Count == 0 && emitter.Root.Batches.Count == 0,
+            "严格在5000ms释放移动激光及批次");
         world.Free();
 
         battle = CreateBattle(out world);
@@ -311,9 +328,17 @@ public partial class BattleVerification
         {
             movingBattle.StepFixed(Vector2.Zero, false);
             if (tick == 1 || tick % 30 == 0)
-                Check(movingCore.ToGlobal(movingCore.Points[0]).DistanceTo(moving.PointAt(moving.TailDistance)) < 0.001
-                    && movingCore.ToGlobal(movingCore.Points[^1]).DistanceTo(moving.PointAt(moving.HeadDistance)) < 0.001,
-                    "移动尖角亮芯端点只随路径窗口移动，包括短光束和离开路径阶段");
+            {
+                // 原PointAt查询仍截断；独立加上最后一段的超程量验证显示延长线。
+                Vector2 direction = new Vector2(120, -40).Normalized();
+                Vector2 tail = moving.PointAt(moving.TailDistance)
+                    + direction * (float)Math.Max(0, moving.TailDistance - moving.PathLength);
+                Vector2 head = moving.PointAt(moving.HeadDistance)
+                    + direction * (float)Math.Max(0, moving.HeadDistance - moving.PathLength);
+                Check(movingCore.ToGlobal(movingCore.Points[0]).DistanceTo(tail) < 0.001
+                    && movingCore.ToGlobal(movingCore.Points[^1]).DistanceTo(head) < 0.001,
+                    "移动尖角亮芯端点沿窗口及末段延长线持续移动");
+            }
         }
         movingWorld.Free();
     }
@@ -570,8 +595,8 @@ public partial class BattleVerification
         var fixedEmitter = StartSpawnFixture(battle, fixedJson.ToJsonString());
         var pathEmitter = StartSpawnFixture(battle, PathLaserFixture);
         var states = new List<string>();
-        // 150步涵盖多批次交叠、定点释放及路径自然结束。
-        for (int step = 0; step < 150; step++)
+        // 300步涵盖多批次交叠、末段外延和路径在5000ms到期。
+        for (int step = 0; step < 300; step++)
         {
             battle.StepFixed(step % 60 < 30 ? Vector2.Left : Vector2.Right, step % 60 == 0);
             if (extraDisplay)

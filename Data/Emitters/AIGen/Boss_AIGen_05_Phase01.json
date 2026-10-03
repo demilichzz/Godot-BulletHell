@@ -1,0 +1,148 @@
+{
+  "Core": {
+    "Name": "十六夜咲夜 · 奇术「Mesmerizing Misdirection」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "Misdirection",
+          "Amount": 1,
+          "LifeTimeMs": 1100,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": 3.141592653589793,
+                "Dist": 210
+              }
+            ]
+          },
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": 3.9269908169872414,
+                "Dist": 210
+              }
+            ]
+          },
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": 4.71238898038469,
+                "Dist": 210
+              }
+            ]
+          },
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": 5.497787143782138,
+                "Dist": 210
+              }
+            ]
+          },
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": 6.283185307179586,
+                "Dist": 210
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 2400
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "Knives",
+              "Amount": 5,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2,
+              "AngleMode": "AimPlayer"
+            },
+            "Display": {
+              "TextureName": "Scale",
+              "TextureIndex": 7
+            },
+            "BaseAttributes": [
+              {
+                "Angle": -0.3141592653589793,
+                "Speed": 210
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.15707963267948966
+            },
+            "Timeline": [
+              {
+                "StartMs": 300
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Feint",
+          "Amount": 9,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 6
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0.47123889803846897,
+            "Speed": 110
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.2748893571891069
+        },
+        "Timeline": [
+          {
+            "StartMs": 1700,
+            "IntervalMs": 2400
+          }
+        ]
+      }
+    ]
+  }
+}

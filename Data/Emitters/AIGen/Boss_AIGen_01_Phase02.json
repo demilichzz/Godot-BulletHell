@@ -1,0 +1,113 @@
+{
+  "Core": {
+    "Name": "露米娅 · 暗符「Demarcation」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Outer",
+          "Amount": 28,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 6
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 115
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.2243994752564138
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 2700
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Offset",
+          "Amount": 28,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 2
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.6829960644231035,
+            "Speed": 165
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.2243994752564138
+        },
+        "Timeline": [
+          {
+            "StartMs": 1300,
+            "IntervalMs": 2700
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Needles",
+          "Amount": 3,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AngleMode": "AimPlayer"
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 9
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.1308996938995747,
+            "Speed": 240
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.1308996938995747
+        },
+        "Timeline": [
+          {
+            "StartMs": 1800,
+            "IntervalMs": 1350
+          }
+        ]
+      }
+    ]
+  }
+}

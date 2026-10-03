@@ -1,0 +1,284 @@
+{
+  "Core": {
+    "Name": "红美铃 · 虹符「彩虹的风铃」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Chime0",
+          "Amount": 5,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 0
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.1507963267948966,
+            "Speed": 140,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -186,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "Speed": 24,
+          "SpawnDelayMs": 120
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3400
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Chime1",
+          "Amount": 5,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 1
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.2907963267948965,
+            "Speed": 140,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -124,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "Speed": 24,
+          "SpawnDelayMs": 120
+        },
+        "Timeline": [
+          {
+            "StartMs": 1160,
+            "IntervalMs": 3400
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Chime2",
+          "Amount": 5,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 2
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.4307963267948964,
+            "Speed": 140,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -62,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "Speed": 24,
+          "SpawnDelayMs": 120
+        },
+        "Timeline": [
+          {
+            "StartMs": 1320,
+            "IntervalMs": 3400
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Chime3",
+          "Amount": 5,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 3
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 140,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 0,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "Speed": 24,
+          "SpawnDelayMs": 120
+        },
+        "Timeline": [
+          {
+            "StartMs": 1480,
+            "IntervalMs": 3400
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Chime4",
+          "Amount": 5,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 4
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.7107963267948967,
+            "Speed": 140,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 62,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "Speed": 24,
+          "SpawnDelayMs": 120
+        },
+        "Timeline": [
+          {
+            "StartMs": 1640,
+            "IntervalMs": 3400
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Chime5",
+          "Amount": 5,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 5
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.8507963267948966,
+            "Speed": 140,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 124,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "Speed": 24,
+          "SpawnDelayMs": 120
+        },
+        "Timeline": [
+          {
+            "StartMs": 1800,
+            "IntervalMs": 3400
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "Chime6",
+          "Amount": 5,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 6
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.9907963267948965,
+            "Speed": 140,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 186,
+                "Y": 0
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "Speed": 24,
+          "SpawnDelayMs": 120
+        },
+        "Timeline": [
+          {
+            "StartMs": 1960,
+            "IntervalMs": 3400
+          }
+        ]
+      }
+    ]
+  }
+}

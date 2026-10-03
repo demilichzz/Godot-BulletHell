@@ -1,0 +1,99 @@
+{
+  "Core": {
+    "Name": "红美铃 · 华符「卷柏9」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "NinePetals",
+          "Amount": 9,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Drop",
+          "TextureIndex": 2
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.4607963267948965,
+            "Speed": 115
+          },
+          {
+            "Angle": 1.5157963267948966,
+            "Speed": 130
+          },
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 145
+          },
+          {
+            "Angle": 1.6257963267948965,
+            "Speed": 160
+          },
+          {
+            "Angle": 1.6807963267948967,
+            "Speed": 175
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.6981317007977318
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 2600
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "PetalRim",
+          "Amount": 18,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 7
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 100
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.3490658503988659
+        },
+        "Timeline": [
+          {
+            "StartMs": 1750,
+            "IntervalMs": 2600
+          }
+        ]
+      }
+    ]
+  }
+}

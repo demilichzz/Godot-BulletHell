@@ -1,0 +1,72 @@
+{
+  "Core": {
+    "Name": "两侧折返的交叉弹带",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "SideBounce",
+          "Amount": 10,
+          "LifeTimeMs": 4600,
+          "Radius": 4,
+          "VisualScale": 2,
+          "Reflectable": true,
+          "ReflectionRegion": {
+            "Type": "Rectangle",
+            "X": 270,
+            "Y": 80,
+            "Width": 740,
+            "Height": 650,
+            "Edges": [
+              "Left",
+              "Right",
+              "Top"
+            ]
+          }
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 3
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0.6283185307179586,
+            "Speed": 200
+          },
+          {
+            "Angle": 2.5132741228718345,
+            "Speed": 200
+          }
+        ],
+        "AddAttributes": {
+          "SpawnDelayMs": 100,
+          "Speed": 6
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 3200
+          }
+        ]
+      }
+    ]
+  }
+}

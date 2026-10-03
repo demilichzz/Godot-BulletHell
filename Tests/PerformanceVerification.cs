@@ -18,6 +18,9 @@ public partial class PerformanceVerification : Node
     // 可选树压力场景每颗一批，覆盖2000个活批次的遍历开销。
     private VBulletEmitter? _pressureEmitter;
     private VBulletCreator? _pressureCreator;
+    // 压力网格覆盖整个画面，用矩形保持移动负载；反射场景另用所选形状。
+    private readonly IRegionShape _pressureOutside = new RectangleRegionShape(BattleConfig.Bounds);
+    private VReflectionRegion? _pressureReflection;
     private int _caseIndex, _birthIndex, _steps;
     // 墙钟只用于基准统计，战斗仍然调用固定60Hz入口。
     private long _started, _previous, _allocated;
@@ -77,6 +80,12 @@ public partial class PerformanceVerification : Node
         _fillMs = 0;
         _pressureEmitter = null;
         _pressureCreator = null;
+        _pressureReflection = _cases[_caseIndex] switch
+        {
+            "reflectcircle2000" => new VReflectionRegion(new CircleRegionShape(new Vector2(640, 400), 300)),
+            "reflectrect2000" => new VReflectionRegion(new RectangleRegionShape(new Rect2(340, 100, 600, 600))),
+            _ => null
+        };
         _scene = GD.Load<PackedScene>("res://Main.tscn").Instantiate<Main>();
         AddChild(_scene);
         var battle = _scene.Battle;
@@ -110,14 +119,14 @@ public partial class PerformanceVerification : Node
             _pressureEmitter = VBulletEmitter.FromJson(JsonSerializer.Serialize(definition));
             _pressureEmitter.Start(battle.Boss, battle.Bullets);
         }
-        else if (name is "moving2000" or "churn2000" or "tree2000" or "treechurn2000")
+        else if (name is "moving2000" or "churn2000" or "tree2000" or "treechurn2000" or "reflectcircle2000" or "reflectrect2000")
         {
             battle.Boss.Stop();
             battle.Player.Position = new Vector2(640, 780);
             if (name is "tree2000" or "treechurn2000")
             {
                 _pressureEmitter = VBulletEmitter.FromJson("""
-        {"Core": {"RefObject": null}, "VNodes": {"Core": {"Type": "VBullet", "LifeTimeMs": 10000000, "Radius": 4, "VisualScale": 2}, "Display": {}, "BaseAttributes": [{"Speed": 60}], "AddAttributes": {}}}
+        {"Core": {"RefObject": null}, "VNodes": {"Core": {"Type": "VBullet", "LifeTimeMs": 10000000, "OutsideRegion": {"Type":"Rectangle","X":0,"Y":0,"Width":1280,"Height":800}, "Radius": 4, "VisualScale": 2}, "Display": {}, "BaseAttributes": [{"Speed": 60}], "AddAttributes": {}}}
         """);
                 _pressureEmitter.Start(battle.Boss, battle.Bullets);
                 _pressureCreator = (VBulletCreator)_pressureEmitter.Root;
@@ -155,8 +164,14 @@ public partial class PerformanceVerification : Node
         }
         else bullet = _scene!.Battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
-            Position = new Vector2(100 + index % 50 * 20, 80 + index / 50 * 14),
-            Speed = 60,
+            Position = _pressureReflection is null
+                ? new Vector2(100 + index % 50 * 20, 80 + index / 50 * 14)
+                : new Vector2(450 + index % 50 * 7, 240 + index / 50 * 8),
+            AngleRadians = _pressureReflection is null ? 0 : index * Math.Tau / 2000,
+            Speed = _pressureReflection is null ? 60 : 600,
+            OutsideRegion = _pressureReflection?.Shape ?? _pressureOutside,
+            Reflectable = _pressureReflection is not null,
+            ReflectionRegion = _pressureReflection,
             LifeTimeMs = VTimerProcessor.SecondsToMilliseconds(life),
             VisualScale = 2,
             Radius = 4
@@ -176,7 +191,7 @@ public partial class PerformanceVerification : Node
         var battle = _scene.Battle;
         battle.StepFixed(Vector2.Zero, false);
         double logic = Stopwatch.GetElapsedTime(begin).TotalMilliseconds;
-        if (_cases[_caseIndex] is "moving2000" or "churn2000" or "tree2000" or "treechurn2000")
+        if (_cases[_caseIndex] is "moving2000" or "churn2000" or "tree2000" or "treechurn2000" or "reflectcircle2000" or "reflectrect2000")
         {
             foreach (var bullet in battle.Bullets.ActiveBullets)
                 if (bullet.Position.X > 1180) bullet.Position = new Vector2(100, bullet.Position.Y);

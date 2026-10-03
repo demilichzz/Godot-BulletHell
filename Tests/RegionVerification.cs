@@ -15,6 +15,7 @@ public partial class BattleVerification
         VerifyRegionReflection();
         VerifyRegionData();
         VerifyRegionReferences();
+        VerifyCustomOutsideRegions();
     }
 
     /// <summary>验证点、完整判定圆、相交圆和角色投影的不同语义。</summary>
@@ -302,6 +303,111 @@ public partial class BattleVerification
         VerificationClock.BattleSeconds(laserBattle, 2.5, Vector2.Zero, false);
         Check(laser.IsAlive && laser.OutsideAge == 0, "激光不使用普通弹幕出界计时");
         laserWorld.Free();
+    }
+    /// <summary>验证自定义出界区域、回区清零、严格数据校验及正式Emitter的默认策略。</summary>
+    private void VerifyCustomOutsideRegions()
+    {
+        // 两种自定义区域均位于游戏区域之外，确认默认游戏圆不会覆盖显式配置。
+        foreach (string region in new[]
+        {
+            """{"Type":"Circle","X":1200,"Y":400,"Radius":"100+0*PI"}""",
+            """{"Type":"Rectangle","X":1100,"Y":300,"Width":200,"Height":200}"""
+        })
+        {
+            var battle = CreateBattle(out var world);
+            string json = $$$"""
+                {"Core":{"Type":"VBullet","LifeTimeMs":10000,"OutsideTimeoutMs":50,
+                  "OutsideRegion":{{{region}}},"Reflectable":true,
+                  "ReflectionRegion":{"Type":"Circle","X":640,"Y":400,"Radius":400}},
+                 "Display":{},"BaseAttributes":[{"Speed":0,"RefMoveQueue":[{"Type":"XYMove","X":1200,"Y":400}]}],
+                 "Timeline":[{"StartMs":0}]}
+                """;
+            var emitter = StartSpawnFixture(battle, json);
+            var bullet = (VBullet)emitter.Root.Members.Single();
+            VerificationClock.BattleSeconds(battle, 2.1, Vector2.Zero, false);
+            Check(bullet.IsAlive && bullet.OutsideAge == 0 && !BattleConfig.GameRegion.Contains(bullet.WorldPosition),
+                "显式出界区域独立于游戏区域和反射区域，游戏区外超过2秒可存活");
+            bullet.ApplyParameters(new ParameterActionAttribute { X = 1301 });
+            VerificationClock.BattleSeconds(battle, 2.0 / 60, Vector2.Zero, false);
+            Check(bullet.IsAlive && bullet.OutsideAge > 0, "自定义区域之外按指定阈值累计时间");
+            bullet.ApplyParameters(new ParameterActionAttribute { X = 1300 });
+            battle.StepFixed(Vector2.Zero, false);
+            Check(bullet.IsAlive && bullet.OutsideAge == 0, "回到自定义区域边界按中心清零");
+            // 游戏圆内、自定义区域外同样必须释放，不能把两个区域取并集。
+            bullet.ApplyParameters(new ParameterActionAttribute { X = 640 });
+            VerificationClock.BattleSeconds(battle, 0.05, Vector2.Zero, false);
+            Check(!bullet.IsAlive && emitter.Root.Members.Count == 0, "位于游戏区内仍可因离开指定区域而回收");
+            world.Free();
+        }
+
+        // 代码入口可直接使用接口实例，省略时明确取游戏区域。
+        var directBattle = CreateBattle(out var directWorld);
+        directBattle.Boss.Stop();
+        directBattle.Player.Attack.Stop();
+        var shape = new RectangleRegionShape(new Rect2(1100, 300, 200, 200));
+        var custom = directBattle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.PlayerSet) with
+        {
+            Position = new Vector2(1200, 400),
+            Speed = 0,
+            LifeTimeMs = 5000,
+            OutsideRegion = shape
+        })!;
+        Check(ReferenceEquals(custom.OutsideRegion, shape), "代码出生入口保留指定形状接口");
+        var fallback = StartSpawnFixture(directBattle, """
+            {"Core":{"Type":"VBullet","LifeTimeMs":5000},"Display":{},
+             "BaseAttributes":[{"Speed":0,"RefMoveQueue":[{"Type":"XYMove","X":1200,"Y":400}]}],
+             "Timeline":[{"StartMs":0}]}
+            """).Root.Members.Single() as VBullet;
+        Check(fallback!.OutsideTimeoutMs == 2000 && ReferenceEquals(fallback.OutsideRegion, BattleConfig.GameRegion),
+            "省略两个字段的Emitter在运行时使用游戏区域及2秒阈值");
+        VerificationClock.BattleSeconds(directBattle, 2, Vector2.Zero, false);
+        Check(!fallback.IsAlive && custom.IsAlive, "同一管理器内不同出界区域独立生效");
+        directWorld.Free();
+
+        // 字段格式保持严格，不接受反射专属字段或模式混用。
+        foreach (string invalid in new[]
+        {
+            "null", "[]", "{}",
+            """{"Type":"Circle","X":0,"Y":0,"Radius":0}""",
+            """{"Type":"Circle","X":0,"Y":0,"Radius":"1/0"}""",
+            """{"Type":"Circle","X":0,"Y":0,"Radius":100,"Width":10}""",
+            """{"Type":"Circle","X":0,"Y":0,"Radius":100,"AngleMin":0}""",
+            """{"Type":"Circle","X":0,"Y":0,"Radius":100,"X":1}""",
+            """{"Type":"Circle","X":null,"Y":0,"Radius":100}""",
+            """{"Type":"Rectangle","X":0,"Y":0,"Width":100}""",
+            """{"Type":"Rectangle","X":0,"Y":0,"Width":-1,"Height":100}""",
+            """{"Type":"Rectangle","X":0,"Y":0,"Width":100,"Height":100,"Edges":[]}""",
+            """{"Type":"Triangle","X":0,"Y":0}"""
+        })
+        {
+            string json = $$$"""
+                {"Core":{"Type":"VBullet","OutsideRegion":{{{invalid}}}},"Display":{},"BaseAttributes":[{}]}
+                """;
+            try { VNodeCreator.FromJson(json); Check(false, "非法出界区域必须加载失败"); }
+            catch (JsonException) { Check(true, "非法出界区域在加载阶段拒绝"); }
+        }
+
+        // 加载全部正式及示例数据，逐层确认现存普通弹幕已经继承2秒默认值。
+        int bullets = 0;
+        foreach (string file in System.IO.Directory.GetFiles(ProjectSettings.GlobalizePath("res://Data/Emitters"), "*.json",
+            System.IO.SearchOption.AllDirectories).OrderBy(path => path, StringComparer.Ordinal))
+        {
+            var emitter = VBulletEmitter.Load(file);
+            var pending = new System.Collections.Generic.Stack<VNodeCreator>();
+            pending.Push(emitter.Root);
+            while (pending.Count > 0)
+            {
+                var creator = pending.Pop();
+                if (creator is VBulletCreator bulletCreator)
+                {
+                    Check(bulletCreator.Core.OutsideTimeoutMs == 2000 && bulletCreator.Core.OutsideRegion is null,
+                        "现存Emitter普通弹幕默认使用游戏区域且连续出界2秒后消失：" + file);
+                    bullets++;
+                }
+                foreach (var child in creator.Children) pending.Push(child);
+            }
+        }
+        Check(bullets >= 7, "正式Emitter普通弹幕配置已遍历，防止空数据检查误通过");
     }
     /// <summary>验证JSON、代码入口默认值、字段隔离和重现性。</summary>
     private void VerifyRegionData()

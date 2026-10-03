@@ -1,0 +1,61 @@
+{
+  "Core": {
+    "Name": "十六夜咲夜 · 奇术「Eternal Meek」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "FastKnives",
+          "Amount": 7,
+          "LifeTimeMs": 3300,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AngleMode": "AimPlayer"
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 7
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.5235987755982988,
+            "Speed": 260
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.17453292519943295
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 230
+          }
+        ],
+        "RandDiffAttributes": {
+          "Member": {
+            "Angle": 0.15707963267948966,
+            "Speed": 120
+          }
+        }
+      }
+    ]
+  }
+}

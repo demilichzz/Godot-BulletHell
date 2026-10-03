@@ -1,0 +1,118 @@
+{
+  "Core": {
+    "Name": "蕾米莉亚 · 红魔「Scarlet Meister」",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "ScarletSpray",
+          "Amount": 25,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 0
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0.15707963267948966,
+            "Speed": 235
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.11780972450961724
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 2100
+          }
+        ],
+        "RandDiffAttributes": {
+          "Member": {
+            "Speed": 65
+          }
+        }
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "BloodPearls",
+          "Amount": 8,
+          "LifeTimeMs": 6500,
+          "Radius": 9,
+          "VisualScale": 4
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 2
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 100
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.7853981633974483
+        },
+        "Timeline": [
+          {
+            "StartMs": 1450,
+            "IntervalMs": 2100
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "RedLances",
+          "Amount": 3,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AngleMode": "AimPlayer"
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 0
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.15707963267948966,
+            "Speed": 300
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.15707963267948966
+        },
+        "Timeline": [
+          {
+            "StartMs": 2100,
+            "IntervalMs": 2100
+          }
+        ]
+      }
+    ]
+  }
+}

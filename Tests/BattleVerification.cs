@@ -37,7 +37,12 @@ public partial class BattleVerification : Node
         try
         {
             var userArgs = OS.GetCmdlineUserArgs();
-            if (userArgs.Contains("--targeted-regions"))
+            if (userArgs.Contains("--targeted-copy"))
+            {
+                VerifyCopies();
+                GD.Print($"PASS: {_checks} targeted copy assertions");
+            }
+            else if (userArgs.Contains("--targeted-regions"))
             {
                 VerifyRegions();
                 GD.Print($"PASS: {_checks} targeted region assertions");

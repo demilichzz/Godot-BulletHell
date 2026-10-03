@@ -81,6 +81,8 @@ public sealed class VPathCreator : VNodeCreator
         var evaluators = new Func<double, (double X, double Y)>[PathQueue.Count];
         var tables = new double[PathQueue.Count][];
         Vector2 reference = source;
+        // 同一条路径的全部瞄准段共享一次玩家快照；普通路径不访问玩家。
+        Vector2? playerSnapshot = null;
         for (int index = 0; index < PathQueue.Count; index++)
         {
             try
@@ -92,7 +94,15 @@ public sealed class VPathCreator : VNodeCreator
                     CheckEndpoint((start.X, start.Y), reference);
                     start = reference;
                 }
-                Vector2 end = ApplyMoveQueue(start, segment.EndMoveQueue);
+                Vector2 end;
+                if (segment.AimPlayerOffset is { } offset)
+                {
+                    playerSnapshot ??= GlobalEvent.GetPlayer().GlobalPosition;
+                    // 偏移相对玩家世界位置，不叠加父位置；先以双精度检查坐标范围。
+                    var target = VMath.ValidatePathPoint((playerSnapshot.Value.X + offset.X, playerSnapshot.Value.Y + offset.Y));
+                    end = new Vector2((float)target.X, (float)target.Y);
+                }
+                else end = ApplyMoveQueue(start, segment.EndMoveQueue);
                 var evaluate = CreateEvaluator(segment, reference, start, end, _functions[index]);
                 evaluators[index] = evaluate;
                 tables[index] = segment.PathMode == "XY"
@@ -149,7 +159,21 @@ public sealed class VPathCreator : VNodeCreator
     /// <returns>不包含运行端点的配置。</returns>
     private static VPathSegmentAttribute ReadSegment(JsonElement element)
     {
-        // 所有模式共用起终点队列，AxisMode仅允许用于Function。
+        // 瞄准简写独占Type/X/Y字段，避免与普通PathMode或端点队列产生两套含义。
+        if (element.TryGetProperty("Type", out _))
+        {
+            CheckFields(element, new[] { "Type", "X", "Y" });
+            if (Required(element, "Type").GetString() != "AimPlayer")
+                throw new JsonException("路径段Type只支持AimPlayer。");
+            var offset = VMath.ValidatePathPoint((
+                element.TryGetProperty("X", out _) ? Read<double>(Required(element, "X")) : 0,
+                element.TryGetProperty("Y", out _) ? Read<double>(Required(element, "Y")) : 0));
+            return new VPathSegmentAttribute
+            {
+                AimPlayerOffset = new VPathPointAttribute { X = offset.X, Y = offset.Y }
+            };
+        }
+        // 普通模式共用起终点队列，AxisMode仅允许用于Function。
         string mode = Required(element, "PathMode").GetString() ?? "";
         CheckFields(element, mode switch
         {

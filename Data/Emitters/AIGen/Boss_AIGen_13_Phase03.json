@@ -1,0 +1,99 @@
+{
+  "Core": {
+    "Name": "星屑散开暂停后追击",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "StarShards",
+          "Amount": 23,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 1
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.3141592653589793,
+            "Speed": 140
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.17135959928671599
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4300
+          }
+        ],
+        "MemberTimeline": [
+          {
+            "StartMs": 800,
+            "Set": {
+              "Speed": 0
+            }
+          },
+          {
+            "StartMs": 1700,
+            "Set": {
+              "AngleSource": "AimPlayer",
+              "Angle": 0,
+              "Speed": 205
+            }
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "OrbitDust",
+          "Amount": 20,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 7
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 80
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.3141592653589793
+        },
+        "Timeline": [
+          {
+            "StartMs": 2200,
+            "IntervalMs": 4300
+          }
+        ]
+      }
+    ]
+  }
+}

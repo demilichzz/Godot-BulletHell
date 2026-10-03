@@ -1,0 +1,100 @@
+{
+  "Core": {
+    "Name": "下落弹源在途中三次散花",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "FallingSeeds",
+          "Amount": 1,
+          "LifeTimeMs": 2250,
+          "CreatePositionMode": "Snapshot"
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 85,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -210,
+                "Y": -20
+              }
+            ]
+          },
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 85
+          },
+          {
+            "Angle": 1.5707963267948966,
+            "Speed": 85,
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 210,
+                "Y": -20
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 4000
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VBullet",
+              "Name": "RoadBlooms",
+              "Amount": 10,
+              "LifeTimeMs": 6500,
+              "Radius": 4,
+              "VisualScale": 2
+            },
+            "Display": {
+              "TextureName": "Dot",
+              "TextureIndex": 2
+            },
+            "BaseAttributes": [
+              {
+                "Angle": 1.5707963267948966,
+                "Speed": 100
+              }
+            ],
+            "AddAttributes": {
+              "Angle": 0.6283185307179586
+            },
+            "Timeline": [
+              {
+                "StartMs": 300,
+                "IntervalMs": 850
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

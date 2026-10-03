@@ -1,0 +1,223 @@
+{
+  "Core": {
+    "Name": "B03P02_Emitter01",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "ShieldRoot"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "ShieldCW",
+          "Amount": 24,
+          "LifeTimeMs": 6000,
+          "Radius": 3,
+          "VisualScale": 3
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 0
+        },
+        "BaseAttributes": [
+          {
+            "Angle": "PI/2+PI/16",
+            "Speed": 120,
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": "PI/2-PI/12",
+                "Dist": 150
+              }
+            ]
+          },
+          {
+            "Angle": "PI/2",
+            "Speed": 120,
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": "PI/2",
+                "Dist": 150
+              }
+            ]
+          },
+          {
+            "Angle": "PI/2-PI/16",
+            "Speed": 120,
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": "PI/2+PI/12",
+                "Dist": 150
+              }
+            ]
+          },
+          {
+            "Angle": "3*PI/2+PI/9",
+            "Speed": 150,
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": "3*PI/2-PI/24",
+                "Dist": 120
+              }
+            ]
+          },
+          {
+            "Angle": "3*PI/2",
+            "Speed": 150,
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": "3*PI/2",
+                "Dist": 120
+              }
+            ]
+          },
+          {
+            "Angle": "3*PI/2-PI/9",
+            "Speed": 150,
+            "RefMoveQueue": [
+              {
+                "Type": "PMove",
+                "Angle": "3*PI/2+PI/24",
+                "Dist": 120
+              }
+            ]
+          }
+        ],
+        "AddAttributes": {
+          "Angle": "TAU/24",
+          "SpawnDelayMs": 50,
+          "RefMoveQueue": [
+            {
+              "Type": "PMove",
+              "Angle": "TAU/24"
+            }
+          ]
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 6000
+          }
+        ]
+      },
+      {
+        "Core": {
+          "CopySource": "ShieldCW",
+          "Name": "CCW"
+        },
+        "AddAttributes": {
+          "Angle": "-TAU/24",
+          "RefMoveQueue": [
+            {
+              "Type": "PMove",
+              "Angle": "-TAU/24"
+            }
+          ]
+        }
+      },
+      {
+        "Core": {
+          "Type": "VNode",
+          "Name": "ShieldLaserOrigins",
+          "CreatePositionMode": "Snapshot",
+          "LifeTimeMs": 1700
+        },
+        "BaseAttributes": [
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": -180
+              }
+            ]
+          },
+          {
+            "RefMoveQueue": [
+              {
+                "Type": "XYMove",
+                "X": 180
+              }
+            ]
+          }
+        ],
+        "Timeline": [
+          {
+            "StartMs": 2500,
+            "IntervalMs": 3000
+          }
+        ],
+        "Children": [
+          {
+            "Core": {
+              "Type": "VLaser",
+              "Name": "ShieldAimLasers",
+              "AngleMode": "AimPlayer",
+              "Width": 8
+            },
+            "BaseAttributes": [
+              {}
+            ],
+            "Display": {
+              "BlendMode": "CoreAdd"
+            },
+            "Laser": {
+              "Mode": "Fixed",
+              "Length": 1100,
+              "HitWidth": 4,
+              "EndCap": "Point",
+              "Color": "#FF3048",
+              "CoreColor": "#FFF0E4",
+              "GlowColor": "#FF1830",
+              "WarningMs": 800,
+              "ExpandMs": 150,
+              "ActiveMs": 450,
+              "FadeMs": 250
+            },
+            "Timeline": [
+              {
+                "StartMs": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Core": { "Type": "VLaser", "Name": "ShieldMovingLasers", "Width": 8 },
+        "BaseAttributes": [{}],
+        "Display": { "BlendMode": "CoreAdd" },
+        "Laser": {
+          "Mode": "Path",
+          "Length": 180,
+          "TravelSpeed": 360,
+          "EndMs": 4000,
+          "PathPointCount": 2,
+          "HitWidth": 4,
+          "EndCap": "Point",
+          "Color": "#FF3048",
+          "CoreColor": "#FFF0E4",
+          "GlowColor": "#FF1830"
+        },
+        "PathQueue": [{ "Type": "AimPlayer", "X": 0, "Y": 0 }],
+        "Timeline": [{ "StartMs": 2500, "IntervalMs": 1500 }]
+      }
+    ]
+  }
+}

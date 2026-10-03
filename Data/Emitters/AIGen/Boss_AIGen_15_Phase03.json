@@ -1,0 +1,175 @@
+{
+  "Core": {
+    "Name": "缺口反射环与短促瞄准星",
+    "RefObject": "Boss",
+    "Team": "Enemy",
+    "Damage": 1,
+    "StopMode": "ClearBullets"
+  },
+  "VNodes": {
+    "Core": {
+      "Type": "VNode",
+      "Name": "Root"
+    },
+    "BaseAttributes": [
+      {}
+    ],
+    "Timeline": [
+      {
+        "StartMs": 0
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "BrokenReflectRing",
+          "Amount": 1,
+          "LifeTimeMs": 5800,
+          "Radius": 4,
+          "VisualScale": 2,
+          "Reflectable": true,
+          "ReflectionRegion": {
+            "Type": "Circle",
+            "X": 640,
+            "Y": 400,
+            "Radius": 390,
+            "AngleMin": 3.141592653589793,
+            "AngleMax": 6.283185307179586
+          }
+        },
+        "Display": {
+          "TextureName": "Dot",
+          "TextureIndex": 8
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -1.0471975511965976,
+            "Speed": 140
+          },
+          {
+            "Angle": -0.8227980759401838,
+            "Speed": 140
+          },
+          {
+            "Angle": -0.59839860068377,
+            "Speed": 140
+          },
+          {
+            "Angle": -0.37399912542735625,
+            "Speed": 140
+          },
+          {
+            "Angle": -0.14959965017094246,
+            "Speed": 140
+          },
+          {
+            "Angle": 0.07479982508547134,
+            "Speed": 140
+          },
+          {
+            "Angle": 0.29919930034188513,
+            "Speed": 140
+          },
+          {
+            "Angle": 0.5235987755982989,
+            "Speed": 140
+          },
+          {
+            "Angle": 0.7479982508547127,
+            "Speed": 140
+          },
+          {
+            "Angle": 0.9723977261111265,
+            "Speed": 140
+          },
+          {
+            "Angle": 1.1967972013675403,
+            "Speed": 140
+          },
+          {
+            "Angle": 1.4211966766239537,
+            "Speed": 140
+          },
+          {
+            "Angle": 1.645596151880368,
+            "Speed": 140
+          },
+          {
+            "Angle": 1.8699956271367821,
+            "Speed": 140
+          },
+          {
+            "Angle": 2.0943951023931957,
+            "Speed": 140
+          },
+          {
+            "Angle": 2.3187945776496086,
+            "Speed": 140
+          },
+          {
+            "Angle": 2.5431940529060233,
+            "Speed": 140
+          },
+          {
+            "Angle": 2.767593528162437,
+            "Speed": 140
+          },
+          {
+            "Angle": 2.991993003418851,
+            "Speed": 140
+          },
+          {
+            "Angle": 3.2163924786752647,
+            "Speed": 140
+          },
+          {
+            "Angle": 3.4407919539316785,
+            "Speed": 140
+          },
+          {
+            "Angle": 3.6651914291880923,
+            "Speed": 140
+          }
+        ],
+        "AddAttributes": {},
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 2900
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Type": "VBullet",
+          "Name": "BounceStars",
+          "Amount": 3,
+          "LifeTimeMs": 6500,
+          "Radius": 4,
+          "VisualScale": 2,
+          "AngleMode": "AimPlayer"
+        },
+        "Display": {
+          "TextureName": "Star",
+          "TextureIndex": 1
+        },
+        "BaseAttributes": [
+          {
+            "Angle": -0.1308996938995747,
+            "Speed": 240
+          }
+        ],
+        "AddAttributes": {
+          "Angle": 0.1308996938995747
+        },
+        "Timeline": [
+          {
+            "StartMs": 2100,
+            "IntervalMs": 1450
+          }
+        ]
+      }
+    ]
+  }
+}

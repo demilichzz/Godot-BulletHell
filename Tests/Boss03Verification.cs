@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-/// <summary>Boss03首阶段波次、三阶段切换及确定性的定向验证。</summary>
+/// <summary>Boss03两种符卡、三阶段切换及确定性的定向验证。</summary>
 public partial class BattleVerification
 {
     /// <summary>创建实际Boss03配置的隔离战斗并停止玩家自动射击。</summary>
@@ -51,10 +51,11 @@ public partial class BattleVerification
         Check(battle.Boss.TrySwitchAdjacentPhase(1) && battle.Boss.CurrentPhase is B03_Phase02
             && battle.Boss.Hp == 200 && battle.Bullets.ActiveCount == 0, "切入阶段2设置血线且清除上一阶段弹幕");
         VerificationClock.BattleSeconds(battle, 7, Vector2.Zero, false);
-        Check(battle.Bullets.ActiveCount == 0 && battle.Boss.CurrentPhase!.Emitters.Count == 0, "阶段2不残留未来发射且保持空阶段");
+        Check(battle.Bullets.ActiveCount > 0 && battle.Boss.CurrentPhase!.Emitters.Count == 1
+            && battle.Bullets.ActiveBullets.OfType<VLaser>().All(laser => laser.Settings.Color == "#FF3048"), "阶段2开始红色弹带与激光，不残留首阶段发射");
         Check(battle.Boss.TrySwitchAdjacentPhase(1) && battle.Boss.CurrentPhase is B03_Phase03
             && battle.Boss.Hp == 100 && !battle.Boss.TrySwitchAdjacentPhase(1), "阶段3为末阶段且初始血线100");
-        Check(battle.Boss.CurrentPhase!.Emitters.Count == 0, "阶段3保持空阶段");
+        Check(battle.Boss.CurrentPhase!.Emitters.Count == 0 && battle.Bullets.ActiveCount == 0, "阶段3保持空阶段并清除第二阶段弹幕");
         Check(battle.Boss.TrySwitchAdjacentPhase(-1) && battle.Boss.TrySwitchAdjacentPhase(-1)
             && battle.Boss.CurrentPhase is B03_Phase01 && battle.Boss.Hp == 300, "可回到阶段1并重建发射器");
         battle.Boss.TakeDamage(100);
@@ -69,6 +70,7 @@ public partial class BattleVerification
             "重开回到首阶段完整初态");
         world.Free();
         Check(CaptureBoss03(false).SequenceEqual(CaptureBoss03(true)), "相同完整初态、输入和种子逐步重现，额外渲染刷新不影响业务");
+        VerifyBoss03Shield();
     }
 
     /// <summary>运行三个波次并记录弹幕与玩家状态，覆盖随机角度、碰撞与换位。</summary>
