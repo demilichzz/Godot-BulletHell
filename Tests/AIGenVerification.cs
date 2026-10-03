@@ -65,7 +65,7 @@ public partial class AIGenVerification : Node
                 int index = number + 2;
                 var data = catalog.Entries[index];
                 string id = $"Boss_AIGen_{number:00}";
-                Check(data.Id == id && data.DisplayName == id && data.PhaseProfile == id, $"{id}名称和注册");
+                Check(data.Id == id && data.DisplayName == id && data.Phases.Count > 0, $"{id}名称和注册");
                 Check(data.Texture!.ResourcePath == $"res://Assets/Units/Boss_{4 + (number - 1) % 12:00}.png"
                     && data.Hframes == 2 && data.Vframes == 2 && data.AnimationFps == 4, $"{id}复用已有四帧图集");
                 var select = (BossSelectStage)game.CurrentStage!;
@@ -90,10 +90,10 @@ public partial class AIGenVerification : Node
                 battle.Restart();
                 battle.Player.Attack.Stop();
                 battle.Boss.TakeDamage(100);
-                Check(battle.Boss.Hp == 200 && battle.Boss.CurrentPhase!.GetType().Name == $"B{number + 3:00}_Phase02",
+                Check(battle.Boss.Hp == 200 && battle.Boss.PhaseIndex == 1,
                     $"{id}自然切入第二阶段");
                 battle.Boss.TakeDamage(100);
-                Check(battle.Boss.Hp == 100 && battle.Boss.CurrentPhase!.GetType().Name == $"B{number + 3:00}_Phase03",
+                Check(battle.Boss.Hp == 100 && battle.Boss.PhaseIndex == 2,
                     $"{id}自然切入第三阶段");
                 battle.Boss.TakeDamage(100);
                 battle.StepFixed(Vector2.Zero, false);

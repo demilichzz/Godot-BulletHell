@@ -1,0 +1,70 @@
+{
+  "Core": {
+    "Id": "Boss_AIGen_16",
+    "DisplayName": "Boss_AIGen_16",
+    "TexturePath": "res://Assets/Units/Boss_07.png",
+    "Hframes": 2,
+    "Vframes": 2,
+    "AnimationFps": 4,
+    "MaxHp": 300,
+    "CollisionRadius": 32,
+    "VisualScale": 3,
+    "SpawnPosition": {
+      "X": 640,
+      "Y": 250
+    }
+  },
+  "Phases": [
+    {
+      "Name": "螺线逐点展开再整体坠落",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_16_Phase01.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    },
+    {
+      "Name": "双波浪错拍下压",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_16_Phase02.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    },
+    {
+      "Name": "贝塞尔羽翼逐羽射出",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_16_Phase03.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    }
+  ]
+}
