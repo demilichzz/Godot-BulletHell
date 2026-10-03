@@ -96,7 +96,59 @@ public static class EditorSchema
     /// <summary>以中文（英文）显示JSON属性名，不改变实际字段键。</summary>
     /// <param name="name">精确JSON字段名。</param>
     /// <returns>用于标签、分组和添加菜单的双语名称。</returns>
-    public static string DisplayName(string name) => $"{ChineseNames.GetValueOrDefault(name, "未识别属性")}（{name}）";
+    public static string DisplayName(string name) => $"{ChineseNames.GetValueOrDefault(name, "未识别属性")}{(QueueNames.Contains(name) ? "(队列)" : "")}（{name}）";
+    // JSON数组字段统一标明队列，元素标题不沿用组名后缀。
+    private static readonly HashSet<string> QueueNames = new() { "BaseAttributes", "Timeline", "MemberTimeline", "Children", "PathQueue", "RefMoveQueue", "StartMoveQueue", "EndMoveQueue", "ControlPoints", "AtMs", "Edges" };
+
+    /// <summary>返回队列项的中文标题。</summary>
+    /// <param name="name">队列JSON字段名。</param>
+    /// <param name="index">零基下标。</param>
+    /// <returns>无队列后缀的项目名称。</returns>
+    public static string ItemName(string name, int index) => $"{(name == "BaseAttributes" ? "基础项" : name is "Timeline" or "MemberTimeline" ? "时间项" : ChineseNames.GetValueOrDefault(name, "项目"))} [{index}]";
+
+    /// <summary>返回协议限定的字符串选项，自由名称、颜色和表达式返回空列表。</summary>
+    /// <param name="name">字段名。</param>
+    /// <param name="type">标量声明类型。</param>
+    /// <param name="path">用于区分各类Type的JSON路径。</param>
+    /// <param name="creatorType">生成器类型。</param>
+    /// <returns>JSON原始字符串取值；null表示显式空值。</returns>
+    public static string[] Choices(string name, Type type, string path, string creatorType)
+    {
+        // 枚举声明直接复用类型，字符串白名单与加载器一致。
+        if (type.IsEnum) return Enum.GetNames(type);
+        return name switch
+        {
+            "RefObject" => new[] { "Boss", "null" },
+            "StopMode" => new[] { "KeepBullets", "ClearBullets" },
+            "CreatePositionMode" => new[] { "null", "Follow", "Snapshot" },
+            "AngleMode" or "AngleSource" => new[] { "Fixed", "AimPlayer" },
+            "BlendMode" => creatorType == "VLaser" ? new[] { "Mix", "Add", "CoreAdd" } : new[] { "Mix", "Add" },
+            "TextureName" => new[] { "Scale", "Dot", "Drop", "Star" },
+            "Mode" => new[] { "Fixed", "Path" },
+            "EndCap" => new[] { "Round", "Point" },
+            "PathMode" => new[] { "XY", "Bezier", "Function" },
+            "AxisMode" => new[] { "Absolute", "Relative" },
+            "Edges" => new[] { "Left", "Right", "Top", "Bottom" },
+            "Type" when path.Contains("/ReflectionRegion/") || path.Contains("/OutsideRegion/") => new[] { "Circle", "Rectangle" },
+            "Type" when path.Contains("MoveQueue/") => new[] { "XYMove", "PMove", "TarMove" },
+            "Type" when path.Contains("/PathQueue/") => new[] { "AimPlayer" },
+            "Type" => new[] { "VNode", "VBullet", "VPath", "VLaser" },
+            _ => Array.Empty<string>()
+        };
+    }
+
+    /// <summary>按协议目录顺序插入属性，未知字段保留在末尾；不调整数组成员顺序。</summary>
+    /// <param name="obj">要修改的JSON对象。</param>
+    /// <param name="fields">协议字段声明顺序。</param>
+    /// <param name="field">新字段。</param>
+    public static void InsertField(JsonObject obj, List<Field> fields, Field field)
+    {
+        obj[field.Name] = field.Default?.DeepClone();
+        // 暂存原节点，清空后按协议顺序重新挂接，不改写值或表达式。
+        var entries = obj.ToArray(); obj.Clear();
+        foreach (var entry in entries.OrderBy(pair => { int index = fields.FindIndex(item => item.Name == pair.Key); return index < 0 ? int.MaxValue : index; }))
+            obj.Add(entry.Key, entry.Value);
+    }
     // 属性说明来自当前源码summary的资源快照，运行时无需读取C#源码。
     private static readonly Dictionary<string, string> Descriptions = JsonSerializer.Deserialize<Dictionary<string, string>>(
         Godot.FileAccess.GetFileAsString("res://EmitterEditor/FieldDescriptions.json")) ?? new();
@@ -145,6 +197,7 @@ public static class EditorSchema
         var instance = Activator.CreateInstance(type);
         // 剔除运行字段后的可编辑属性列表。
         var result = type.GetProperties().Where(property => property.GetCustomAttribute<JsonIgnoreAttribute>() is null && property.CanWrite)
+            .OrderBy(property => InheritanceDepth(property.DeclaringType!)).ThenBy(property => property.MetadataToken)
             .Select(property => new Field(property.Name, property.PropertyType, Default(property, instance),
                 Descriptions.GetValueOrDefault(property.DeclaringType!.Name + "." + property.Name, property.Name))).ToList();
         if (typeof(VNodeCoreAttribute).IsAssignableFrom(type))
@@ -169,6 +222,10 @@ public static class EditorSchema
         }
         return result;
     }
+    /// <summary>使基础类型字段先于派生类型字段，保持源码声明顺序。</summary>
+    /// <param name="type">属性所属声明类型。</param>
+    /// <returns>继承层级。</returns>
+    private static int InheritanceDepth(Type type) => type.BaseType is null ? 0 : 1 + InheritanceDepth(type.BaseType);
     /// <summary>取得Creator专用Core属性类型。</summary>
     /// <param name="type">VNode、VBullet、VPath或VLaser。</param>
     /// <returns>对应运行属性类型。</returns>
