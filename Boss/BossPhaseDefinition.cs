@@ -23,7 +23,8 @@ public sealed record BossPhaseDefinition
     /// <summary>读取并检查阶段；验证发射器不启动战斗或消耗随机。</summary>
     /// <param name="element">完整阶段JSON对象。</param>
     /// <returns>带独立移动JSON和只读路径队列的定义。</returns>
-    internal static BossPhaseDefinition Read(JsonElement element)
+    /// <param name="loadEmitter">可选预览加载入口，不共享有状态Emitter。</param>
+    internal static BossPhaseDefinition Read(JsonElement element, Func<string, VBulletEmitter>? loadEmitter = null)
     {
         // 序列化器拒绝未知字段，公共解析入口拒绝重复字段。
         var value = JsonData.Read<BossPhaseDefinition>(element);
@@ -38,7 +39,7 @@ public sealed record BossPhaseDefinition
             if (string.IsNullOrWhiteSpace(path) || !path.StartsWith("res://", StringComparison.Ordinal)
                 || !path.EndsWith(".json", StringComparison.Ordinal))
                 throw new JsonException("Emitter必须引用res://下的独立JSON文件。");
-            VBulletEmitter.Load(path);
+            (loadEmitter ?? VBulletEmitter.Load)(path);
         }
         BossMovement.Read(value.Movement);
         return value with

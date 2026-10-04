@@ -11,16 +11,20 @@ public partial class BossData
     public IReadOnlyList<BossPhaseDefinition> Phases { get; private set; } = Array.Empty<BossPhaseDefinition>();
     /// <summary>阶段数由队列长度决定，避免重复保存不一致的数量。</summary>
     public int PhaseCount => Phases.Count;
+    /// <summary>本份数据创建独立Emitter的入口；编辑预览可绑定冻结的内存文本。</summary>
+    internal Func<string, VBulletEmitter> EmitterLoader { get; private set; } = VBulletEmitter.Load;
     /// <summary>解析完整Boss JSON，严格拒绝未知、重复及旧字段。</summary>
     /// <param name="json">含Core和非空Phases队列的JSON。</param>
     /// <param name="sourceName">用于错误定位的来源名称。</param>
     /// <returns>独立静态数据；加载不推进战斗或消耗随机。</returns>
-    public static BossData FromJson(string json, string sourceName = "内存Boss")
-        => JsonData.Parse(json, sourceName, Read);
+    /// <param name="loadEmitter">可选预览资源入口；每次返回全新的运行树。</param>
+    public static BossData FromJson(string json, string sourceName = "内存Boss", Func<string, VBulletEmitter>? loadEmitter = null)
+        => JsonData.Parse(json, sourceName, element => Read(element, loadEmitter));
     /// <summary>读取目录内的Boss对象，供目录和内存预览共用。</summary>
     /// <param name="element">包含Core与非空Phases的对象。</param>
     /// <returns>独立的Boss静态配置。</returns>
-    internal static BossData Read(JsonElement element)
+    /// <param name="loadEmitter">可选Emitter创建入口。</param>
+    internal static BossData Read(JsonElement element, Func<string, VBulletEmitter>? loadEmitter = null)
     {
         JsonData.CheckFields(element, new[] { "Core", "Phases" });
         // Core只保存显示、碰撞、出生和总血量。
@@ -31,7 +35,7 @@ public partial class BossData
         var phases = new List<BossPhaseDefinition>();
         foreach (var phase in queue.EnumerateArray())
         {
-            try { phases.Add(BossPhaseDefinition.Read(phase)); }
+            try { phases.Add(BossPhaseDefinition.Read(phase, loadEmitter)); }
             catch (Exception error) when (error is JsonException or ArgumentException or System.IO.IOException)
             { throw new JsonException($"Phases[{phases.Count}]: {error.Message}", error); }
         }
@@ -45,7 +49,7 @@ public partial class BossData
             Hframes = core.Hframes, Vframes = core.Vframes, AnimationFps = core.AnimationFps,
             MaxHp = core.MaxHp, CollisionRadius = core.CollisionRadius, VisualScale = core.VisualScale,
             SpawnPosition = BossMovement.ReadPoint(JsonData.Required(JsonData.Required(element, "Core"), "SpawnPosition")),
-            Phases = phases.AsReadOnly(), PhaseProfile = ""
+            Phases = phases.AsReadOnly(), PhaseProfile = "", EmitterLoader = loadEmitter ?? VBulletEmitter.Load
         };
         data.Validate();
         return data;

@@ -199,12 +199,14 @@ public partial class EditorVerification : Node
             if (OS.GetCmdlineUserArgs().Contains("--targeted-boss"))
             {
                 await VerifyBossEditor();
+                await VerifyCatalogWorkspace();
                 GetTree().Quit();
                 return;
             }
             VerifyDocuments();
             // 实际实例化的编辑器场景。
-            var editor = GD.Load<PackedScene>("res://EmitterEditor/EmitterEditor.tscn").Instantiate<EmitterEditor>(); AddChild(editor);
+            var editor = GD.Load<PackedScene>("res://EmitterEditor/EmitterEditor.tscn").Instantiate<EmitterEditor>();
+            editor.StartInCatalog = false; AddChild(editor);
             await Settle();
             Check(editor.Canvas.Markers.Count == 1, "默认根基础项图标");
             // 实际画布输入经过命中检测和选择回调。

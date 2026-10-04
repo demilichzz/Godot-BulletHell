@@ -46,23 +46,29 @@ public partial class EditorVerification
         var document = new EmitterDocument(true);
         Check(document.ValidateBoss().PhaseCount == 1, "新Boss模板可运行");
         // 所有真实Boss原文往返，不展开或改写引用的Emitter。
-        foreach (string file in Directory.GetFiles(ProjectSettings.GlobalizePath("res://Data/Bosses"), "B*.json"))
+        string catalogPath = ProjectSettings.GlobalizePath(BossCatalog.DefaultPath);
+        document.Open(catalogPath);
+        Check(JsonNode.DeepEquals(document.Root, JsonNode.Parse(File.ReadAllText(catalogPath))), "目录原文无损读取");
+        Check(document.Root["Bosses"]!.AsArray().Count == 23, "正式目录覆盖23个Boss");
+        int phaseCount = 0;
+        for (int index = 0; index < 23; index++)
         {
-            document.Open(file);
-            Check(JsonNode.DeepEquals(document.Root, JsonNode.Parse(File.ReadAllText(file))), "Boss原文无损读取");
-            document.ValidateBoss();
+            phaseCount += document.ValidateBoss(index).PhaseCount;
         }
+        Check(phaseCount == 67, "正式目录覆盖67个阶段");
         string savedPath = ProjectSettings.GlobalizePath("res://.tools/B99.json"); _temporary.Add(savedPath);
         document.Save(savedPath);
-        Check(!document.Dirty && BossData.FromJson(File.ReadAllText(savedPath)).PhaseCount == document.ValidateBoss().PhaseCount, "保存Boss由正式加载器读取");
+        Check(!document.Dirty && BossCatalog.FromJson(File.ReadAllText(savedPath)).Entries.Count == 23, "保存目录由正式加载器读取");
         string saved = File.ReadAllText(savedPath);
-        document.Edit(root => root["Phases"]![0]!["Hp"] = -1);
+        document.Edit(root => root["Bosses"]![0]!["Phases"]![0]!["Hp"] = -1);
         Reject(() => document.Save(savedPath), "无效Boss不能覆盖文件");
         Check(File.ReadAllText(savedPath) == saved, "失败保存保留原文件");
         document.Undo();
-        Reject(() => document.Save(ProjectSettings.GlobalizePath("res://.tools/boss.json")), "强制Bxx命名");
+        string arbitraryPath = ProjectSettings.GlobalizePath("res://.tools/editor-catalog.json"); _temporary.Add(arbitraryPath);
+        document.Save(arbitraryPath);
+        Check(File.Exists(arbitraryPath), "目录文件名不依赖Boss编号");
         // 真实编辑器节点提供完整模式栏和工作区。
-        var editor = new EmitterEditor(); AddChild(editor); editor.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var editor = new EmitterEditor { StartInCatalog = false }; AddChild(editor); editor.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         await Settle();
         string emitterText = editor.Document.Text;
         var emitterCode = Descendants<CodeEdit>(editor).Single();
@@ -72,10 +78,11 @@ public partial class EditorVerification
         await Settle();
         var panel = editor.BossPanel!;
         Check(editor.IsBossMode && panel.IsVisibleInTree() && !editor.Canvas.IsVisibleInTree(), "整体切到Boss工作区");
+        panel.Document.New();
         panel.SelectPhase(0);
         SetBossField(panel, "/Phases/0/Name", "测试阶段甲"); await Settle();
         SetBossField(panel, "/Phases/0/Hp", "120"); await Settle();
-        Check(panel.Document.Root["Core"]!["MaxHp"]!.GetValue<int>() == 120, "阶段血量同步Boss总血量：" + panel.Document.Text + "；" + string.Join(" | ", Descendants<Label>(panel).Select(label => label.Text)));
+        Check(panel.SelectedBossRoot["Core"]!["MaxHp"]!.GetValue<int>() == 120, "阶段血量同步Boss总血量：" + panel.SelectedBossRoot + "；" + string.Join(" | ", Descendants<Label>(panel).Select(label => label.Text)));
         SetBossField(panel, "/Phases/0/Hp", "invalid"); await Settle();
         Reject(() => panel.Document.ValidateBoss(), "非法血量保留为待修复文档而非静默忽略");
         PressBoss(panel, "撤销"); await Settle();
@@ -94,9 +101,9 @@ public partial class EditorVerification
         Check(panel.Document.ValidateBoss().PhaseCount == 2 && panel.SelectedPhase == 1, "复制阶段深拷贝且同步总HP");
         SetBossField(panel, "/Phases/1/Name", "测试阶段乙"); await Settle();
         PressBoss(panel, "↑"); await Settle();
-        Check(panel.SelectedPhase == 0 && panel.Document.Root["Phases"]![0]!["Name"]!.GetValue<string>() == "测试阶段乙", "阶段队列稳定排序");
+        Check(panel.SelectedPhase == 0 && panel.SelectedBossRoot["Phases"]![0]!["Name"]!.GetValue<string>() == "测试阶段乙", "阶段队列稳定排序");
         PressBoss(panel, "删除"); await Settle();
-        Check(panel.Document.ValidateBoss().PhaseCount == 1 && panel.Document.Root["Phases"]![0]!["Name"]!.GetValue<string>() == "测试阶段甲", "删除阶段保留另一独立副本");
+        Check(panel.Document.ValidateBoss().PhaseCount == 1 && panel.SelectedBossRoot["Phases"]![0]!["Name"]!.GetValue<string>() == "测试阶段甲", "删除阶段保留另一独立副本");
         PressBoss(panel, "撤销"); await Settle(); Check(panel.Document.ValidateBoss().PhaseCount == 2, "撤销恢复阶段");
         PressBoss(panel, "重做"); await Settle(); Check(panel.Document.ValidateBoss().PhaseCount == 1, "重做删除");
         PressBoss(panel, "+ 添加阶段"); await Settle();
@@ -127,17 +134,17 @@ public partial class EditorVerification
         PressBoss(panel, "应用 JSON 草稿"); await Settle();
         // 保存按钮回调及文件名规则。
         string uiPath = ProjectSettings.GlobalizePath("res://.tools/B98.json"); _temporary.Add(uiPath);
-        PressBoss(panel, "保存Boss");
+        PressBoss(panel, "保存目录");
         var saveDialog = Descendants<FileDialog>(panel).Single(dialog => dialog.FileMode == FileDialog.FileModeEnum.SaveFile);
-        Check(saveDialog.Visible, "保存Boss打开Bxx文件窗口");
+        Check(saveDialog.Visible, "保存目录打开文件窗口");
         saveDialog.EmitSignal(FileDialog.SignalName.FileSelected, uiPath); saveDialog.Hide(); await Settle();
         Check(File.Exists(uiPath) && !panel.Document.Dirty && File.ReadAllText(ProjectSettings.GlobalizePath(emitterPath)) == emitterBefore, "保存Boss不写Emitter引用文件");
-        panel.Open(uiPath); await Settle();
+        panel.Open(uiPath); panel.SelectBoss(0); await Settle();
         Check(panel.Document.ValidateBoss().PhaseCount == 2, "重开已保存Boss");
         // 通过正式战斗预览验证时间切换、末阶段胜利及模式停止清理。
         panel.Document.Edit(root =>
         {
-            foreach (var phase in root["Phases"]!.AsArray()) { phase!["EndCondition"] = "Time"; phase["DurationMs"] = 100; }
+            foreach (var phase in root["Bosses"]![0]!["Phases"]!.AsArray()) { phase!["EndCondition"] = "Time"; phase["DurationMs"] = 100; }
         }); panel.Refresh();
         for (int frame = 0; frame < 6; frame++) PressBoss(panel, "单步 1/60s");
         Check(panel.Preview.Boss!.PhaseIndex == 1 && panel.Preview.Boss.PhaseHp == 100, "Boss预览按正式100ms边界切阶段");
@@ -146,11 +153,8 @@ public partial class EditorVerification
         editor.SwitchMode(false);
         Check(panel.Preview.Boss is null, "切模式取消Boss时间线与战斗");
         Reject(() => GlobalEvent.GetBoss(), "切换后无旧Boss全局绑定");
-        // 当前阶段仍验证单Boss面板；测试夹具从正式目录提取，不保留旧生产文件。
-        string previewPath = ProjectSettings.GlobalizePath("res://.tools/B03.json"); _temporary.Add(previewPath);
-        var previewBoss = JsonNode.Parse(JsonData.ReadFile(BossCatalog.DefaultPath))!["Bosses"]![2]!;
-        File.WriteAllText(previewPath, previewBoss.ToJsonString());
-        editor.SwitchMode(true); panel.Open(previewPath); panel.SelectPhase(0); await Settle();
+        // 直接从正式目录选择第三个Boss，不再提取旧式单Boss文件。
+        editor.SwitchMode(true); panel.Open(BossCatalog.DefaultPath); panel.SelectBoss(2, 0); await Settle();
         // 布局尺寸验证在无显示设备环境也执行。
         Check(panel.Canvas.Size.X >= 400 && panel.Canvas.Size.Y >= 360, "Boss画布具有可用尺寸");
         if (OS.GetCmdlineUserArgs().Contains("--capture"))

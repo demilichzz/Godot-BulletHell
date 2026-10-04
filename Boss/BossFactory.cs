@@ -56,7 +56,7 @@ public static class BossFactory
         // 构造前获取阶段列表，让阶段工厂失败时不产生孤立节点。
         var phases = new List<BossPhase>();
         if (data.Phases.Count == 0) phases.AddRange(Profiles[data.PhaseProfile]());
-        else for (int index = 0; index < data.Phases.Count; index++) phases.Add(new DataBossPhase(data.Phases[index], index));
+        else for (int index = 0; index < data.Phases.Count; index++) phases.Add(new DataBossPhase(data.Phases[index], index, data.EmitterLoader));
         if (phases.Count == 0 || phases.Exists(phase => phase is null)) throw new ArgumentException("阶段组合不可为空。");
         var boss = new BossController { Name = "Boss", Position = data.SpawnPosition };
         boss.Configure(data);

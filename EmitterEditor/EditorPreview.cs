@@ -45,10 +45,11 @@ public partial class EditorPreview : Node2D
     }
     /// <summary>以完整Boss数据创建正式战斗预览，停止玩家自动攻击以便检查阶段。</summary>
     /// <param name="json">当前Boss JSON快照。</param>
-    public void StartBoss(string json)
+    /// <param name="loadEmitter">可选冻结的编辑会话资源入口。</param>
+    public void StartBoss(string json, Func<string, VBulletEmitter>? loadEmitter = null)
     {
         // 先校验，再替换旧场景；运行实例完全重新建立。
-        var data = BossData.FromJson(json, "Boss预览");
+        var data = BossData.FromJson(json, "Boss预览", loadEmitter);
         Stop();
         try
         {

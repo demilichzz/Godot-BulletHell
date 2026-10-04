@@ -9,7 +9,13 @@ using System.Text.Json.Nodes;
 public partial class EmitterEditor : Control
 {
     /// <summary>当前编辑文档，预览只读取其快照。</summary>
-    public EmitterDocument Document { get; } = new();
+    public EmitterDocument Document { get; private set; } = new();
+    /// <summary>嵌入目录工作区时复用编辑内容，不创建第二套模式栏与窗口设置。</summary>
+    public bool Embedded { get; init; }
+    /// <summary>独立场景默认进入Boss目录；专项Emitter测试可关闭。</summary>
+    public bool StartInCatalog { get; set; } = true;
+    /// <summary>文档或Creator选择变化，通知外部统一树刷新。</summary>
+    public event Action? WorkspaceChanged;
     /// <summary>基础布局及动态图像画布。</summary>
     public EditorCanvas Canvas { get; } = new();
     /// <summary>只属于编辑器进程的预览环境。</summary>
@@ -35,11 +41,14 @@ public partial class EmitterEditor : Control
     /// <summary>搭建独立工具界面并加载可选命令行文件。</summary>
     public override void _Ready()
     {
-        GetTree().AutoAcceptQuit = false;
+        if (!Embedded) GetTree().AutoAcceptQuit = false;
         Engine.PhysicsTicksPerSecond = 60;
-        GetWindow().Title = "弹幕编辑器 · BulletHell";
-        GetWindow().MinSize = new Vector2I(1200, 760);
-        GetWindow().Size = new Vector2I(1600, 950);
+        if (!Embedded)
+        {
+            GetWindow().Title = "弹幕编辑器 · BulletHell";
+            GetWindow().MinSize = new Vector2I(1200, 760);
+            GetWindow().Size = new Vector2I(1600, 950);
+        }
         // 深色编辑工作区，字号不随预览分辨率缩放。
         var theme = new Theme { DefaultFontSize = 15 };
         Theme = theme;
@@ -53,16 +62,19 @@ public partial class EmitterEditor : Control
         AddChild(margin);
         // 从标题到状态栏的主纵向布局。
         // 模式栏始终可见，两个主体占据同一工作区。
-        var modes = new VBoxContainer(); margin.AddChild(modes); SetupModes(modes);
+        var modes = new VBoxContainer(); margin.AddChild(modes); if (!Embedded) SetupModes(modes);
         var layout = new VBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
         layout.AddThemeConstantOverride("separation", 10); _emitterBody = layout; modes.AddChild(layout);
         _title.AddThemeFontSizeOverride("font_size", 21); layout.AddChild(_title);
         // 文件操作与历史控制工具栏。
         var files = new HBoxContainer(); layout.AddChild(files);
-        AddButton(files, "新建", () => DiscardThen(() => { Document.New(); _selection = "/VNodes"; Refresh(); }));
-        AddButton(files, "打开…", () => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640))));
+        if (!Embedded)
+        {
+            AddButton(files, "新建", () => DiscardThen(() => { Document.New(); _selection = "/VNodes"; Refresh(); }));
+            AddButton(files, "打开…", () => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640))));
+        }
         AddButton(files, "保存", () => Save(false)).TooltipText = "保存（Ctrl+S）";
-        AddButton(files, "另存为…", () => Save(true)).TooltipText = "另存为（Ctrl+Shift+S）";
+        if (!Embedded) AddButton(files, "另存为…", () => Save(true)).TooltipText = "另存为（Ctrl+Shift+S）";
         _undoButton = AddButton(files, "撤销", () => ChangeHistory(false));
         _redoButton = AddButton(files, "重做", () => ChangeHistory(true));
         AddButton(files, "校验", () => { RequireAppliedDraft(); Document.Validate(); SetStatus("校验通过；尚未运行的几何约束将在预览生成时检查。", false); });
@@ -102,6 +114,13 @@ public partial class EmitterEditor : Control
         var nodeRow = new HBoxContainer(); hierarchy.AddChild(nodeRow);
         AddButton(nodeRow, "复制", DuplicateCreator); AddButton(nodeRow, "删除", DeleteCreator);
         AddButton(nodeRow, "↑", () => MoveCreator(-1)); AddButton(nodeRow, "↓", () => MoveCreator(1));
+        if (Embedded)
+        {
+            // 目录树负责导航；操作控件搬到横向工具栏，隐藏内部树避免两个左栏。
+            var tools = new HBoxContainer(); layout.AddChild(tools); layout.MoveChild(tools, workspace.GetIndex());
+            visibility.Reparent(tools); moveChildren.Reparent(tools); addRow.Reparent(tools); nodeRow.Reparent(tools);
+            hierarchy.Reparent(layout); hierarchy.Hide();
+        }
         // 场地画布和属性面板的分栏容器。
         var content = new HSplitContainer { SplitOffsets = new[] { 730 } }; workspace.AddChild(content);
         // 中央画布及场地说明的纵向容器。
@@ -118,20 +137,22 @@ public partial class EmitterEditor : Control
         source.AddChild(new Label { Text = "完整原文 · 应用后同步图形界面\n小数字段支持PI/TAU表达式；毫秒与数量使用整数。" });
         _json.SizeFlagsVertical = SizeFlags.ExpandFill; _json.CustomMinimumSize = new Vector2(400, 0);
         _json.GuttersDrawLineNumbers = true; _json.SyntaxHighlighter = new CodeHighlighter(); source.AddChild(_json);
-        _json.TextChanged += () => { if (!_refreshing) { _jsonDirty = _json.Text != _jsonBaseline; UpdateTitle(); } };
+        _json.TextChanged += () => { if (!_refreshing) { _jsonDirty = _json.Text != _jsonBaseline; Document.Draft = _jsonDirty ? _json.Text : null; UpdateTitle(); WorkspaceChanged?.Invoke(); } };
         AddButton(source, "应用 JSON 草稿", () => { Document.ApplyText(_json.Text); _jsonDirty = false; Refresh(); });
-        AddButton(source, "放弃 JSON 草稿", () => DiscardThen(() => { _jsonDirty = false; SyncJson(); UpdateTitle(); }));
+        AddButton(source, "放弃 JSON 草稿", () => DiscardThen(() => { Document.Draft = null; _jsonDirty = false; SyncJson(); UpdateTitle(); }));
         _status.AutowrapMode = TextServer.AutowrapMode.WordSmart; _status.CustomMinimumSize = new Vector2(0, 45); layout.AddChild(_status);
         _viewport.Size = new Vector2I(640, 400); _viewport.Size2DOverride = new Vector2I(1280, 800); _viewport.Size2DOverrideStretch = true;
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled; _viewport.Disable3D = true;
         AddChild(_viewport); _viewport.AddChild(Preview);
         SetupDialogs(); Refresh();
+        if (Embedded) return;
         // 可直接用Godot场景启动，再通过参数指定Emitter文件。
         string? argument = OS.GetCmdlineUserArgs().FirstOrDefault(value => value.StartsWith("--emitter="));
         if (argument is not null) Guard(() => { Document.Open(ProjectSettings.GlobalizePath(argument[10..])); Refresh(); });
         // Boss文件可直接进入对应模式，不影响普通编辑器启动。
         string? bossArgument = OS.GetCmdlineUserArgs().FirstOrDefault(value => value.StartsWith("--boss="));
         if (bossArgument is not null) Guard(() => { SwitchMode(true); BossPanel!.Open(bossArgument[7..]); });
+        else if (argument is null && StartInCatalog) SwitchMode(true);
     }
     /// <summary>创建文件对话框和丢弃修改确认。</summary>
     private void SetupDialogs()
@@ -184,6 +205,8 @@ public partial class EmitterEditor : Control
         StopPreview(); _refreshing = true;
         try { SyncJson(); RebuildTree(); BuildInspector(); ValidateLayout(); UpdateTitle(); }
         finally { _refreshing = false; }
+        Document.Selection = _selection;
+        WorkspaceChanged?.Invoke();
     }
     /// <summary>校验当前数据并刷新基础图标，错误明确显示。</summary>
     private void ValidateLayout()
@@ -196,7 +219,9 @@ public partial class EmitterEditor : Control
     {
         // 设置控件文本会触发TextChanged，暂时屏蔽草稿标记。
         bool previous = _refreshing; _refreshing = true;
-        _json.Text = Document.Text; _jsonBaseline = _json.Text; _jsonDirty = false; _refreshing = previous;
+        // CodeEdit统一使用LF，保存文件仍沿用文档序列化格式。
+        _jsonBaseline = Document.Text.ReplaceLineEndings("\n"); _json.Text = Document.Draft ?? _jsonBaseline;
+        _jsonDirty = Document.Draft is not null; _refreshing = previous;
     }
     /// <summary>更新文件名和未保存状态。</summary>
     private void UpdateTitle()
@@ -263,6 +288,7 @@ public partial class EmitterEditor : Control
         _selection = _tree.GetSelected()?.GetMetadata(0).AsString() ?? "";
         _tabs.CurrentTab = 0;
         Canvas.SelectedPath = _selection; Canvas.SelectedBasis = 0; Canvas.QueueRedraw(); BuildInspector();
+        Document.Selection = _selection; WorkspaceChanged?.Invoke();
     }
     /// <summary>画布选择定位Creator和基础项；继承子树定位到复制声明。</summary>
     /// <param name="marker">点击的基础位置图标。</param>
@@ -302,9 +328,9 @@ public partial class EmitterEditor : Control
         return (Document.At(_selection[..split])!.AsArray(), int.Parse(_selection[(split + 1)..]));
     }
     /// <summary>删除选中子树，可撤销。</summary>
-    private void DeleteCreator() { RequireAppliedDraft(); Document.Edit(_ => { var (parent, index) = SelectedChild(); parent.RemoveAt(index); }); _selection = _selection[.._selection.LastIndexOf("/Children/", StringComparison.Ordinal)]; Refresh(); }
+    internal void DeleteCreator() { RequireAppliedDraft(); Document.Edit(_ => { var (parent, index) = SelectedChild(); parent.RemoveAt(index); }); _selection = _selection[.._selection.LastIndexOf("/Children/", StringComparison.Ordinal)]; Refresh(); }
     /// <summary>复制子树并移除普通名称，复制声明使用独立后缀。</summary>
-    private void DuplicateCreator()
+    internal void DuplicateCreator()
     {
         RequireAppliedDraft();
         Document.Edit(_ =>
@@ -354,7 +380,7 @@ public partial class EmitterEditor : Control
     }
     /// <summary>调整同级Creator顺序，CopySource约束由加载器重新校验。</summary>
     /// <param name="direction">-1上移，1下移。</param>
-    private void MoveCreator(int direction)
+    internal void MoveCreator(int direction)
     {
         RequireAppliedDraft();
         Document.Edit(_ =>
@@ -404,9 +430,9 @@ public partial class EmitterEditor : Control
     /// <param name="input">键盘输入。</param>
     public override void _UnhandledKeyInput(InputEvent input)
     {
-        if (IsBossMode || input is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true } key) return;
-        if (key.Keycode == Key.S) { Guard(() => Save(key.ShiftPressed)); AcceptEvent(); }
-        if (key.Keycode == Key.O) { Guard(() => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640)))); AcceptEvent(); }
+        if (IsBossMode || !IsVisibleInTree() || input is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true } key) return;
+        if (key.Keycode == Key.S) { Guard(() => Save(!Embedded && key.ShiftPressed)); AcceptEvent(); }
+        if (!Embedded && key.Keycode == Key.O) { Guard(() => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640)))); AcceptEvent(); }
         if (key.Keycode == Key.F && _tabs.CurrentTab == 0) { _propertySearch.GrabFocus(); _propertySearch.SelectAll(); AcceptEvent(); }
         // 文本输入保留控件自身的撤销记录，不回退整份文档。
         if (GetViewport().GuiGetFocusOwner() is LineEdit or TextEdit) return;
@@ -419,6 +445,6 @@ public partial class EmitterEditor : Control
     /// <param name="what">Godot生命周期通知。</param>
     public override void _Notification(int what)
     {
-        if (what == NotificationWMCloseRequest) DiscardThen(() => GetTree().Quit(), includeBoss: true);
+        if (!Embedded && what == NotificationWMCloseRequest) DiscardThen(() => GetTree().Quit(), includeBoss: true);
     }
 }

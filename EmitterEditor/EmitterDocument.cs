@@ -9,10 +9,10 @@ using System.Text.Json.Nodes;
 public sealed class EmitterDocument
 {
     // 历史仅保存JSON，避免撤销时共享可变节点；最多保留100次修改。
-    private readonly Stack<string> _undo = new(), _redo = new();
+    private readonly Stack<(string Text, string Selection)> _undo = new(), _redo = new();
     private string _saved = "";
-    /// <summary>是否为Boss文档；模式决定模板、加载校验及保存命名。</summary>
-    public bool IsBoss { get; }
+    /// <summary>是否为Boss目录文档；另一模式编辑独立Emitter。</summary>
+    public bool IsCatalog { get; }
     /// <summary>当前可编辑JSON对象。</summary>
     public JsonObject Root { get; private set; } = new();
     /// <summary>文件绝对路径；新建文档为空。</summary>
@@ -20,14 +20,20 @@ public sealed class EmitterDocument
     /// <summary>相对已保存内容是否存在修改。</summary>
     public bool Dirty => Text != _saved;
     /// <summary>当前缩进JSON；表达式字符串不求值。</summary>
-    public string Text => Root.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+    public string Text => Root.ToJsonString(TextOptions);
+    // 原文保留表达式与显式null，选项在所有文档间只读复用。
+    private static readonly JsonSerializerOptions TextOptions = new() { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    /// <summary>随撤销快照保存的界面选择，不写入JSON。</summary>
+    public string Selection { get; set; } = "";
+    /// <summary>尚未应用的原文草稿，切换文档时保留；null表示没有草稿。</summary>
+    public string? Draft { get; set; }
     /// <summary>是否可以撤销。</summary>
     public bool CanUndo => _undo.Count > 0;
     /// <summary>是否可以重做。</summary>
     public bool CanRedo => _redo.Count > 0;
     /// <summary>建立可直接预览的独立文档。</summary>
-    /// <param name="boss">为真时使用Boss模板，否则使用Emitter模板。</param>
-    public EmitterDocument(bool boss = false) { IsBoss = boss; New(); }
+    /// <param name="catalog">为真时使用Boss目录模板，否则使用Emitter模板。</param>
+    public EmitterDocument(bool catalog = false) { IsCatalog = catalog; New(); }
     /// <summary>按当前模式重置为未保存的新建Boss或发射器。</summary>
     public void New()
     {
@@ -37,12 +43,14 @@ public sealed class EmitterDocument
          "BaseAttributes":[{"Angle":0,"Speed":180,"RefMoveQueue":[{"Type":"XYMove","X":0,"Y":0}]}],
          "AddAttributes":{"Angle":"TAU/12"},"Timeline":[{"StartMs":0,"IntervalMs":1000}]}}
         """)!.AsObject();
-        if (IsBoss) Root = JsonNode.Parse("""
+        if (IsCatalog) Root = JsonNode.Parse("""
         {"Core":{"Id":"NewBoss","DisplayName":"新Boss","TexturePath":"res://Assets/Units/Boss_01.png",
          "Hframes":2,"Vframes":2,"AnimationFps":4,"MaxHp":100,"CollisionRadius":32,"VisualScale":3,"SpawnPosition":{"X":640,"Y":250}},
          "Phases":[{"Name":"阶段01","Hp":100,"DurationMs":60000,"EndCondition":"HealthOrTime","Emitters":[],
          "Movement":{"Type":"Center","Speed":200,"Target":{"X":640,"Y":240}}}]}
         """)!.AsObject();
+        if (IsCatalog) Root = new JsonObject { ["Bosses"] = new JsonArray(Root) };
+        Selection = ""; Draft = null;
         FilePath = "";
         _saved = "";
         _undo.Clear(); _redo.Clear();
@@ -58,9 +66,9 @@ public sealed class EmitterDocument
     {
         // 先完整读取，成功后才替换当前数据。
         var next = Parse(File.ReadAllText(path));
-        if ((IsBoss && next.ContainsKey("VNodes")) || (!IsBoss && next.ContainsKey("Phases")))
+        if ((IsCatalog && (next.ContainsKey("VNodes") || next.ContainsKey("Phases"))) || (!IsCatalog && (next.ContainsKey("Bosses") || next.ContainsKey("Phases"))))
             throw new JsonException("文件属于另一编辑模式，请先切换顶部模式。");
-        Root = next; FilePath = Path.GetFullPath(path); _saved = Text;
+        Root = next; FilePath = Path.GetFullPath(path); _saved = Text; Selection = ""; Draft = null;
         _undo.Clear(); _redo.Clear();
     }
     /// <summary>提交一次可撤销修改；失败时回滚整份文档。</summary>
@@ -68,9 +76,9 @@ public sealed class EmitterDocument
     public void Edit(Action<JsonObject> change)
     {
         // 保存修改前的独立快照。
-        string before = Text;
+        string before = Text, selection = Selection;
         try { change(Root); }
-        catch { Root = Parse(before); throw; }
+        catch { Root = Parse(before); Selection = selection; throw; }
         if (before == Text) return;
         if (_undo.Count >= 100)
         {
@@ -79,7 +87,7 @@ public sealed class EmitterDocument
             // 按声明顺序处理的零基下标。
             for (int index = 98; index >= 0; index--) _undo.Push(history[index]);
         }
-        _undo.Push(before); _redo.Clear();
+        _undo.Push((before, selection)); _redo.Clear();
     }
     /// <summary>应用文本编辑结果，先检查语法且保留撤销记录。</summary>
     /// <param name="text">完整JSON草稿。</param>
@@ -87,27 +95,32 @@ public sealed class EmitterDocument
     {
         // 在修改前解析，避免不完整输入丢失当前数据。
         var next = Parse(text);
-        Edit(_ => Root = next);
+        Edit(_ => Root = next); Draft = null;
     }
     /// <summary>撤销最近一次编辑。</summary>
-    public void Undo() { if (!CanUndo) return; _redo.Push(Text); Root = Parse(_undo.Pop()); }
+    public void Undo() { if (!CanUndo) return; _redo.Push((Text, Selection)); var entry = _undo.Pop(); Root = Parse(entry.Text); Selection = entry.Selection; }
     /// <summary>恢复最近一次撤销。</summary>
-    public void Redo() { if (!CanRedo) return; _undo.Push(Text); Root = Parse(_redo.Pop()); }
+    public void Redo() { if (!CanRedo) return; _undo.Push((Text, Selection)); var entry = _redo.Pop(); Root = Parse(entry.Text); Selection = entry.Selection; }
     /// <summary>使用游戏加载器校验，不启动战斗或消耗随机。</summary>
     /// <returns>未启动且独立的运行定义。</returns>
     public VBulletEmitter Validate() => VBulletEmitter.FromJson(Text, FilePath.Length == 0 ? "新建发射器" : FilePath);
     /// <summary>使用正式Boss加载器验证当前Boss文档。</summary>
     /// <returns>独立的Boss数据。</returns>
-    public BossData ValidateBoss() => BossData.FromJson(Text, FilePath.Length == 0 ? "新建Boss" : FilePath);
+    /// <param name="index">目录中的零基Boss下标。</param>
+    /// <param name="loadEmitter">可选编辑会话资源入口。</param>
+    public BossData ValidateBoss(int index = 0, Func<string, VBulletEmitter>? loadEmitter = null)
+        => BossData.FromJson(Root["Bosses"]?[index]?.ToJsonString() ?? throw new InvalidOperationException("请先选择Boss。"), FilePath, loadEmitter);
+    /// <summary>校验完整目录及其全部Emitter引用。</summary>
+    /// <param name="loadEmitter">可选内存预览资源入口。</param>
+    /// <returns>完整有效的目录。</returns>
+    public BossCatalog ValidateCatalog(Func<string, VBulletEmitter>? loadEmitter = null) => BossCatalog.FromJson(Text, FilePath, loadEmitter);
     /// <summary>按文档模式校验，始终不推进战斗。</summary>
-    public void ValidateCurrent() { if (IsBoss) ValidateBoss(); else Validate(); }
+    public void ValidateCurrent() { if (IsCatalog) ValidateCatalog(); else Validate(); }
     /// <summary>校验后原子写入JSON；失败不更新保存状态。</summary>
     /// <param name="path">目标文件绝对路径。</param>
     public void Save(string path)
     {
         ValidateCurrent();
-        if (IsBoss && !System.Text.RegularExpressions.Regex.IsMatch(Path.GetFileName(path), @"^B[0-9]{2,}\.json$"))
-            throw new ArgumentException("Boss文件须命名为Bxx.json，编号至少两位。", nameof(path));
         // 临时文件和目标位于同目录，避免跨卷移动；不覆盖其他临时文件。
         string target = Path.GetFullPath(path), temporary = target + ".editor-" + Guid.NewGuid().ToString("N") + ".tmp";
         try

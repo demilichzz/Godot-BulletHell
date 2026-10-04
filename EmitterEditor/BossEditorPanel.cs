@@ -9,7 +9,9 @@ using System.Text.Json.Nodes;
 public partial class BossEditorPanel : VBoxContainer
 {
     /// <summary>本模式独立的Boss文档及撤销栈。</summary>
-    public EmitterDocument Document { get; } = new(true);
+    public EmitterDocument Document => Session.Catalog;
+    /// <summary>目录及所有已打开Emitter共用的文档会话。</summary>
+    public EditorSession Session { get; } = new();
     /// <summary>Boss预览环境；与Emitter模式不会同时运行。</summary>
     public EditorPreview Preview { get; } = new();
     /// <summary>静态移动示意与动态战斗共用画布。</summary>
@@ -17,11 +19,11 @@ public partial class BossEditorPanel : VBoxContainer
     /// <summary>当前阶段索引，-1代表Boss共用属性。</summary>
     public int SelectedPhase { get; private set; } = -1;
     /// <summary>包括尚未应用的JSON草稿在内的未保存状态。</summary>
-    public bool HasUnsaved => Document.Dirty || HasDraft;
+    public bool HasUnsaved => Session.HasUnsaved || HasDraft;
     /// <summary>当前是否有未应用的JSON草稿。</summary>
     public bool HasDraft => _json.Text != _jsonBaseline;
     // 工作区控件及模式独立的文件窗口。
-    private readonly ItemList _phases = new();
+    private readonly Tree _phases = new();
     private readonly VBoxContainer _fields = new();
     private readonly CodeEdit _json = new();
     private readonly Label _title = new(), _status = new(), _clock = new();
@@ -43,15 +45,16 @@ public partial class BossEditorPanel : VBoxContainer
         _title.AddThemeFontSizeOverride("font_size", 21); AddChild(_title);
         // 文件及历史工具栏。
         var files = new HBoxContainer(); AddChild(files);
-        Button(files, "新建Boss", () => DiscardThen(() => { Document.New(); SelectedPhase = -1; Refresh(); }));
-        Button(files, "打开Boss…", () => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640))));
-        Button(files, "保存Boss", () => Save(false));
-        Button(files, "另存Boss…", () => Save(true));
+        Button(files, "新建目录", () => DiscardThen(() => { Document.New(); Refresh(); }));
+        Button(files, "打开目录…", () => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640))));
+        Button(files, "保存目录", () => Save(false));
+        Button(files, "另存目录…", () => Save(true));
+        Button(files, "保存全部", () => { EmitterPanel?.PrepareWorkspaceSave(); RequireApplied(); Session.SaveAll(); Refresh(); });
         Button(files, "撤销", () => { RequireApplied(); Document.Undo(); Refresh(); });
         Button(files, "重做", () => { RequireApplied(); Document.Redo(); Refresh(); });
-        Button(files, "校验Boss", () => { RequireApplied(); Document.ValidateBoss(); Status("Boss及全部Emitter引用校验通过。"); });
+        Button(files, "校验目录", () => { RequireApplied(); Document.ValidateCatalog(Session.CaptureEmitters()); Status("目录及全部Emitter引用校验通过。"); });
         // 正式60Hz预览与阶段调试工具栏。
-        var controls = new HBoxContainer(); AddChild(controls);
+        var controls = new HBoxContainer(); _bossControls = controls; AddChild(controls);
         _play = Button(controls, "▶ 播放", () => { EnsurePreview(); _playing = !_playing; UpdateClock(); });
         Button(controls, "单步 1/60s", () => { EnsurePreview(); _playing = false; Preview.Advance(); UpdateClock(); });
         Button(controls, "重置预览", StartPreview);
@@ -68,14 +71,17 @@ public partial class BossEditorPanel : VBoxContainer
         // 左阶段队列、中画布、右属性/原文三个区域。
         var workspace = new HSplitContainer { SizeFlagsVertical = SizeFlags.ExpandFill, SplitOffsets = new[] { 225 } }; AddChild(workspace);
         var hierarchy = new VBoxContainer { CustomMinimumSize = new Vector2(220, 0) }; workspace.AddChild(hierarchy);
-        hierarchy.AddChild(new Label { Text = "BOSS  /  顺序阶段队列" });
+        hierarchy.AddChild(new Label { Text = "Boss 列表 → Boss → 阶段" });
         _phases.SizeFlagsVertical = SizeFlags.ExpandFill; hierarchy.AddChild(_phases);
-        _phases.ItemSelected += index => { if (!_refreshing) SelectPhase((int)index - 1); };
+        _phases.ItemSelected += CatalogTreeSelected;
+        Button(hierarchy, "+ 添加Boss", AddBoss);
         Button(hierarchy, "+ 添加阶段", AddPhase);
         var actions = new HBoxContainer(); hierarchy.AddChild(actions);
-        Button(actions, "复制", DuplicatePhase); Button(actions, "删除", DeletePhase);
-        Button(actions, "↑", () => MovePhase(-1)); Button(actions, "↓", () => MovePhase(1));
-        var content = new HSplitContainer { SplitOffsets = new[] { 675 } }; workspace.AddChild(content);
+        Button(actions, "复制", DuplicateSelection); Button(actions, "删除", DeleteSelection);
+        Button(actions, "↑", () => MoveSelection(-1)); Button(actions, "↓", () => MoveSelection(1));
+        _contentHost = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; workspace.AddChild(_contentHost);
+        var content = new HSplitContainer { SplitOffsets = new[] { 675 }, SizeFlagsVertical = SizeFlags.ExpandFill };
+        _bossContent = content; _contentHost.AddChild(content);
         var center = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; content.AddChild(center);
         center.AddChild(new Label { Text = "场地 1280 × 800 · 坐标右下为正 · 速度：像素/秒" });
         Canvas.SizeFlagsVertical = SizeFlags.ExpandFill; center.AddChild(Canvas);
@@ -89,15 +95,16 @@ public partial class BossEditorPanel : VBoxContainer
         _fields.SizeFlagsHorizontal = SizeFlags.ExpandFill; scroll.AddChild(_fields);
         // JSON页保持完整原文及未应用草稿。
         var source = new VBoxContainer { Name = "JSON" }; tabs.AddChild(source);
-        source.AddChild(new Label { Text = "完整Boss JSON · Emitter只保存文件路径引用" });
+        source.AddChild(new Label { Text = "完整Boss目录 JSON · Emitter保存为独立文件" });
         _json.SizeFlagsVertical = SizeFlags.ExpandFill; _json.GuttersDrawLineNumbers = true; _json.SyntaxHighlighter = new CodeHighlighter(); source.AddChild(_json);
-        _json.TextChanged += () => { if (!_refreshing) UpdateTitle(); };
+        _json.TextChanged += () => { if (!_refreshing) { Document.Draft = HasDraft ? _json.Text : null; UpdateTitle(); } };
         Button(source, "应用 JSON 草稿", () => { Document.ApplyText(_json.Text); Refresh(); });
         _status.AutowrapMode = TextServer.AutowrapMode.WordSmart; _status.CustomMinimumSize = new Vector2(0, 44); AddChild(_status);
         _viewport.Size = new Vector2I(640, 400); _viewport.Size2DOverride = new Vector2I(1280, 800); _viewport.Size2DOverrideStretch = true;
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled; _viewport.Disable3D = true;
         AddChild(_viewport); _viewport.AddChild(Preview);
         SetupDialogs();
+        Document.Open(ProjectSettings.GlobalizePath(BossCatalog.DefaultPath));
         Refresh();
     }
     /// <summary>建立打开、保存和独立Emitter引用选择窗口。</summary>
@@ -106,17 +113,17 @@ public partial class BossEditorPanel : VBoxContainer
         // 打开与保存窗口共享Boss目录和文件过滤。
         foreach (var dialog in new[] { _open, _save })
         {
-            dialog.Access = FileDialog.AccessEnum.Filesystem; dialog.Filters = new[] { "*.json ; Boss Bxx.json" };
-            dialog.CurrentDir = ProjectSettings.GlobalizePath("res://Data/Bosses"); AddChild(dialog);
+            dialog.Access = FileDialog.AccessEnum.Filesystem; dialog.Filters = new[] { "*.json ; Boss Catalog JSON" };
+            dialog.CurrentDir = ProjectSettings.GlobalizePath("res://Data"); AddChild(dialog);
         }
-        _open.FileMode = FileDialog.FileModeEnum.OpenFile; _open.Title = "打开Boss数据";
-        _save.FileMode = FileDialog.FileModeEnum.SaveFile; _save.Title = "保存Boss数据（Bxx.json）";
+        _open.FileMode = FileDialog.FileModeEnum.OpenFile; _open.Title = "打开Boss目录";
+        _save.FileMode = FileDialog.FileModeEnum.SaveFile; _save.Title = "保存Boss目录";
         _open.FileSelected += path => Guard(() => Open(path));
         _save.FileSelected += path => Guard(() => { Document.Save(path); UpdateTitle(); Status("已保存：" + Document.FilePath); });
         _emitter.Access = FileDialog.AccessEnum.Resources; _emitter.FileMode = FileDialog.FileModeEnum.OpenFile;
         _emitter.Filters = new[] { "*.json ; Emitter JSON" }; _emitter.CurrentDir = "res://Data/Emitters"; AddChild(_emitter);
-        _emitter.FileSelected += path => Guard(() => Change(_ => Document.At(_emitterPath)!.AsArray().Add(ProjectSettings.LocalizePath(path))));
-        _discard.Title = "未保存的Boss修改"; _discard.DialogText = "继续将放弃当前Boss文档和JSON草稿中的未保存修改。";
+        _emitter.FileSelected += path => Guard(() => Change(_ => At(_emitterPath)!.AsArray().Add(ProjectSettings.LocalizePath(path))));
+        _discard.Title = "未保存的目录修改"; _discard.DialogText = "继续将放弃当前目录及其JSON草稿中的未保存修改。已打开Emitter的编辑内容继续保留。";
         _discard.OkButtonText = "放弃并继续"; AddChild(_discard);
         _discard.Confirmed += () => { var action = _pending; _pending = null; if (action is not null) Guard(action); };
         _discard.Canceled += () => _pending = null;
@@ -128,37 +135,25 @@ public partial class BossEditorPanel : VBoxContainer
     /// <param name="index">-1为Boss；其他值为零基阶段序号。</param>
     public void SelectPhase(int index)
     {
-        SelectedPhase = index; _phases.Select(index + 1);
-        BuildInspector(); ValidateCanvas();
+        SelectBoss(SelectedBossIndex < 0 ? 0 : SelectedBossIndex, index);
     }
     /// <summary>刷新阶段队列、表单、JSON和静态布局。</summary>
     public void Refresh()
     {
-        StopPreview(); _refreshing = true;
-        try
-        {
-            _json.Text = Document.Text; _jsonBaseline = _json.Text;
-            _phases.Clear(); _phases.AddItem("Boss · 共用属性");
-            if (Document.Root["Phases"] is JsonArray phases)
-            {
-                // 数组操作捕获本次显示的零基序号。
-            for (int index = 0; index < phases.Count; index++)
-                    _phases.AddItem($"{index + 1:00} · {phases[index]?["Name"]}\nHP {phases[index]?["Hp"]}");
-                SelectedPhase = Math.Clamp(SelectedPhase, -1, phases.Count - 1);
-            }
-            else SelectedPhase = -1;
-            _phases.Select(SelectedPhase + 1); BuildInspector(); ValidateCanvas(); UpdateTitle();
-        }
-        catch (Exception error) { Status(error.Message, true); }
-        finally { _refreshing = false; }
+        RefreshCatalog();
     }
     /// <summary>生成当前选择的完整表单，包括VPath嵌套结构。</summary>
     private void BuildInspector()
     {
         foreach (Node child in _fields.GetChildren()) { _fields.RemoveChild(child); child.QueueFree(); }
+        if (SelectedBossIndex < 0)
+        {
+            _fields.AddChild(new Label { Text = "Boss列表 · 数组顺序就是关卡选择顺序。\n选择Boss或阶段编辑属性；展开Emitter编辑弹幕。", AutowrapMode = TextServer.AutowrapMode.WordSmart });
+            return;
+        }
         // 队列选择映射到Boss核心或具体阶段的JSON指针。
         string path = SelectedPhase < 0 ? "/Core" : "/Phases/" + SelectedPhase;
-        if (Document.At(path) is not JsonObject value) { _fields.AddChild(new Label { Text = "结构无效，请在JSON页修复。" }); return; }
+        if (At(path) is not JsonObject value) { _fields.AddChild(new Label { Text = "结构无效，请在JSON页修复。" }); return; }
         _fields.AddChild(new Label { Text = SelectedPhase < 0 ? "Boss共用属性" : $"阶段 {SelectedPhase + 1:00}", ThemeTypeVariation = "HeaderLarge" });
         _fields.AddChild(new Label { Text = SelectedPhase < 0 ? "总血量须等于各阶段血池之和。阶段血量编辑会自动更新合计。" : "时间单位：整数毫秒。仅血量允许null时限；两者皆可表示任一满足。", AutowrapMode = TextServer.AutowrapMode.WordSmart });
         ObjectFields(_fields, value, SelectedPhase < 0 ? typeof(BossCoreDefinition) : typeof(BossPhaseDefinition), path, "");
@@ -195,7 +190,7 @@ public partial class BossEditorPanel : VBoxContainer
         // 按元数据顺序列出尚未填写的属性。
         foreach (var field in missing) menu.AddItem(BossEditorSchema.Label(field.Name));
         row.AddChild(menu);
-        Button(row, "+ 属性", () => Change(_ => Document.At(path)![missing[menu.Selected].Name] = missing[menu.Selected].Default?.DeepClone()));
+        Button(row, "+ 属性", () => Change(_ => At(path)![missing[menu.Selected].Name] = missing[menu.Selected].Default?.DeepClone()));
     }
     /// <summary>递归显示对象、数组和标量。</summary>
     /// <param name="parent">显示容器。</param>
@@ -228,12 +223,12 @@ public partial class BossEditorPanel : VBoxContainer
                 var actions = new HBoxContainer(); parent.AddChild(actions);
                 actions.AddChild(new Label { Text = $"[{index}]", SizeFlagsHorizontal = SizeFlags.ExpandFill });
                 Button(actions, "↑", () => Shift(path, position, -1)); Button(actions, "↓", () => Shift(path, position, 1));
-                Button(actions, "删除项", () => Change(_ => Document.At(path)!.AsArray().RemoveAt(position)));
+                Button(actions, "删除项", () => Change(_ => At(path)!.AsArray().RemoveAt(position)));
                 ValueField(parent, array[index], itemType, path + "/" + index, name + "项");
             }
             if (name == "Emitters")
                 Button(parent, "+ 引用Emitter文件…", () => { RequireApplied(); _emitterPath = path; _emitter.PopupCentered(new Vector2I(960, 640)); });
-            else Button(parent, "+ 添加项", () => Change(_ => Document.At(path)!.AsArray().Add(EditorSchema.Item(itemType, name, "XYMove"))));
+            else Button(parent, "+ 添加项", () => Change(_ => At(path)!.AsArray().Add(EditorSchema.Item(itemType, name, "XYMove"))));
             return;
         }
         // 字段标签、输入框或添加菜单所在行。
@@ -296,7 +291,7 @@ public partial class BossEditorPanel : VBoxContainer
         if (path.EndsWith("/Movement/Type")) { Set(parentPath, BossEditorSchema.Movement(choice)); return; }
         Set(path, JsonValue.Create(choice));
         // 当前模式所属的JSON对象。
-        var parent = Document.At(parentPath)!.AsObject();
+        var parent = At(parentPath)!.AsObject();
         if (path.EndsWith("/EndCondition") && choice != "Health" && parent["DurationMs"] is null) parent["DurationMs"] = 60000;
         if (!path.EndsWith("/PathMode")) return;
         // 删除旧曲线模式专有字段，端点与位移队列保留。
@@ -310,7 +305,7 @@ public partial class BossEditorPanel : VBoxContainer
     private void Set(string path, JsonNode? value)
     {
         // 分离父指针与末级字段或数组下标。
-        int split = path.LastIndexOf('/'); var parent = Document.At(path[..split]);
+        int split = path.LastIndexOf('/'); var parent = At(path[..split]);
         // 解除JSON Pointer对斜线和波浪号的转义。
         string key = path[(split + 1)..].Replace("~1", "/").Replace("~0", "~");
         if (parent is JsonArray array) array[int.Parse(key)] = value; else parent!.AsObject()[key] = value;
@@ -319,7 +314,8 @@ public partial class BossEditorPanel : VBoxContainer
     /// <param name="change">修改完整Boss文档的回调。</param>
     private void Change(Action<JsonObject> change)
     {
-        RequireApplied(); Document.Edit(change); StopPreview();
+        RequireApplied(); RememberSelection();
+        Document.Edit(_ => { change(SelectedBossRoot); RememberSelection(); }); StopPreview();
         Callable.From(() => { if (IsInsideTree()) Refresh(); }).CallDeferred();
     }
     /// <summary>追加独立阶段，自动同步Boss总血量。</summary>
@@ -338,7 +334,7 @@ public partial class BossEditorPanel : VBoxContainer
     private void Shift(string path, int index, int direction) => Change(_ =>
     {
         // 当前有序数组与移动后的目标下标。
-        var array = Document.At(path)!.AsArray(); int next = index + direction;
+        var array = At(path)!.AsArray(); int next = index + direction;
         if (next < 0 || next >= array.Count) return;
         // 先解除父引用，再插入新位置，不复制或丢失节点。
         var item = array[index]; array.RemoveAt(index); array.Insert(next, item);
@@ -348,12 +344,12 @@ public partial class BossEditorPanel : VBoxContainer
     private void RequirePhase() { if (SelectedPhase < 0) throw new InvalidOperationException("请先选择一个阶段。"); }
     /// <summary>保护尚未应用的JSON草稿。</summary>
     private void RequireApplied() { if (HasDraft) throw new InvalidOperationException("请先应用JSON草稿，再执行此操作。"); }
-    /// <summary>保存当前文档或请求Bxx.json目标。</summary>
+    /// <summary>保存当前目录文档或请求另存目标。</summary>
     /// <param name="choosePath">为真时总是打开另存窗口。</param>
     private void Save(bool choosePath)
     {
-        GetViewport().GuiGetFocusOwner()?.ReleaseFocus(); RequireApplied(); Document.ValidateBoss();
-        if (choosePath || Document.FilePath.Length == 0) { _save.CurrentFile = Document.FilePath.Length == 0 ? "B24.json" : Path.GetFileName(Document.FilePath); _save.PopupCentered(new Vector2I(960, 640)); }
+        GetViewport().GuiGetFocusOwner()?.ReleaseFocus(); RequireApplied();
+        if (choosePath || Document.FilePath.Length == 0) { _save.CurrentFile = Document.FilePath.Length == 0 ? "BossCatalog.json" : Path.GetFileName(Document.FilePath); _save.PopupCentered(new Vector2I(960, 640)); }
         else { Document.Save(Document.FilePath); UpdateTitle(); Status("已保存：" + Document.FilePath); }
     }
     /// <summary>在替换Boss文档前保护未保存内容。</summary>
@@ -361,13 +357,14 @@ public partial class BossEditorPanel : VBoxContainer
     private void DiscardThen(Action action)
     {
         GetViewport().GuiGetFocusOwner()?.ReleaseFocus();
-        if (!HasUnsaved) { action(); return; }
+        if (!Document.Dirty && !HasDraft) { action(); return; }
         _pending = action; _discard.PopupCentered();
     }
     /// <summary>创建完整Boss战斗预览，时钟与随机从固定初态开始。</summary>
     private void StartPreview()
     {
-        RequireApplied(); Preview.StartBoss(Document.Text); _previewText = Document.Text; _playing = false;
+        RequireApplied(); EmitterPanel?.StopWorkspacePreview();
+        Preview.StartBoss(SelectedBossRoot.ToJsonString(), Session.CaptureEmitters()); _previewText = Document.Text; _playing = false;
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always; Canvas.PreviewTexture = _viewport.GetTexture(); UpdateClock();
     }
     /// <summary>保证预览对应当前已应用文档。</summary>
@@ -375,6 +372,7 @@ public partial class BossEditorPanel : VBoxContainer
     /// <summary>释放模式预览并恢复静态布局，不修改文档或草稿。</summary>
     public void StopPreview()
     {
+        EmitterPanel?.StopWorkspacePreview();
         _playing = false; if (Preview.IsInsideTree()) Preview.Stop();
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled; Canvas.PreviewTexture = null; UpdateClock();
     }
@@ -396,10 +394,11 @@ public partial class BossEditorPanel : VBoxContainer
     private void ValidateCanvas()
     {
         Canvas.Markers.Clear(); Canvas.Paths.Clear();
+        if (SelectedBossIndex < 0) { Canvas.QueueRedraw(); return; }
         try
         {
             // 静态布局只加载数据，不创建战斗或抽样随机。
-            var data = Document.ValidateBoss();
+            var data = Document.ValidateBoss(SelectedBossIndex, Session.CaptureEmitters());
             Canvas.Markers.Add(new EditorCanvas.Marker("", 0, data.SpawnPosition, data.DisplayName));
             if (SelectedPhase >= 0)
             {
@@ -433,11 +432,16 @@ public partial class BossEditorPanel : VBoxContainer
         Canvas.QueueRedraw();
     }
     /// <summary>更新当前文档和草稿的保存状态。</summary>
-    private void UpdateTitle() => _title.Text = "Boss 编辑器  /  " + (Document.FilePath.Length == 0 ? "新建 Bxx.json" : Path.GetFileName(Document.FilePath)) + (HasUnsaved ? "  ● 未保存" : "  已保存") + (HasDraft ? " · JSON草稿未应用" : "");
+    private void UpdateTitle() => _title.Text = "Boss 目录  /  " + (Document.FilePath.Length == 0 ? "未命名目录" : Path.GetFileName(Document.FilePath)) + (HasUnsaved ? "  ● 未保存" : "  已保存") + (HasDraft ? " · JSON草稿未应用" : "");
     /// <summary>显示状态，完整内容保留在悬停说明。</summary>
     /// <param name="message">完整诊断。</param>
     /// <param name="error">是否为错误。</param>
-    private void Status(string message, bool error = false) { _status.Text = message.Length > 350 ? message[..350] + "…" : message; _status.TooltipText = message; _status.Modulate = error ? new Color("ffaba5") : new Color("97c4b8"); }
+    private void Status(string message, bool error = false)
+    {
+        if (EmitterPanel?.IsVisibleInTree() == true) { EmitterPanel.ReportWorkspaceStatus(message, error); return; }
+        _status.Text = message.Length > 350 ? message[..350] + "…" : message;
+        _status.TooltipText = message; _status.Modulate = error ? new Color("ffaba5") : new Color("97c4b8");
+    }
     /// <summary>统一捕获用户操作错误并停止失败预览。</summary>
     /// <param name="action">请求执行的操作。</param>
     private void Guard(Action action) { try { action(); } catch (Exception error) { _playing = false; UpdateClock(); Status(error.Message, true); } }
@@ -451,7 +455,7 @@ public partial class BossEditorPanel : VBoxContainer
     /// <param name="input">用户键盘输入。</param>
     public override void _UnhandledKeyInput(InputEvent input)
     {
-        if (!IsVisibleInTree() || input is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true } key) return;
+        if (!IsVisibleInTree() || EmitterPanel?.IsVisibleInTree() == true || input is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true } key) return;
         if (key.Keycode == Key.S) { Guard(() => Save(key.ShiftPressed)); AcceptEvent(); }
         if (key.Keycode == Key.O) { Guard(() => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640)))); AcceptEvent(); }
     }

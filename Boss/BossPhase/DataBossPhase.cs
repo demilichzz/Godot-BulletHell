@@ -16,6 +16,8 @@ public sealed class DataBossPhase : BossPhase
     protected override float MoveSpeed => _movement.Speed;
     // 阶段独占移动配置、固定目标索引及路径采样状态。
     private readonly BossMovement _movement;
+    // 每次进入阶段创建独立树；预览来源只保存冻结文本。
+    private readonly Func<string, VBulletEmitter> _loadEmitter;
     private int _nextTarget;
     private Vector2[] _path = Array.Empty<Vector2>();
     private double[] _lengths = Array.Empty<double>();
@@ -23,10 +25,12 @@ public sealed class DataBossPhase : BossPhase
     /// <summary>建立尚未启动的独立阶段。</summary>
     /// <param name="definition">已校验的阶段定义。</param>
     /// <param name="index">队列零基序号。</param>
-    public DataBossPhase(BossPhaseDefinition definition, int index)
+    /// <param name="loadEmitter">可选Emitter创建入口，默认读取正式文件。</param>
+    public DataBossPhase(BossPhaseDefinition definition, int index, Func<string, VBulletEmitter>? loadEmitter = null)
     {
         Definition = definition;
         Index = index;
+        _loadEmitter = loadEmitter ?? VBulletEmitter.Load;
         _movement = BossMovement.Read(definition.Movement);
     }
     /// <summary>进入阶段时的Boss总血量；未来阶段尚未受伤。</summary>
@@ -64,7 +68,7 @@ public sealed class DataBossPhase : BossPhase
             IsMoving = true;
         }
         // 每次进入阶段重新加载独立树，手动回退或重开不共享批次。
-        foreach (string path in Definition.Emitters) BindEmitter(VBulletEmitter.Load(path), boss);
+        foreach (string path in Definition.Emitters) BindEmitter(_loadEmitter(path), boss);
     }
     /// <summary>在阶段时间线上选择下一个目标，不由渲染帧消耗随机。</summary>
     /// <param name="boss">提供移动起点的Boss。</param>

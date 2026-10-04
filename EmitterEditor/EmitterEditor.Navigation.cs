@@ -107,6 +107,7 @@ public partial class EmitterEditor
         RequireAppliedDraft();
         if (redo ? !Document.CanRedo : !Document.CanUndo) return;
         if (redo) Document.Redo(); else Document.Undo();
+        _selection = Document.Selection;
         Refresh();
     }
 

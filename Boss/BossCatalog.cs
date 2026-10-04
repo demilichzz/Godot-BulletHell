@@ -28,7 +28,8 @@ public sealed class BossCatalog
     /// <param name="json">内嵌Boss与阶段的目录JSON。</param>
     /// <param name="sourceName">用于错误定位的来源。</param>
     /// <returns>完整有效目录；读取不消耗业务随机。</returns>
-    public static BossCatalog FromJson(string json, string sourceName = "内存Boss目录")
+    /// <param name="loadEmitter">可选预览资源入口。</param>
+    public static BossCatalog FromJson(string json, string sourceName = "内存Boss目录", Func<string, VBulletEmitter>? loadEmitter = null)
         => JsonData.Parse(json, sourceName, root =>
         {
             JsonData.CheckFields(root, new[] { "Bosses" });
@@ -42,7 +43,7 @@ public sealed class BossCatalog
                 try
                 {
                     // 元素读取共用Boss校验，目录额外检查唯一身份。
-                    var data = BossData.Read(element);
+                    var data = BossData.Read(element, loadEmitter);
                     if (!identifiers.Add(data.Id)) throw new JsonException("重复Boss ID：" + data.Id);
                     entries.Add(data);
                 }
