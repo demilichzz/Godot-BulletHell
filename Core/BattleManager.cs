@@ -10,7 +10,7 @@ public enum BattleState
 	Victory
 }
 /// <summary>以60Hz固定步在步末派发计时事件，管理种子、结束与重开。</summary>
-public partial class BattleManager : Node
+public partial class BattleManager : Node, IBattleActions, IBattleStatusSource
 {
     // 每次进入与重开使用相同种子，保证随机序列从固定起点开始。
     private const int BattleRandomSeed = 0;
@@ -35,15 +35,15 @@ public partial class BattleManager : Node
 	/// <summary>本场战斗是否已完成节点、阶段和攻击初始化。</summary>
 	public bool IsInitialized { get; private set; }
 	/// <summary>战斗是否已停止并拒绝新的活动。</summary>
-	internal bool IsStopped => _stopped;
+	public bool IsStopped => _stopped;
 	/// <summary>首次胜利结束通知。</summary>
 	public event Action<BattleState>? BattleEnded;
 	// 场景装配父节点，保持 Boss 与弹幕容器互为兄弟节点。
 	private Node2D _world = null!;
 	// 当前挑战配置，重开时复用配置并创建新的控制器与阶段。
 	private BossData? _bossData;
-	// 场景确认键尚未释放时，暂不允许触发闪避。
-	private bool _waitForConfirmRelease;
+    /// <summary>由宿主装配的操作分发器；手动固定步预览无需设置。</summary>
+    public IBattleControl? Control { get; set; }
 	// 离场后禁止外部继续推进战斗。
 	private bool _stopped;
 	/// <summary>绑定战场并开始第一场战斗。</summary>
@@ -118,7 +118,7 @@ public partial class BattleManager : Node
 	/// <summary>重建整场战斗。</summary>
 	public void Restart() => StartBattle();
 	/// <summary>进入战斗时屏蔽上一场景尚未释放的确认键。</summary>
-	public void WaitForConfirmRelease() => _waitForConfirmRelease = true;
+	public void WaitForConfirmRelease() => Control?.WaitForConfirmRelease();
 	/// <summary>离开场景时停止更新并清理弹幕，可重复调用。</summary>
 	public void StopBattle()
 	{
@@ -134,20 +134,14 @@ public partial class BattleManager : Node
 	}
 	/// <summary>节点离场时停止战斗并解除当前服务绑定。</summary>
 	public override void _ExitTree() => StopBattle();
-	/// <summary>读取当前键盘输入并推进物理步。</summary>
-	/// <param name="delta">引擎物理更新秒数；战斗始终推进一个固定步，不累计此值。</param>
-	public override void _PhysicsProcess(double delta)
-	{
-		if (_stopped) return;
-		if (_waitForConfirmRelease && !Input.IsActionPressed("player_dodge")) _waitForConfirmRelease = false;
-		if (State != BattleState.Running)
-		{
-			if (Input.IsActionJustPressed("battle_restart")) Restart();
-			return;
-		}
-		StepFixed(Input.GetVector("move_left", "move_right", "move_up", "move_down"), !_waitForConfirmRelease && Input.IsActionJustPressed("player_dodge"),
-			Input.IsActionJustPressed("battle_previous_phase"), Input.IsActionJustPressed("battle_next_phase"));
-	}
+    /// <summary>物理步只委托已装配的行为分发器，不读取设备或UI状态。</summary>
+    /// <param name="delta">引擎物理秒数，不用于业务计时。</param>
+    public override void _PhysicsProcess(double delta) { if (!_stopped) Control?.Tick(); }
+    /// <summary>输出HUD值快照，不外借玩家、Boss或AI实体。</summary>
+    /// <returns>当前只读显示状态。</returns>
+    public BattleStatus CaptureStatus() => new(State, Player.Health.Hp, BattleConfig.PlayerHp, Boss.Hp, Boss.MaxHp,
+        Boss.PhaseIndex, Boss.PhaseCount, Boss.PhaseHp, Boss.PhaseMaxHp, Boss.CurrentPhase?.Name ?? "已结束",
+        Player.Dodge.Cooldown, Elapsed, AI?.HitCount);
     /// <summary>按一个60Hz固定步推进，输入在步内只消费一次。</summary>
     /// <param name="movement">屏幕移动输入，右下为正。</param>
     /// <param name="dodgePressed">本步新按下闪避键时为真。</param>

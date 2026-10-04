@@ -52,7 +52,7 @@ public partial class BossSelectItem : PanelContainer
     /// <param name="inputEvent">当前界面输入事件。</param>
     public override void _GuiInput(InputEvent inputEvent)
     {
-        if (inputEvent is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
+        if (PointerInputAdapter.Decode(inputEvent).Action == PointerAction.Press)
         {
             Chosen?.Invoke(Index);
             AcceptEvent();

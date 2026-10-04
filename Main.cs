@@ -1,6 +1,6 @@
 using Godot;
 
-/// <summary>组装当前战场、活动区域轮廓、键盘操作和显示阶段及Q/E提示的简易中文状态显示。</summary>
+/// <summary>装配战场、输入控制器与只读HUD，绘制场地背景和活动边界。</summary>
 public partial class Main : Node2D
 {
 	/// <summary>入树前指定的 Boss 配置；为空时保留独立演示行为。</summary>
@@ -11,24 +11,19 @@ public partial class Main : Node2D
 	public BattleManager Battle => _battle;
 	// 统一驱动战斗的管理器。
 	private readonly BattleManager _battle = new() { Name = "BattleManager" };
-	// 不参与碰撞的文字状态显示。
-	private readonly Label _status = new() { Position = new Vector2(12, 10), MouseFilter = Control.MouseFilterEnum.Ignore };
 	/// <summary>配置操作并开始第一场战斗。</summary>
 	public override void _Ready()
 	{
 		// 背景先于战斗节点加入，位于角色与弹幕下方。
 		AddBackground();
 		GameInput.EnsureBindings();
+		_battle.Control = new BattleInputController(new GodotBattleInput(), _battle);
 		AddChild(_battle);
 		_battle.Initialize(this, BossData, AIConfig);
 		// 使用独立画布层使文字始终位于战斗图形上方。
 		var hud = new CanvasLayer();
 		AddChild(hud);
-		hud.AddChild(_status);
-		_status.AddThemeFontOverride("font", GD.Load<Font>("res://Assets/fonts/lxgl/LXGWWenKaiGBScreen.ttf"));
-		_status.AddThemeFontSizeOverride("font_size", 18);
-		_status.AddThemeColorOverride("font_outline_color", new Color(0.04f, 0.06f, 0.09f));
-		_status.AddThemeConstantOverride("outline_size", 4);
+		hud.AddChild(new BattleHud { Source = _battle });
 	}
 	/// <summary>以等比覆盖并居中裁切的方式铺设基准画面背景。</summary>
 	private void AddBackground()
@@ -53,18 +48,5 @@ public partial class Main : Node2D
 	{
 		DrawArc(BattleConfig.ArenaCenter, BattleConfig.ArenaRadius, 0, Mathf.Tau, 256,
 			new Color(0.45f, 0.85f, 1f, 0.85f), 2, true);
-	}
-	/// <summary>刷新生命、闪避冷却与结束提示。</summary>
-	/// <param name="delta">渲染帧间隔秒数，不用于战斗模拟。</param>
-	public override void _Process(double delta)
-	{
-		// 结束状态提示，仅在胜负后显示重开键。
-		var result = _battle.State switch { BattleState.Victory => "胜利！按 R 重新开始", _ => "战斗中" };
-		// 显示当前阶段名称，战斗结束后显示结束状态。
-		var phaseName = _battle.Boss.CurrentPhase?.Name ?? "已结束";
-		_status.Text = $"玩家 HP {_battle.Player.Health.Hp}/{BattleConfig.PlayerHp}    Boss HP {_battle.Boss.Hp}/{_battle.Boss.MaxHp}    阶段 {_battle.Boss.PhaseIndex + 1}/{_battle.Boss.PhaseCount} HP {_battle.Boss.PhaseHp}/{_battle.Boss.PhaseMaxHp}    {phaseName}\n"
-			+ $"闪避冷却 {_battle.Player.Dodge.Cooldown:0.0} 秒    时间 {_battle.Elapsed:0.0} 秒\n"
-			+ "WASD / 方向键移动 · 空格闪避 · Q/E 切换阶段 · 自动攻击 · Esc 返回选择\n" + result;
-        if (_battle.AI is not null) _status.Text += $"\nAI 被击中次数：{_battle.AI.HitCount}";
 	}
 }

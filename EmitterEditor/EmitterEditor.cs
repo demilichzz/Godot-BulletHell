@@ -162,7 +162,7 @@ public partial class EmitterEditor : Control
     /// <param name="input">键盘输入。</param>
     public override void _UnhandledKeyInput(InputEvent input)
     {
-        if (IsBossMode || input is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true, Keycode: Key.O }) return;
+        if (IsBossMode || EditorInput.Shortcut(input) != EditorAction.Open) return;
         Guard(ChooseEmitter); AcceptEvent();
     }
     /// <summary>关闭前收集当前草稿并检查整个会话，而非仅当前面板。</summary>

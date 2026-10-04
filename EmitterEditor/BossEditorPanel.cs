@@ -408,8 +408,10 @@ public partial class BossEditorPanel : VBoxContainer
     /// <param name="input">用户键盘输入。</param>
     public override void _UnhandledKeyInput(InputEvent input)
     {
-        if (!IsVisibleInTree() || input is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true } key) return;
-        if (key.Keycode == Key.S) { Guard(() => Save(key.ShiftPressed)); AcceptEvent(); }
-        if (key.Keycode == Key.O) { Guard(() => Files.Open("打开Boss目录或Boss数据", "res://Data", Open)); AcceptEvent(); }
+        if (!IsVisibleInTree()) return;
+        // 模式只处理自身支持的文件动作。
+        var action = EditorInput.Shortcut(input);
+        if (action is EditorAction.Save or EditorAction.SaveAs) { Guard(() => Save(action == EditorAction.SaveAs)); AcceptEvent(); }
+        if (action == EditorAction.Open) { Guard(() => Files.Open("打开Boss目录或Boss数据", "res://Data", Open)); AcceptEvent(); }
     }
 }

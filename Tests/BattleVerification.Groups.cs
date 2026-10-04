@@ -11,6 +11,7 @@ public partial class BattleVerification
     /// <returns>参数名到验证动作的映射。</returns>
     private Dictionary<string, Action> VerificationGroups(string[] arguments) => new(StringComparer.Ordinal)
     {
+        ["--targeted-input-layers"] = VerifyInputLayers,
         ["--targeted-copy"] = VerifyCopies,
         ["--targeted-regions"] = VerifyRegions,
         ["--targeted-boss03"] = VerifyBoss03,

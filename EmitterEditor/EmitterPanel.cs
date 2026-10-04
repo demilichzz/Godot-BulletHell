@@ -350,14 +350,16 @@ public partial class EmitterPanel : Control
     /// <param name="input">键盘输入。</param>
     public override void _UnhandledKeyInput(InputEvent input)
     {
-        if (!IsVisibleInTree() || input is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true } key) return;
-        if (key.Keycode == Key.S) { Guard(() => SaveRequested?.Invoke(key.ShiftPressed)); AcceptEvent(); }
-        if (key.Keycode == Key.F && _tabs.CurrentTab == 0) { _propertySearch.GrabFocus(); _propertySearch.SelectAll(); AcceptEvent(); }
+        if (!IsVisibleInTree()) return;
+        // 显示上下文决定动作是否可执行，按键解码只属于输入层。
+        var action = EditorInput.Shortcut(input);
+        if (action is EditorAction.Save or EditorAction.SaveAs) { Guard(() => SaveRequested?.Invoke(action == EditorAction.SaveAs)); AcceptEvent(); }
+        if (action == EditorAction.Search && _tabs.CurrentTab == 0) { _propertySearch.GrabFocus(); _propertySearch.SelectAll(); AcceptEvent(); }
         // 文本输入保留控件自身的撤销记录，不回退整份文档。
         if (GetViewport().GuiGetFocusOwner() is LineEdit or TextEdit) return;
-        if (key.Keycode is Key.Z or Key.Y)
+        if (action is EditorAction.Undo or EditorAction.Redo)
         {
-            Guard(() => ChangeHistory(key.Keycode == Key.Y || key.ShiftPressed)); AcceptEvent();
+            Guard(() => ChangeHistory(action == EditorAction.Redo)); AcceptEvent();
         }
     }
 }

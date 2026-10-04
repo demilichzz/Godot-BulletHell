@@ -88,19 +88,21 @@ public partial class EditorCanvas : Control
     public override void _GuiInput(InputEvent input)
     {
         if (PreviewTexture is not null) return;
-        if (input is InputEventMouseMotion motion && _pressed is not null)
+        // 视图只处理语义手势，具体设备和按钮由输入层识别。
+        var pointer = PointerInputAdapter.Decode(input);
+        if (pointer.Action == PointerAction.Move && _pressed is not null)
         {
-            if (!_dragging && motion.Position.DistanceTo(_pressCanvas) < 6) return;
-            _dragging = true; MoveRequested?.Invoke(_pressed, _pressed.Position + ToWorld(motion.Position) - _pressWorld, false); AcceptEvent(); return;
+            if (!_dragging && pointer.Position.DistanceTo(_pressCanvas) < 6) return;
+            _dragging = true; MoveRequested?.Invoke(_pressed, _pressed.Position + ToWorld(pointer.Position) - _pressWorld, false); AcceptEvent(); return;
         }
-        if (input is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Left } release) { FinishDrag(release.Position); return; }
-        if (input is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } click) return;
+        if (pointer.Action == PointerAction.Release) { FinishDrag(pointer.Position); return; }
+        if (pointer.Action != PointerAction.Press) return;
         // 鼠标命中范围内的全部重叠图标。
-        var hits = HitMarkers(click.Position);
+        var hits = HitMarkers(pointer.Position);
         if (hits.Count == 0) return;
-        _overlapIndex = click.Position.DistanceTo(_lastClick) < 5 ? (_overlapIndex + 1) % hits.Count : 0;
-        _lastClick = click.Position;
-        _pressed = hits[_overlapIndex]; _pressCanvas = click.Position; _pressWorld = ToWorld(click.Position); _dragging = false;
+        _overlapIndex = pointer.Position.DistanceTo(_lastClick) < 5 ? (_overlapIndex + 1) % hits.Count : 0;
+        _lastClick = pointer.Position;
+        _pressed = hits[_overlapIndex]; _pressCanvas = pointer.Position; _pressWorld = ToWorld(pointer.Position); _dragging = false;
         Selected?.Invoke(_pressed); AcceptEvent();
     }
     /// <summary>提交一次拖动并清除手势；释放到画布外也使用同一入口。</summary>
@@ -115,8 +117,10 @@ public partial class EditorCanvas : Control
     public override void _Input(InputEvent input)
     {
         if (_pressed is null) return;
-        if (input is InputEventKey { Pressed: true, Keycode: Key.Escape }) { CancelDrag(); GetViewport().SetInputAsHandled(); }
-        else if (input is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Left }) { FinishDrag(GetLocalMousePosition()); GetViewport().SetInputAsHandled(); }
+        // 全局释放需转为画布局部坐标，取消动作没有坐标。
+        var pointer = PointerInputAdapter.Decode(input);
+        if (pointer.Action == PointerAction.Cancel) { CancelDrag(); GetViewport().SetInputAsHandled(); }
+        else if (pointer.Action == PointerAction.Release) { FinishDrag(GetLocalMousePosition()); GetViewport().SetInputAsHandled(); }
     }
     /// <summary>窗口失焦时取消临时移动。</summary>
     /// <param name="what">Godot生命周期通知。</param>

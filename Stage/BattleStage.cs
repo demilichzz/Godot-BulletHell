@@ -19,15 +19,11 @@ public partial class BattleStage : Stage
         AddChild(View);
         if (!View.Battle.IsInitialized) throw new InvalidOperationException("战斗初始化未完成。");
         View.Battle.WaitForConfirmRelease();
+        AddChild(new MenuInputRouter
+        {
+            Target = new BattleMenuController(() => IsActive, () => Context.Game.RequestStage(GameManager.SelectStageId))
+        });
     }
     /// <summary>停止模拟并清理弹幕，节点随 Stage 整体销毁。</summary>
     protected override void OnExit() => View?.Battle.StopBattle();
-    /// <summary>Esc 返回选择场景，战斗状态不影响返回操作。</summary>
-    /// <param name="inputEvent">当前未处理的键盘事件。</param>
-    public override void _UnhandledKeyInput(InputEvent inputEvent)
-    {
-        if (!IsActive || !inputEvent.IsActionPressed("stage_back")) return;
-        GetViewport().SetInputAsHandled();
-        Context.Game.RequestStage(GameManager.SelectStageId);
-    }
 }

@@ -613,7 +613,8 @@ public partial class AIVerification : Node
         var battle = stage.View.Battle;
         battle.SetPhysicsProcess(false);
         Check(battle.AI is not null && battle.AI.GetNode<Label>("AILabel").Text == "AI", "场景配置创建AI及头顶文字");
-        stage.View._Process(0);
+        // 显示更新由HUD视图负责，宿主只装配依赖。
+        stage.View.GetChildren().OfType<CanvasLayer>().Single().GetChildren().OfType<BattleHud>().Single()._Process(0);
         Check(stage.View.GetChildren().OfType<CanvasLayer>().Single().GetChildren().OfType<Label>()
             .Any(label => label.Text.Contains("AI 被击中次数：")), "左侧HUD显示AI命中计数");
         await CaptureUI("ai-battle-preview");

@@ -2,19 +2,21 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
-/// <summary>以四列网格展示目录，统一管理鼠标选择、方向导航和空格确认。</summary>
-public partial class BossSelectUI : Control
+/// <summary>以四列网格展示目录，提交语义请求并显示控制器决定的选择。</summary>
+public partial class BossSelectUI : Control, IBossSelectionView
 {
     // 网格列数，索引按从左至右、从上至下递增。
     public const int Columns = 4;
     /// <summary>当前选中项，空目录时为负一。</summary>
     public int SelectedIndex { get; private set; } = -1;
-    /// <summary>选择变化通知，参数为 Boss 标识。</summary>
-    public event Action<string>? SelectionChanged;
-    /// <summary>空格确认通知，参数为 Boss 标识。</summary>
-    public event Action<string>? Confirmed;
+    /// <summary>请求选择目录下标，视图不决定是否有效。</summary>
+    public event Action<int>? SelectionRequested;
+    /// <summary>请求确认当前选项，不直接切换场景。</summary>
+    public event Action? ConfirmationRequested;
     /// <summary>AI加入开关变化通知，参数为当前勾选状态。</summary>
-    public event Action<bool>? AISelectionChanged;
+    public event Action<bool>? AISelectionRequested;
+    /// <summary>请求网格方向导航，具体边界由控制器处理。</summary>
+    public event Action<Vector2I>? NavigationRequested;
     /// <summary>鼠标勾选的AI加入选项，不抢占方向键及空格导航。</summary>
     public CheckBox AIOption { get; } = new()
     {
@@ -29,9 +31,8 @@ public partial class BossSelectUI : Control
     private readonly ScrollContainer _scroll = new() { Position = new Vector2(100, 170), Size = new Vector2(1080, 500) };
     /// <summary>构建当前目录的选择画面。</summary>
     /// <param name="catalog">已验证的 Boss 有序目录。</param>
-    /// <param name="selectedId">返回场景时恢复的 Boss 标识，未找到则选中第一项。</param>
     /// <param name="aiEnabled">恢复的AI选项，默认关闭。</param>
-    public void Initialize(BossCatalog catalog, string selectedId, bool aiEnabled = false)
+    public void Initialize(BossCatalog catalog, bool aiEnabled = false)
     {
         _catalog = catalog;
         Size = BattleConfig.Bounds.Size;
@@ -53,7 +54,6 @@ public partial class BossSelectUI : Control
         grid.AddThemeConstantOverride("h_separation", 24);
         grid.AddThemeConstantOverride("v_separation", 24);
         _scroll.AddChild(grid);
-        var initial = 0;
         for (int index = 0; index < catalog.Entries.Count; index++)
         {
             // 当前目录配置与新建卡片。
@@ -63,58 +63,31 @@ public partial class BossSelectUI : Control
             item.Chosen += Select;
             grid.AddChild(item);
             _items.Add(item);
-            if (data.Id == selectedId) initial = index;
         }
         if (_items.Count == 0) _details.Text = "暂无可挑战的 Boss，请先添加 Boss 配置。";
-        else Select(initial);
     }
     /// <summary>选择一个有效卡片，保持高亮、说明和滚动位置一致。</summary>
     /// <param name="index">目录零基索引，越界时忽略。</param>
-    public void Select(int index)
+    public void ShowSelection(int index)
     {
         if (index < 0 || index >= _items.Count) return;
         if (SelectedIndex >= 0) _items[SelectedIndex].SetSelected(false);
         SelectedIndex = index;
         _items[index].SetSelected(true);
         _details.Text = $"{_catalog.Entries[index].DisplayName}    HP {_catalog.Entries[index].MaxHp}    [空格] 开始挑战";
-        SelectionChanged?.Invoke(_catalog.Entries[index].Id);
         Callable.From(() => { if (IsInsideTree()) _scroll.EnsureControlVisible(_items[SelectedIndex]); }).CallDeferred();
     }
-    /// <summary>按网格方向移动，边缘不环绕，末行缺项时选择最后一项。</summary>
-    /// <param name="direction">单位网格方向，X向右、Y向下；只接受四轴方向。</param>
-    public void Navigate(Vector2I direction)
-    {
-        if (SelectedIndex < 0) return;
-        // 当前行列和候选索引，用于阻止左右跨行。
-        var column = SelectedIndex % Columns;
-        var target = SelectedIndex;
-        if (direction == Vector2I.Left && column > 0) target--;
-        else if (direction == Vector2I.Right && column < Columns - 1 && target + 1 < _items.Count) target++;
-        else if (direction == Vector2I.Up && target >= Columns) target -= Columns;
-        else if (direction == Vector2I.Down && (target / Columns + 1) * Columns < _items.Count) target = Math.Min(target + Columns, _items.Count - 1);
-        Select(target);
-    }
-    /// <summary>确认当前有效选项，空目录时不触发。</summary>
-    public void Confirm()
-    {
-        if (SelectedIndex >= 0) Confirmed?.Invoke(_catalog.Entries[SelectedIndex].Id);
-    }
-    /// <summary>处理未被界面消费的方向键和空格，确认不接受长按重复。</summary>
-    /// <param name="inputEvent">当前键盘事件。</param>
-    public override void _UnhandledKeyInput(InputEvent inputEvent)
-    {
-        if (inputEvent is not InputEventKey { Pressed: true } key) return;
-        if (key.IsActionPressed("stage_left", true)) Navigate(Vector2I.Left);
-        else if (key.IsActionPressed("stage_right", true)) Navigate(Vector2I.Right);
-        else if (key.IsActionPressed("stage_up", true)) Navigate(Vector2I.Up);
-        else if (key.IsActionPressed("stage_down", true)) Navigate(Vector2I.Down);
-        else if (key.IsActionPressed("stage_confirm") && !key.Echo) Confirm();
-        else return;
-        GetViewport().SetInputAsHandled();
-    }
+    /// <summary>请求选择指定卡片；鼠标和外部调用共用语义入口。</summary>
+    /// <param name="index">期望的目录零基下标。</param>
+    public void Select(int index) => SelectionRequested?.Invoke(index);
+    /// <summary>提交方向请求，不在视图执行网格业务。</summary>
+    /// <param name="direction">右下为正的单位网格方向。</param>
+    public void Navigate(Vector2I direction) => NavigationRequested?.Invoke(direction);
+    /// <summary>提交确认请求，空目录许可由控制器决定。</summary>
+    public void Confirm() => ConfirmationRequested?.Invoke();
     /// <summary>转发鼠标AI选项变化，不触发关卡确认。</summary>
     /// <param name="enabled">是否加入陪练AI。</param>
-    private void OnAIToggled(bool enabled) => AISelectionChanged?.Invoke(enabled);
+    private void OnAIToggled(bool enabled) => AISelectionRequested?.Invoke(enabled);
 
     /// <summary>离开节点树时解除卡片事件订阅。</summary>
     public override void _ExitTree()
