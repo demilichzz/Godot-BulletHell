@@ -13,13 +13,13 @@ public sealed class VLaserCreator : VNodeCreator
     public VBulletDisplayAttribute Display { get; private set; } = new();
     /// <summary>激光只使用出生快照，不随父对象平移。</summary>
     protected override bool DefaultFollow => false;
-    // 可选路径定义只计算几何，不生成VNode或额外时间线。
-    private VPathCreator? _path;
+    /// <summary>可选不可变路径几何，不含任何Creator或运行节点。</summary>
+    internal VPathGeometry? Geometry { get; private set; }
 
     /// <summary>建立空激光Creator，使用前通过JSON加载。</summary>
     public VLaserCreator() => Core = new VLaserCoreAttribute { Type = "VLaser" };
 
-    /// <summary>加载专用参数，并通过VPathCreator读取已有路径格式。</summary>
+    /// <summary>加载专用参数，并通过公共读取器加载路径格式。</summary>
     /// <param name="element">包含Laser及可选PathQueue的Creator对象。</param>
     internal void ReadLaser(JsonElement element)
     {
@@ -41,7 +41,7 @@ public sealed class VLaserCreator : VNodeCreator
         Laser.Validate();
         // 移动模式必须提供路径；定点可选完整路径，省略时使用直线长度和出生方向。
         if (Laser.Mode == "Path" || element.TryGetProperty("PathQueue", out _))
-            _path = VPathCreator.CreateGeometry(Required(element, "PathQueue"), Laser.PathPointCount);
+            Geometry = VPathJson.Read(Required(element, "PathQueue"), Laser.PathPointCount);
     }
 
     /// <summary>激光使用固定几何和专用时长，拒绝会改变既定路径或阶段的普通运动参数。</summary>
@@ -51,9 +51,9 @@ public sealed class VLaserCreator : VNodeCreator
         if (Follow || MemberTimeline.Count != 0) throw new JsonException("激光只允许Snapshot，且不接受MemberTimeline参数修改。");
         // 无路径的定点允许出生方向及方向随机；提供路径时不再叠加角度旋转。
         foreach (var value in BaseAttributes.Concat(new[] { AddAttributes, RandDiffAttributes.Batch, RandDiffAttributes.Member }))
-            if (value.Speed != 0 || value.ASpeed != 0 || value.AAngle != 0 || (_path is not null && value.Angle != 0))
+            if (value.Speed != 0 || value.ASpeed != 0 || value.AAngle != 0 || (Geometry is not null && value.Angle != 0))
                 throw new JsonException("激光不使用普通Speed/AAngle/ASpeed；路径激光也不接受Angle，请使用TravelSpeed与PathQueue。");
-        if (_path is not null && Core.AngleMode != "Fixed") throw new JsonException("固定路径不能使用AimPlayer角度。");
+        if (Geometry is not null && Core.AngleMode != "Fixed") throw new JsonException("固定路径不能使用AimPlayer角度。");
         Core = Core with { LifeTimeMs = Laser.DurationMs };
         base.ValidateAttributes();
     }
@@ -72,7 +72,9 @@ public sealed class VLaserCreator : VNodeCreator
     protected override VNode? CreateMember(VBulletEmitter emitter, VBulletManager manager, Vector2 position, VNodeMoveAttribute move)
     {
         // 逐颗冻结；路径端点的世界目标含义由VPath保持，后续父位置不会参与计算。
-        var points = _path?.SampleGeometry(position).Select(offset => position + offset).ToArray();
+        Vector2[]? points;
+        try { points = Geometry?.Sample(position, Laser.PathPointCount, () => GlobalEvent.GetPlayer().GlobalPosition).Select(offset => position + offset).ToArray(); }
+        catch (JsonException error) { throw new JsonException($"{Core.Id}({Core.Name}): {error.Message}", error); }
         return manager.SpawnLaser(Laser, position, move.Angle, points, emitter.Core.Damage, emitter);
     }
 }

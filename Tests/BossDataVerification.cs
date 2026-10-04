@@ -202,6 +202,15 @@ public partial class BossDataVerification : Node
             Step(battle, 150);
             Check(battle.Boss.Position.DistanceTo(new Vector2(700, 250)) < 0.001 && !battle.Boss.CurrentPhase!.IsMoving, "VPath终点停止");
         }
+        // Boss路径在入场时冻结目标；之后玩家移动不能重定向已经采样的路段。
+        root["Phases"]![0]!["Movement"] = JsonNode.Parse("""{"Type":"Path","Speed":60,"PointCount":2,"PathQueue":[{"Type":"AimPlayer"}]}""");
+        battle = Start(BossData.FromJson(root.ToJsonString()));
+        battle.Player.Position = new Vector2(780, 550);
+        Step(battle, 30);
+        Check(battle.Boss.Position.DistanceTo(new Vector2(640, 280)) < 0.001
+            && battle.Boss.CurrentPhase!.MoveTarget == BattleConfig.PlayerSpawn, "Boss瞄准路径使用阶段入场时的玩家快照");
+        Check(battle.Boss.TrySwitchAdjacentPhase(1) && battle.Boss.TrySwitchAdjacentPhase(-1), "回到路径阶段重新入场");
+        Check(battle.Boss.CurrentPhase!.MoveTarget == new Vector2(780, 550), "再次进入Boss路径阶段读取新的玩家位置");
     }
     /// <summary>重开后以同一完整初态和固定输入比较运动、阶段与弹幕快照。</summary>
     private void VerifyReplay()

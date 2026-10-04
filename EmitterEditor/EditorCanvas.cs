@@ -2,7 +2,6 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json.Nodes;
 
 /// <summary>保持1280×800逻辑坐标的场地视图，静态图标选择与动态预览共用缩放。</summary>
 public partial class EditorCanvas : Control
@@ -67,8 +66,7 @@ public partial class EditorCanvas : Control
     public Vector2 ToWorld(Vector2 point) { var rect = ArenaRect(); return (point - rect.Position) * (1280 / rect.Size.X); }
     /// <summary>建立基础项图标；子树参考父Creator第一基础项的静态位置。</summary>
     /// <param name="emitter">解析后的定义，CopySource已由游戏加载器展开。</param>
-    /// <param name="raw">用于复制声明及路径激光的可选原始文档。</param>
-    public void Rebuild(VBulletEmitter emitter, JsonObject? raw = null) => ApplyLayout(new EditorLayout(emitter, raw));
+    public void Rebuild(VBulletEmitter emitter) => ApplyLayout(new EditorLayout(emitter));
     /// <summary>原子替换完整静态布局，保留显示过滤与选择。</summary>
     /// <param name="layout">已经计算成功的布局。</param>
     public void ApplyLayout(EditorLayout layout)

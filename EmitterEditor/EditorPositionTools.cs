@@ -61,7 +61,7 @@ public static class EditorPositionTools
         foreach (var marker in before.Markers.Where(marker => path.Length == 0 || marker.Path.StartsWith(path + "/Children/", StringComparison.Ordinal)))
         {
             // 每次按最新父位置重算，避免世界目标TarMove与多层参考的累积误差。
-            var current = new EditorLayout(document.Validate(), document.Root).Markers.Find(item => item.Path == marker.Path && item.Basis == marker.Basis);
+            var current = new EditorLayout(document.Validate()).Markers.Find(item => item.Path == marker.Path && item.Basis == marker.Basis);
             if (current is not null) Translate(document, marker.Path, marker.Basis, marker.Position - current.Position);
         }
         document.Validate();

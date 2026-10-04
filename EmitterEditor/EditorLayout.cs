@@ -2,7 +2,6 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 
 /// <summary>编辑器静态布局与路径采样；无战斗对象、随机抽样或全局绑定。</summary>
@@ -79,22 +78,19 @@ public sealed class EditorLayout
 
     /// <summary>从已校验的运行定义建立静态布局。</summary>
     /// <param name="emitter">未启动的运行定义。</param>
-    /// <param name="raw">可选原文，用于路径激光及复制声明。</param>
-    public EditorLayout(VBulletEmitter emitter, JsonObject? raw = null)
+    public EditorLayout(VBulletEmitter emitter)
     {
-        var expanded = raw is null ? null : Resolve(raw);
-        Add(emitter.Root, expanded?["VNodes"] as JsonObject, "/VNodes", emitter.Core.RefObject == "Boss" ? BattleConfig.BossSpawn : Vector2.Zero);
+        Add(emitter.Root, "/VNodes", emitter.Core.RefObject == "Boss" ? BattleConfig.BossSpawn : Vector2.Zero);
     }
 
     /// <summary>按Creator前序生成图标与路径；子树使用父第一基础项。</summary>
     /// <param name="creator">当前定义。</param>
-    /// <param name="raw">展开后的原始声明。</param>
     /// <param name="path">JSON路径。</param>
     /// <param name="origin">父参考世界位置，逻辑像素。</param>
-    private void Add(VNodeCreator creator, JsonObject? raw, string path, Vector2 origin)
+    private void Add(VNodeCreator creator, string path, Vector2 origin)
     {
         // VPath在出生位移之前采样；激光在出生位置计算自身路径。
-        Vector2[]? geometry = creator is VPathCreator vp ? Sample(vp.PathQueue, origin) : null;
+        Vector2[]? geometry = creator is VPathCreator vp ? Sample(vp.Geometry, origin) : null;
         Vector2 first = origin;
         for (int index = 0; index < creator.BaseAttributes.Count; index++)
         {
@@ -103,14 +99,10 @@ public sealed class EditorLayout
             if (index == 0) first = position;
             Markers.Add(new EditorCanvas.Marker(path, index, position, (creator.Core.Name ?? creator.Core.Type) + $" [{index}]"));
             if (geometry is not null) Paths.Add((path, index, geometry.Select(point => Move(point, moves)).ToArray()));
-            if (creator is VLaserCreator laser && raw?["PathQueue"] is JsonArray queue)
-            {
-                var definition = VPathCreator.CreateGeometry(JsonSerializer.SerializeToElement(queue), Math.Max(257, queue.Count + 1));
-                Paths.Add((path, index, Sample(definition.PathQueue, position)));
-            }
+            if (creator is VLaserCreator { Geometry: { } laserPath }) Paths.Add((path, index, Sample(laserPath, position)));
         }
         for (int index = 0; index < creator.Children.Count; index++)
-            Add(creator.Children[index], raw?["Children"]?[index] as JsonObject, path + "/Children/" + index, first);
+            Add(creator.Children[index], path + "/Children/" + index, first);
     }
 
     /// <summary>顺序计算无增量、无随机的基础出生位移。</summary>
@@ -127,34 +119,19 @@ public sealed class EditorLayout
         return position;
     }
 
-    /// <summary>复用游戏路径采样器；瞄准段使用编辑器固定玩家位置，不建立全局战斗。</summary>
-    /// <param name="segments">已解析的路径段。</param>
+    /// <summary>直接复用已编译的公共几何，瞄准段使用编辑器固定玩家位置。</summary>
+    /// <param name="geometry">游戏加载器校验后的不可变几何。</param>
     /// <param name="origin">路径参考世界坐标，逻辑像素。</param>
     /// <returns>包含所有连接点的世界坐标折线。</returns>
-    private static Vector2[] Sample(IReadOnlyList<VPathSegmentAttribute> segments, Vector2 origin)
+    private static Vector2[] Sample(VPathGeometry geometry, Vector2 origin)
     {
+        // 保留现有显示密度及每段参考点的浮点转换顺序，不重新序列化或编译函数。
         var points = new List<Vector2>(); Vector2 reference = origin;
-        foreach (var segment in segments)
+        for (int index = 0; index < geometry.Segments.Count; index++)
         {
-            // 只重建当前模式合法字段，数值来自原加载器，函数原文保持不变。
-            var json = new JsonObject { ["PathMode"] = segment.PathMode };
-            if (segment.AimPlayerOffset is { } aim)
-                json["EndMoveQueue"] = new JsonArray(new JsonObject { ["Type"] = "XYMove", ["X"] = BattleConfig.PlayerSpawn.X + aim.X - reference.X, ["Y"] = BattleConfig.PlayerSpawn.Y + aim.Y - reference.Y });
-            else
-            {
-                json["StartMoveQueue"] = JsonSerializer.SerializeToNode(segment.StartMoveQueue, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
-                json["EndMoveQueue"] = JsonSerializer.SerializeToNode(segment.EndMoveQueue, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
-            }
-            if (segment.PathMode == "Bezier") json["ControlPoints"] = JsonSerializer.SerializeToNode(segment.ControlPoints);
-            if (segment.PathMode != "XY") json["Samples"] = segment.Samples;
-            if (segment.PathMode == "Function")
-            {
-                json["AxisMode"] = segment.AxisMode; json["X"] = segment.X; json["Y"] = segment.Y;
-                json["TMin"] = segment.TMin; json["TMax"] = segment.TMax;
-            }
-            // 每段最多257个显示点，计算与正式采样共用同一表达式与弧长工具。
-            var path = VPathCreator.CreateGeometry(JsonSerializer.SerializeToElement(new JsonArray(json)), segment.PathMode == "XY" ? 2 : 257);
-            var sampled = path.SampleGeometry(reference).Select(offset => reference + offset).ToArray();
+            int pointCount = geometry.Segments[index].PathMode == "XY" ? 2 : 257;
+            var sampled = geometry.SampleSegment(index, reference, pointCount, () => BattleConfig.PlayerSpawn)
+                .Select(offset => reference + offset).ToArray();
             if (points.Count > 0 && sampled[0].DistanceTo(reference) > 0.001) throw new InvalidOperationException("路径连接点偏差超过0.001像素。");
             points.AddRange(points.Count == 0 ? sampled : sampled.Skip(1)); reference = sampled[^1];
         }

@@ -70,8 +70,8 @@ public sealed class BossPhase : IVTimelineOwner
         {
             // 在激活时冻结路径世界坐标，后续仅按阶段整数年龄推进距离。
             Vector2 origin = boss.GlobalPosition;
-            var geometry = VPathCreator.CreateGeometry(_movement.PathQueue, _movement.PointCount);
-            _path = geometry.SampleGeometry(origin).Select(offset => origin + offset).ToArray();
+            var geometry = VPathJson.Read(_movement.PathQueue, _movement.PointCount);
+            _path = geometry.Sample(origin, _movement.PointCount, () => GlobalEvent.GetPlayer().GlobalPosition).Select(offset => origin + offset).ToArray();
             _lengths = new double[_path.Length];
             for (int index = 1; index < _path.Length; index++)
                 _lengths[index] = _lengths[index - 1] + VMath.GetDistanceBetween2Points(_path[index - 1], _path[index]);

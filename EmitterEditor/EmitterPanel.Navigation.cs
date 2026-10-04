@@ -123,14 +123,14 @@ public partial class EmitterPanel
             RequireAppliedDraft();
             // 保留亚像素位置到0.001逻辑像素，避免屏幕缩放带来过长小数。
             target = new Vector2((float)Math.Round(target.X, 3), (float)Math.Round(target.Y, 3));
-            var before = new EditorLayout(Document.Validate(), Document.Root);
+            var before = new EditorLayout(Document.Validate());
             var draft = new EmitterDocument(); draft.ApplyText(Document.Text);
             draft.Edit(_ =>
             {
                 EditorPositionTools.Translate(draft, marker.Path, marker.Basis, target - marker.Position);
                 if (!_moveChildren) EditorPositionTools.PreserveChildren(draft, marker.Path, before);
             });
-            var layout = new EditorLayout(draft.Validate(), draft.Root);
+            var layout = new EditorLayout(draft.Validate());
             if (commit)
             {
                 Document.ApplyText(draft.Text); _selection = marker.Path; Refresh(); RevealSelectedBasis();

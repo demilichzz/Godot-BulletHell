@@ -44,45 +44,12 @@ public partial class VNodeCreator
         var spawn = Read<VNodeSpawnAttribute>(element);
         if (spawn.SpawnDelayMs < 0 || spawn.RefMoveQueue is null) throw new JsonException("延迟须非负，位移动作不可为null。");
         foreach (double value in new[] { spawn.Angle, spawn.Speed, spawn.AAngle, spawn.ASpeed })
-            ValidateNumber(value, random);
+            VMoveJson.ValidateNumber(value, random);
         return spawn with
         {
             RefMoveQueue = element.TryGetProperty("RefMoveQueue", out var actions)
-                ? ReadMoveQueue(actions, random) : Array.Empty<VNodeMoveActionAttribute>()
+                ? VMoveJson.ReadQueue(actions, random) : Array.Empty<VNodeMoveActionAttribute>()
         };
-    }
-
-    /// <summary>读取三种共用位移动作，冻结列表并拒绝混用字段。</summary>
-    /// <param name="element">不可为null的动作数组。</param>
-    /// <param name="random">是否表示非负随机总宽度，路径端点队列使用false。</param>
-    /// <returns>经过校验的只读动作队列。</returns>
-    internal static IReadOnlyList<VNodeMoveActionAttribute> ReadMoveQueue(JsonElement element, bool random = false)
-    {
-        if (element.ValueKind != JsonValueKind.Array) throw new JsonException("位移队列必须为数组且不可为null。");
-        // 每个动作缺省数值为0，显式null仍视为无效配置。
-        var actions = Read<VNodeMoveActionAttribute[]>(element);
-        foreach (var action in actions)
-        {
-            if (action is null) throw new JsonException("位移动作不可为null。");
-            if (action.Type == "PMove" && action.X is null && action.Y is null)
-            { ValidateNumber(action.Angle ?? 0, random); ValidateNumber(action.Dist ?? 0, random); }
-            else if (action.Type == "XYMove" && action.Angle is null && action.Dist is null)
-            { ValidateNumber(action.X ?? 0, random); ValidateNumber(action.Y ?? 0, random); }
-            else if (action.Type == "TarMove" && action.Angle is null)
-            { ValidateNumber(action.X ?? 0, random); ValidateNumber(action.Y ?? 0, random); ValidateNumber(action.Dist ?? 0, random); }
-            else throw new JsonException("位移Type与字段不匹配。");
-        }
-        foreach (var action in element.EnumerateArray())
-            foreach (var field in action.EnumerateObject())
-                if (field.Value.ValueKind == JsonValueKind.Null) throw new JsonException("位移字段不可显式为null。");
-        return Array.AsReadOnly(actions);
-    }
-    /// <summary>验证有限值和随机宽度。</summary>
-    /// <param name="value">属性值或总宽度。</param>
-    /// <param name="random">是否为非负宽度。</param>
-    private static void ValidateNumber(double value, bool random)
-    {
-        if (!double.IsFinite(value) || (random && value < 0)) throw new JsonException("属性值必须有限，随机宽度必须非负。");
     }
 
     /// <summary>按运动字段、位移动作顺序抽取一份偏移；同向加速度忽略AAngle。</summary>

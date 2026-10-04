@@ -242,7 +242,7 @@ public partial class EmitterPanel
     {
         RequireAppliedDraft();
         // 位置修改与后代补偿共用一次文档事务，失败完整回滚。
-        var before = !_moveChildren && spatial ? new EditorLayout(Document.Validate(), Document.Root) : null;
+        var before = !_moveChildren && spatial ? new EditorLayout(Document.Validate()) : null;
         Document.Edit(_ => { change(); if (before is not null) EditorPositionTools.PreserveChildren(Document, _selection, before); }); StopPreview();
         SyncJson(); ValidateLayout(); UpdateTitle();
         WorkspaceChanged?.Invoke();

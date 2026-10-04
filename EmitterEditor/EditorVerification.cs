@@ -96,7 +96,7 @@ public partial class EditorVerification : Node
             // 当前真实输入文档的独立副本。
             var source = new EmitterDocument(); source.Open(file); source.Validate();
             Check(JsonNode.DeepEquals(EmitterDocument.Parse(File.ReadAllText(file)), EmitterDocument.Parse(source.Text)), "原文往返失真：" + file);
-            Check(new EditorLayout(source.Validate(), source.Root).Markers.Count > 0, "真实Emitter静态布局及路径采样：" + file);
+            Check(new EditorLayout(source.Validate()).Markers.Count > 0, "真实Emitter静态布局及路径采样：" + file);
             fileCount++;
         }
         GD.Print($"Editor document inputs: {fileCount}");

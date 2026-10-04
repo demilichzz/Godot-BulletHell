@@ -141,7 +141,7 @@ public partial class EmitterPanel : Control
     /// <summary>校验当前数据并刷新基础图标，错误明确显示。</summary>
     private void ValidateLayout()
     {
-        try { Canvas.Rebuild(Document.Validate(), Document.Root); SetStatus("校验通过 · 拖动图标设置位置 · 路径按静态参考显示 · Boss(640,250) / 玩家(640,600)", false); }
+        try { Canvas.Rebuild(Document.Validate()); SetStatus("校验通过 · 拖动图标设置位置 · 路径按静态参考显示 · Boss(640,250) / 玩家(640,600)", false); }
         catch (Exception error) { Canvas.Markers.Clear(); Canvas.Paths.Clear(); Canvas.QueueRedraw(); SetStatus(error.Message, true); }
     }
     /// <summary>同步完整JSON文本，避免丢失表达式。</summary>

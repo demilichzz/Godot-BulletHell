@@ -141,7 +141,7 @@ public sealed record BossMovement
         if (type == "Path")
         {
             if (value.PointCount < 2 || value.PointCount > 65536) throw new JsonException("PointCount须为2至65536。");
-            VPathCreator.CreateGeometry(value.PathQueue, value.PointCount);
+            VPathJson.Read(value.PathQueue, value.PointCount);
         }
         // 路径JSON和目标队列均脱离加载器生命周期，供各运行实例只读使用。
         return value with

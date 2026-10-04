@@ -92,9 +92,9 @@ public partial class EditorVerification
             root["VNodes"]!["AddAttributes"] = JsonNode.Parse("{\"RefMoveQueue\":[{\"Type\":\"PMove\",\"Angle\":0.1}]}");
             root["VNodes"]!["RandDiffAttributes"] = JsonNode.Parse("{\"Member\":{\"RefMoveQueue\":[{\"Type\":\"PMove\",\"Dist\":10}]}}");
         });
-        var before = new EditorLayout(document.Validate(), document.Root);
+        var before = new EditorLayout(document.Validate());
         document.Edit(_ => EditorPositionTools.Translate(document, "/VNodes", 0, new Vector2(30, 20)));
-        var after = new EditorLayout(document.Validate(), document.Root);
+        var after = new EditorLayout(document.Validate());
         Check(after.Markers[0].Position == before.Markers[0].Position + new Vector2(30, 20) && after.Markers[1].Position == before.Markers[1].Position, "非空增量随机队列补零对齐且不移动其他基础项");
         Check(document.Root["VNodes"]!["RandDiffAttributes"]!["Member"]!["RefMoveQueue"]!.AsArray().Count == 2, "随机位移队列同步补零槽");
         // 按下标覆盖复制基础项，深层编辑按协议显式覆盖Children。
@@ -112,8 +112,8 @@ public partial class EditorVerification
         document.Validate();
         Check(document.Root["VNodes"]!["Children"]![1]!["Children"]![0]!["Core"]!["Name"]!.ToString() == "Inner_copy_B", "继承深层节点编辑保留加载器定义的名称后缀");
         string path = ProjectSettings.GlobalizePath("res://.tools/editor-drag-roundtrip.json"); _temporary.Add(path);
-        var layout = new EditorLayout(document.Validate(), document.Root); document.Save(path); var reopened = new EmitterDocument(); reopened.Open(path);
-        Check(new EditorLayout(reopened.Validate(), reopened.Root).Markers.Select(marker => marker.Position).SequenceEqual(layout.Markers.Select(marker => marker.Position)), "拖动保存重开布局一致");
+        var layout = new EditorLayout(document.Validate()); document.Save(path); var reopened = new EmitterDocument(); reopened.Open(path);
+        Check(new EditorLayout(reopened.Validate()).Markers.Select(marker => marker.Position).SequenceEqual(layout.Markers.Select(marker => marker.Position)), "拖动保存重开布局一致");
         // 新字段按协议排序，即使现有对象键故意倒序。
         var obj = JsonNode.Parse("{\"ASpeed\":3,\"Speed\":100}")!.AsObject();
         var fields = EditorSchema.Fields(typeof(VNodeSpawnAttribute), obj, "VNode", "BaseAttributes");
@@ -137,5 +137,19 @@ public partial class EditorVerification
         Reject(() => GlobalEvent.GetBoss(), "路径显示不创建全局战斗环境");
         editor.OpenEmitter(ProjectSettings.GlobalizePath("res://Data/Emitters/Examples/PathLaser.json")); editor.Refresh();
         Check(editor.Canvas.Paths.Count == 1 && editor.Canvas.Paths[0].Points.Length == 257, "路径激光复用Function采样并显示完整曲线");
+        // CopySource展开后的运行定义足以显示激光，无需再提供原始JSON或创建路径生成器。
+        var original = editor.Document.At("/VNodes")!.AsObject(); original["Core"]!["Name"] = "Source";
+        var copy = JsonNode.Parse("""{"Core":{"Name":"Copy","CopySource":"Source"},"BaseAttributes":[{"RefMoveQueue":[{"Type":"XYMove","X":25,"Y":30}]}]}""");
+        var copiedDocument = new EmitterDocument();
+        copiedDocument.Edit(root => root["VNodes"] = new JsonObject
+        {
+            ["Core"] = new JsonObject { ["Type"] = "VNode" },
+            ["BaseAttributes"] = new JsonArray(new JsonObject()),
+            ["Children"] = new JsonArray(original, copy)
+        });
+        var layout = new EditorLayout(copiedDocument.Validate());
+        Check(layout.Paths.Count == 2 && layout.Paths.All(path => path.Points.Length == 257), "复制的激光仅凭运行定义保留完整函数曲线");
+        Check(layout.Paths.All(path => path.Points[0] == layout.Markers.Single(marker => marker.Path == path.Path).Position),
+            "每个复制激光分别使用自身出生参考点");
     }
 }

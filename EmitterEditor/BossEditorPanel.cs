@@ -402,9 +402,9 @@ public partial class BossEditorPanel : VBoxContainer
                 if (movement.Type == "Path")
                 {
                     // 复用VPath几何；瞄准玩家段需在正式预览中冻结。
-                    var geometry = VPathCreator.CreateGeometry(movement.PathQueue, movement.PointCount);
-                    if (geometry.PathQueue.All(segment => segment.AimPlayerOffset is null))
-                        Canvas.Paths.Add(("", 0, geometry.SampleGeometry(data.SpawnPosition).Select(offset => data.SpawnPosition + offset).ToArray()));
+                    var geometry = VPathJson.Read(movement.PathQueue, movement.PointCount);
+                    if (geometry.Segments.All(segment => segment.AimPlayerOffset is null))
+                        Canvas.Paths.Add(("", 0, geometry.Sample(data.SpawnPosition, movement.PointCount).Select(offset => data.SpawnPosition + offset).ToArray()));
                 }
             }
             Status($"校验通过 · {data.PhaseCount}阶段 · 总HP {data.MaxHp} · Emitter文件独立保存");
