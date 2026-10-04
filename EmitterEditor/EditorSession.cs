@@ -108,6 +108,17 @@ public sealed class EditorSession
         _catalogOpened = true;
     }
 
+    /// <summary>读取当前引用内容用于静态校验；已打开文档优先，未打开文件每次读取真实文本。</summary>
+    /// <param name="path">Emitter资源路径或绝对路径。</param>
+    /// <returns>当前文本及已打开文档的修订号；磁盘来源的修订号为空。</returns>
+    internal (string Text, long? Revision) ReadEmitterSource(string path)
+    {
+        string full = FullPath(path);
+        if (!_emitters.TryGetValue(full, out var document)) return (File.ReadAllText(full), null);
+        if (document.Draft is not null) throw new InvalidOperationException("请先应用Emitter草稿：" + path);
+        return (document.Text, document.Revision);
+    }
+
     /// <summary>创建预览资源快照，每次调用创建独立运行树。</summary>
     /// <returns>只保存JSON文本的独立创建函数。</returns>
     public Func<string, VBulletEmitter> CaptureEmitters()

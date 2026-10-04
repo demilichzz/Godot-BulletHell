@@ -28,6 +28,8 @@ public partial class BossEditorPanel : VBoxContainer
     public bool HasDraft => _json.Text != _jsonBaseline;
     // 目录内容控件；文件窗口由顶层注入。
     private readonly Tree _phases = new();
+    // 当前Boss静态布局及依赖检查不参与预览实例的生命周期。
+    private readonly EditorLayoutCache _layoutCache = new();
     private readonly VBoxContainer _fields = new();
     private readonly CodeEdit _json = new();
     private readonly Label _title = new(), _status = new(), _clock = new();
@@ -359,36 +361,7 @@ public partial class BossEditorPanel : VBoxContainer
         if (SelectedBossIndex < 0) { Canvas.QueueRedraw(); return; }
         try
         {
-            // 静态布局只加载数据，不创建战斗或抽样随机。
-            var data = Document.ValidateBoss(SelectedBossIndex, Session.CaptureEmitters());
-            Canvas.Markers.Add(new EditorCanvas.Marker("", 0, data.SpawnPosition, data.DisplayName));
-            if (SelectedPhase >= 0)
-            {
-                // 所选阶段的独立移动配置。
-                var movement = data.Phases[SelectedPhase].Movement;
-                if (movement.Target is not null) Canvas.Markers.Add(new EditorCanvas.Marker("", 1, BossMovement.Point(movement.Target), "入场目标"));
-                if (movement.Type == "RandomRect")
-                {
-                    // 矩形随机范围的局部逻辑像素边界。
-                    Vector2 min = BossMovement.Point(movement.Min), max = BossMovement.Point(movement.Max);
-                    Canvas.Paths.Add(("", 0, new[] { min, new Vector2(max.X, min.Y), max, new Vector2(min.X, max.Y), min }));
-                }
-                if (movement.Type == "RandomCircle")
-                {
-                    // 内外圆采用固定角度采样，仅用于静态示意。
-                    foreach (double radius in new[] { movement.MinRadius, movement.MaxRadius }.Distinct())
-                        Canvas.Paths.Add(("", 0, Enumerable.Range(0, 65).Select(index => VMath.PolarMove(BossMovement.Point(movement.Center), index * Math.Tau / 64, radius)).ToArray()));
-                }
-                if (movement.Targets is not null) Canvas.Paths.Add(("", 0, movement.Targets.Select(BossMovement.Point).ToArray()));
-                if (movement.Type == "Path")
-                {
-                    // 复用VPath几何；瞄准玩家段需在正式预览中冻结。
-                    var geometry = VPathJson.Read(movement.PathQueue, movement.PointCount);
-                    if (geometry.Segments.All(segment => segment.AimPlayerOffset is null))
-                        Canvas.Paths.Add(("", 0, geometry.Sample(data.SpawnPosition, movement.PointCount).Select(offset => data.SpawnPosition + offset).ToArray()));
-                }
-            }
-            Status($"校验通过 · {data.PhaseCount}阶段 · 总HP {data.MaxHp} · Emitter文件独立保存");
+            Status(_layoutCache.ApplyBoss(Document, SelectedBossIndex, SelectedPhase, Session, Canvas));
         }
         catch (Exception error) { Status(error.Message, true); }
         Canvas.QueueRedraw();

@@ -4,7 +4,7 @@ using System;
 public partial class EditorVerification
 {
     // 合法组按显示顺序声明；截图选项在参数通过校验后冻结，本轮各验证共用。
-    private static readonly string[] GroupNames = { "--targeted-emitter", "--targeted-boss", "--targeted-test-selection" };
+    private static readonly string[] GroupNames = { "--targeted-emitter", "--targeted-boss", "--targeted-test-selection", "--targeted-layout-cache" };
     private bool _capture;
 
     /// <summary>选择唯一测试组；无组参数保持原Emitter默认范围，截图不扩大组范围。</summary>
@@ -29,7 +29,7 @@ public partial class EditorVerification
             selected = argument;
         }
         selected ??= "--targeted-emitter";
-        if (capture && selected is "--list-groups" or "--targeted-test-selection")
+        if (capture && selected is not ("--targeted-emitter" or "--targeted-boss"))
             throw new ArgumentException("--capture仅供Emitter或Boss编辑器验证组使用。");
         return (selected, capture);
     }
@@ -44,7 +44,7 @@ public partial class EditorVerification
         foreach (string group in GroupNames)
         {
             Check(SelectVerificationGroup(new[] { group }) == (group, false), "独立选择编辑器组：" + group);
-            if (group == "--targeted-test-selection") continue;
+            if (group is not ("--targeted-emitter" or "--targeted-boss")) continue;
             Check(SelectVerificationGroup(new[] { group, "--capture" }) == (group, true), "组后截图选项：" + group);
             Check(SelectVerificationGroup(new[] { "--capture", group }) == (group, true), "组前截图选项：" + group);
         }
@@ -55,7 +55,7 @@ public partial class EditorVerification
             new[] { "--capture", "--capture" }, new[] { "--targeted-boss", "--targeted-emitter" },
             new[] { "--targeted-boss", "--targeted-boss" }, new[] { "--targeted-emitter", "--list-groups" },
             new[] { "--list-groups", "--list-groups" }, new[] { "--targeted-boss", "--capture", "--unknown" },
-            new[] { "--list-groups", "--capture" }, new[] { "--capture", "--targeted-test-selection" }
+            new[] { "--targeted-layout-cache", "--capture" }, new[] { "--list-groups", "--capture" }, new[] { "--capture", "--targeted-test-selection" }
         };
         foreach (var arguments in invalid)
         {

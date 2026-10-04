@@ -34,6 +34,8 @@ public partial class EmitterPanel : Control
     private readonly Dictionary<string, TreeItem> _items = new();
     private string _selection = "/VNodes", _jsonBaseline = "", _previewText = "";
     private bool _refreshing, _playing, _jsonDirty;
+    // 只缓存静态显示结果；显式校验、预览和文档事务继续使用正式加载器。
+    private readonly EditorLayoutCache _layoutCache = new();
     private Button _play = null!;
     // 文档历史按钮随撤销栈与JSON草稿状态启用。
     private Button _undoButton = null!, _redoButton = null!;
@@ -141,7 +143,7 @@ public partial class EmitterPanel : Control
     /// <summary>校验当前数据并刷新基础图标，错误明确显示。</summary>
     private void ValidateLayout()
     {
-        try { Canvas.Rebuild(Document.Validate()); SetStatus("校验通过 · 拖动图标设置位置 · 路径按静态参考显示 · Boss(640,250) / 玩家(640,600)", false); }
+        try { _layoutCache.ApplyEmitter(Document, Canvas); SetStatus("校验通过 · 拖动图标设置位置 · 路径按静态参考显示 · Boss(640,250) / 玩家(640,600)", false); }
         catch (Exception error) { Canvas.Markers.Clear(); Canvas.Paths.Clear(); Canvas.QueueRedraw(); SetStatus(error.Message, true); }
     }
     /// <summary>同步完整JSON文本，避免丢失表达式。</summary>

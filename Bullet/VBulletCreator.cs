@@ -10,6 +10,8 @@ public sealed partial class VBulletCreator : VNodeCreator
     public VBulletDisplayAttribute Display { get; private set; } = new();
     /// <summary>共享批次来源的子弹视图，不复制列表。</summary>
     public IReadOnlyList<VBullet> Bullets { get; }
+    /// <summary>已校验出生模板的贴图路径，供工具检查实际资源依赖，不暴露可变模板。</summary>
+    internal string? TextureResourcePath => _template?.TexturePath;
     /// <summary>子弹默认采用出生快照。</summary>
     protected override bool DefaultFollow => false;
     // 校验后的不可变出生参数，不包含运行成员。

@@ -214,6 +214,12 @@ public partial class EditorVerification : Node
                 GetTree().Quit();
                 return;
             }
+            if (selected.Group == "--targeted-layout-cache")
+            {
+                VerifyLayoutCache();
+                GetTree().Quit();
+                return;
+            }
             if (selected.Group == "--targeted-boss")
             {
                 VerifySaveSnapshots();
