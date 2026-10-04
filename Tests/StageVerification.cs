@@ -38,7 +38,7 @@ public partial class StageVerification : Node
                 return;
             }
             // 正式目录使用四帧图集，每帧仍为64像素。
-            var production = GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
+            var production = BossCatalog.Load();
             production.Validate();
             Check(production.Entries.Count == 23, "正式目录包含3个原Boss和20个AI生成Boss");
             for (int index = 0; index < 3; index++)
@@ -51,9 +51,9 @@ public partial class StageVerification : Node
             Check(ResourceUid.GetIdPath(ResourceUid.TextToId("uid://7iuuwxiu5ji")) == "res://Assets/Units/Boss_01.png"
                 && ResourceUid.GetIdPath(ResourceUid.TextToId("uid://cyx82pr2q67tt")) == "res://Assets/Units/Boss_05.png", "图片资源身份保留");
             // 使用七个仅测试可见的配置，覆盖多行和不完整末行。
-            var catalog = new BossCatalog();
+            var entries = new System.Collections.Generic.List<BossData>();
             for (int index = 0; index < 7; index++)
-                catalog.Entries.Add(new BossData
+                entries.Add(new BossData
                 {
                     Id = $"test_{index}", DisplayName = $"测试 Boss {index}",
                     Texture = GD.Load<Texture2D>("res://Assets/Units/Boss_01.png"),
@@ -61,6 +61,7 @@ public partial class StageVerification : Node
                     MaxHp = 100 + index * 10, CollisionRadius = 32 + index,
                     VisualScale = 2 + index * 0.1f, SpawnPosition = new Vector2(600 + index, 250)
                 });
+            var catalog = new BossCatalog(entries);
             catalog.Validate();
             var game = new GameManager { Catalog = catalog };
             AddChild(game);
@@ -186,7 +187,7 @@ public partial class StageVerification : Node
     /// <returns>全部场景切换完成后的任务。</returns>
     private async Task VerifyNewBosses()
     {
-        var catalog = GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
+        var catalog = BossCatalog.Load();
         catalog.Validate();
         Check(catalog.Entries.Count == 23, "正式选择目录包含3个原Boss和20个AI生成Boss");
         var game = new GameManager { Catalog = catalog };

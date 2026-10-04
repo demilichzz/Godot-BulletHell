@@ -54,7 +54,7 @@ public partial class EditorVerification
         }
         string savedPath = ProjectSettings.GlobalizePath("res://.tools/B99.json"); _temporary.Add(savedPath);
         document.Save(savedPath);
-        Check(!document.Dirty && BossData.Load(savedPath).PhaseCount == document.ValidateBoss().PhaseCount, "保存Boss由正式加载器读取");
+        Check(!document.Dirty && BossData.FromJson(File.ReadAllText(savedPath)).PhaseCount == document.ValidateBoss().PhaseCount, "保存Boss由正式加载器读取");
         string saved = File.ReadAllText(savedPath);
         document.Edit(root => root["Phases"]![0]!["Hp"] = -1);
         Reject(() => document.Save(savedPath), "无效Boss不能覆盖文件");
@@ -146,7 +146,11 @@ public partial class EditorVerification
         editor.SwitchMode(false);
         Check(panel.Preview.Boss is null, "切模式取消Boss时间线与战斗");
         Reject(() => GlobalEvent.GetBoss(), "切换后无旧Boss全局绑定");
-        editor.SwitchMode(true); panel.Open("res://Data/Bosses/B03.json"); panel.SelectPhase(0); await Settle();
+        // 当前阶段仍验证单Boss面板；测试夹具从正式目录提取，不保留旧生产文件。
+        string previewPath = ProjectSettings.GlobalizePath("res://.tools/B03.json"); _temporary.Add(previewPath);
+        var previewBoss = JsonNode.Parse(JsonData.ReadFile(BossCatalog.DefaultPath))!["Bosses"]![2]!;
+        File.WriteAllText(previewPath, previewBoss.ToJsonString());
+        editor.SwitchMode(true); panel.Open(previewPath); panel.SelectPhase(0); await Settle();
         // 布局尺寸验证在无显示设备环境也执行。
         Check(panel.Canvas.Size.X >= 400 && panel.Canvas.Size.Y >= 360, "Boss画布具有可用尺寸");
         if (OS.GetCmdlineUserArgs().Contains("--capture"))

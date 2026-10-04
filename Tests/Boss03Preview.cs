@@ -31,7 +31,7 @@ public partial class Boss03Preview : Node2D
         });
         _battle = new BattleManager();
         AddChild(_battle);
-        _battle.Initialize(this, BossData.Load("res://Data/Bosses/B03.json"));
+        _battle.Initialize(this, BossCatalog.Load().Get("Boss_03"));
         _battle.SetPhysicsProcess(false);
         _battle.Player.Attack.Stop();
         if (_phase02) _battle.Boss.TrySwitchAdjacentPhase(1);

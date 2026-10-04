@@ -29,8 +29,8 @@ public sealed record VReflectionRegionAttribute
     /// <returns>已经校验的配置；创建实例时进一步校验数值范围。</returns>
     internal static VReflectionRegionAttribute Read(JsonElement element)
     {
-        string type = VNodeCreator.Required(element, "Type").GetString() ?? "";
-        VNodeCreator.CheckFields(element, type switch
+        string type = JsonData.Required(element, "Type").GetString() ?? "";
+        JsonData.CheckFields(element, type switch
         {
             "Rectangle" => new[] { "Type", "X", "Y", "Width", "Height", "Edges" },
             "Circle" => new[] { "Type", "X", "Y", "Radius", "AngleMin", "AngleMax" },
@@ -38,7 +38,7 @@ public sealed record VReflectionRegionAttribute
         });
         foreach (var field in element.EnumerateObject())
             if (field.Value.ValueKind == JsonValueKind.Null) throw new JsonException("反射区域字段不能显式为null。");
-        return VNodeCreator.Read<VReflectionRegionAttribute>(element);
+        return JsonData.Read<VReflectionRegionAttribute>(element);
     }
 
     /// <summary>创建经严格校验的世界反射区域。</summary>

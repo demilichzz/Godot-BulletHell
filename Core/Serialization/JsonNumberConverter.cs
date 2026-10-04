@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 /// <summary>在加载时将小数或受限常量表达式直接转换为有限数值。</summary>
-public sealed class VNodeNumberConverter : JsonConverter<double>
+public sealed class JsonNumberConverter : JsonConverter<double>
 {
     /// <summary>读取数值或包含PI、TAU及四则运算的字符串。</summary>
     /// <param name="reader">当前JSON读取器。</param>

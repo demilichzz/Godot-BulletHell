@@ -15,7 +15,7 @@ public partial class BattleVerification
         AddChild(world);
         var battle = new BattleManager();
         world.AddChild(battle);
-        battle.Initialize(world, BossData.Load("res://Data/Bosses/B03.json"));
+        battle.Initialize(world, BossCatalog.Load().Get("Boss_03"));
         battle.SetPhysicsProcess(false);
         battle.Player.Attack.Stop();
         return battle;

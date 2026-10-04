@@ -1,7 +1,0 @@
-[gd_resource type="Resource" script_class="BossCatalog" load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://Boss/BossCatalog.cs" id="1"]
-
-[resource]
-script = ExtResource("1")
-JsonFiles = Array[String](["res://Data/Bosses/B01.json", "res://Data/Bosses/B02.json", "res://Data/Bosses/B03.json", "res://Data/Bosses/B04.json", "res://Data/Bosses/B05.json", "res://Data/Bosses/B06.json", "res://Data/Bosses/B07.json", "res://Data/Bosses/B08.json", "res://Data/Bosses/B09.json", "res://Data/Bosses/B10.json", "res://Data/Bosses/B11.json", "res://Data/Bosses/B12.json", "res://Data/Bosses/B13.json", "res://Data/Bosses/B14.json", "res://Data/Bosses/B15.json", "res://Data/Bosses/B16.json", "res://Data/Bosses/B17.json", "res://Data/Bosses/B18.json", "res://Data/Bosses/B19.json", "res://Data/Bosses/B20.json", "res://Data/Bosses/B21.json", "res://Data/Bosses/B22.json", "res://Data/Bosses/B23.json"])

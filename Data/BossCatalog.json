@@ -1,0 +1,1603 @@
+{
+  "Bosses": [
+    {
+      "Core": {
+        "Id": "Boss_01",
+        "DisplayName": "环形守卫",
+        "TexturePath": "res://Assets/Units/Boss_01.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "环形弹幕 · 阶段01",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/B01P01_Emitter01.json",
+            "res://Data/Emitters/B01P01_Emitter02.json"
+          ],
+          "Movement": {
+            "Type": "RandomCircle",
+            "Speed": 100,
+            "Center": {
+              "X": 640,
+              "Y": 250
+            },
+            "MinRadius": 200,
+            "MaxRadius": 200,
+            "StartMs": 5000,
+            "IntervalMs": 5000
+          }
+        },
+        {
+          "Name": "环形弹幕 · 阶段02",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/B01P02_Emitter01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "环形弹幕 · 阶段03",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/B01P03_Emitter01.json"
+          ],
+          "Movement": {
+            "Type": "RandomCircle",
+            "Speed": 100,
+            "Center": {
+              "X": 640,
+              "Y": 250
+            },
+            "MinRadius": 200,
+            "MaxRadius": 200,
+            "StartMs": 5000,
+            "IntervalMs": 5000
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_02",
+        "DisplayName": "Boss 02",
+        "TexturePath": "res://Assets/Units/Boss_02.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "Boss 02 · 阶段01",
+          "Hp": 300,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/B02P01_Emitter01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_03",
+        "DisplayName": "Boss 03",
+        "TexturePath": "res://Assets/Units/Boss_03.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "神罚「幼小的恶魔领主」 · 阶段01",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/B03P01_Emitter01.json"
+          ],
+          "Movement": {
+            "Type": "Sequence",
+            "Speed": 240,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            },
+            "StartMs": 4700,
+            "IntervalMs": 5000,
+            "Targets": [
+              {
+                "X": 500,
+                "Y": 230
+              },
+              {
+                "X": 780,
+                "Y": 230
+              },
+              {
+                "X": 640,
+                "Y": 240
+              }
+            ]
+          }
+        },
+        {
+          "Name": "难题「Salamander Shield」 · 阶段02",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/B03P02_Emitter01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "Boss 03 · 阶段03（预留）",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_01",
+        "DisplayName": "Boss_AIGen_01",
+        "TexturePath": "res://Assets/Units/Boss_04.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "露米娅 · 夜符「Night Bird」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_01_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "露米娅 · 暗符「Demarcation」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_01_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "露米娅 · 月符「Moonlight Ray」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_01_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_02",
+        "DisplayName": "Boss_AIGen_02",
+        "TexturePath": "res://Assets/Units/Boss_05.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "琪露诺 · 雪符「Diamond Blizzard」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_02_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "琪露诺 · 冰符「Icicle Fall」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_02_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "琪露诺 · 冻符「Perfect Freeze」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_02_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_03",
+        "DisplayName": "Boss_AIGen_03",
+        "TexturePath": "res://Assets/Units/Boss_06.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "红美铃 · 华符「卷柏9」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_03_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "红美铃 · 虹符「彩虹的风铃」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_03_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "红美铃 · 彩符「极彩台风」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_03_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_04",
+        "DisplayName": "Boss_AIGen_04",
+        "TexturePath": "res://Assets/Units/Boss_07.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "帕秋莉 · 木符「Green Storm」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_04_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "帕秋莉 · 火符「Agni Shine High Level」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_04_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "帕秋莉 · 金符「Metal Fatigue」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_04_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_05",
+        "DisplayName": "Boss_AIGen_05",
+        "TexturePath": "res://Assets/Units/Boss_08.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "十六夜咲夜 · 奇术「Mesmerizing Misdirection」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_05_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "十六夜咲夜 · 时符「The World」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_05_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "十六夜咲夜 · 奇术「Eternal Meek」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_05_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_06",
+        "DisplayName": "Boss_AIGen_06",
+        "TexturePath": "res://Assets/Units/Boss_09.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "蕾米莉亚 · 狱符「千根针的针山」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_06_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "蕾米莉亚 · 神术「吸血鬼幻想」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_06_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "蕾米莉亚 · 红魔「Scarlet Meister」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_06_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_07",
+        "DisplayName": "Boss_AIGen_07",
+        "TexturePath": "res://Assets/Units/Boss_10.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "芙兰朵露 · 禁忌「Cranberry Trap」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_07_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "芙兰朵露 · 禁忌「Kagome Kagome」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_07_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "芙兰朵露 · 禁弹「Starbow Break」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_07_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_08",
+        "DisplayName": "Boss_AIGen_08",
+        "TexturePath": "res://Assets/Units/Boss_11.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "芙兰朵露 · 禁弹「Catadioptric」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_08_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "芙兰朵露 · 禁忌「Four of a Kind」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_08_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "芙兰朵露 · QED「495年的波纹」",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_08_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_09",
+        "DisplayName": "Boss_AIGen_09",
+        "TexturePath": "res://Assets/Units/Boss_12.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "双臂螺旋与逆向细流",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_09_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "五角星轮流绽放",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_09_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "圆环向心收缩后下落",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_09_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_10",
+        "DisplayName": "Boss_AIGen_10",
+        "TexturePath": "res://Assets/Units/Boss_13.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "双拱曲线帘幕缓降",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_10_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "正弦花边逐点亮起后斜落",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_10_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "双螺旋短光束穿流",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_10_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_11",
+        "DisplayName": "Boss_AIGen_11",
+        "TexturePath": "res://Assets/Units/Boss_14.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "三角弹墙分层下移",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_11_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "菱形阵列左右分离",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_11_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "五芒星阵列延迟瞄准",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_11_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_12",
+        "DisplayName": "Boss_AIGen_12",
+        "TexturePath": "res://Assets/Units/Boss_15.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "六瓣花速度层叠展开",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_12_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "移动花蕊二次开花",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_12_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "向日葵光瓣与金色旋流",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_12_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_13",
+        "DisplayName": "Boss_AIGen_13",
+        "TexturePath": "res://Assets/Units/Boss_04.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "重力流星与斜向碎屑",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_13_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "彗星划过并留下延迟弹尾",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_13_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "星屑散开暂停后追击",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_13_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_14",
+        "DisplayName": "Boss_AIGen_14",
+        "TexturePath": "res://Assets/Units/Boss_05.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "八向光针依次预警",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_14_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "交错斜光栅与中心弹列",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_14_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "双曲光墙间穿行的瞄准水滴",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_14_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_15",
+        "DisplayName": "Boss_AIGen_15",
+        "TexturePath": "res://Assets/Units/Boss_06.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "两侧折返的交叉弹带",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_15_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "圆壁反射的三束弹球",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_15_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "缺口反射环与短促瞄准星",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_15_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_16",
+        "DisplayName": "Boss_AIGen_16",
+        "TexturePath": "res://Assets/Units/Boss_07.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "螺线逐点展开再整体坠落",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_16_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "双波浪错拍下压",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_16_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "贝塞尔羽翼逐羽射出",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_16_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_17",
+        "DisplayName": "Boss_AIGen_17",
+        "TexturePath": "res://Assets/Units/Boss_08.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "左右巡航源交替扫射",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_17_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "下落弹源在途中三次散花",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_17_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "奇偶瞄准交替形成窄门",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_17_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_18",
+        "DisplayName": "Boss_AIGen_18",
+        "TexturePath": "res://Assets/Units/Boss_09.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "扩散圆环急停后原路回收",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_18_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "直角转向的阶梯弹列",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_18_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "向心蓄力后径向加速释放",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_18_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_19",
+        "DisplayName": "Boss_AIGen_19",
+        "TexturePath": "res://Assets/Units/Boss_10.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "弯月短激光双侧掠过",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_19_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "分段曲线光龙穿梭",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_19_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "折线光梭与错位弹珠",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_19_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Core": {
+        "Id": "Boss_AIGen_20",
+        "DisplayName": "Boss_AIGen_20",
+        "TexturePath": "res://Assets/Units/Boss_11.png",
+        "Hframes": 2,
+        "Vframes": 2,
+        "AnimationFps": 4,
+        "MaxHp": 300,
+        "CollisionRadius": 32,
+        "VisualScale": 3,
+        "SpawnPosition": {
+          "X": 640,
+          "Y": 250
+        }
+      },
+      "Phases": [
+        {
+          "Name": "三色移动弹源轮奏",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_20_Phase01.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "花环与格幕交替落下",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_20_Phase02.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        },
+        {
+          "Name": "缺口星环与交错预警光束",
+          "Hp": 100,
+          "DurationMs": null,
+          "EndCondition": "Health",
+          "Emitters": [
+            "res://Data/Emitters/AIGen/Boss_AIGen_20_Phase03.json"
+          ],
+          "Movement": {
+            "Type": "Center",
+            "Speed": 200,
+            "Target": {
+              "X": 640,
+              "Y": 240
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

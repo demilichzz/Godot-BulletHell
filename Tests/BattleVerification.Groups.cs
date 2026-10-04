@@ -28,6 +28,7 @@ public partial class BattleVerification
         ["--targeted-b01"] = () => { VerifyBoss01Sequence(); VerifyBoss01Stages(); VerifyPhaseSwitch(); },
         ["--targeted-test-selection"] = VerifyGroupSelection,
         ["--targeted-migration"] = VerifyMigrationBaseline,
+        ["--targeted-catalog"] = VerifyBossCatalog,
         ["--default-battle"] = () =>
         {
             VerifyOriginal(); VerifyPlayer(); VerifyCombat(); VerifyPhases(); VerifyBoss01Stages();

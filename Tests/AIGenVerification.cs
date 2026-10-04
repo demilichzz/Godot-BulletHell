@@ -35,7 +35,7 @@ public partial class AIGenVerification : Node
         try
         {
             // 正式目录必须保留前三项，随后按AI生成编号排列。
-            var catalog = GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
+            var catalog = BossCatalog.Load();
             catalog.Validate();
             Check(catalog.Entries.Count == 23, "目录应有3个原Boss和20个AI生成Boss");
             for (int index = 0; index < 3; index++)

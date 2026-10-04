@@ -541,7 +541,7 @@ public partial class BattleVerification : Node
     private void VerifyBoss01Stages()
     {
         // 正式资源与无配置入口都必须使用300血和相同阶段组合。
-        var data = BossData.Load("res://Data/Bosses/B01.json");
+        var data = BossCatalog.Load().Get("Boss_01");
         Check(data.MaxHp == 300, "正式Boss01资源300血");
         var battle = CreateBattle(out var world);
         battle.Player.Attack.Stop();
@@ -964,7 +964,7 @@ public partial class BattleVerification : Node
         {
             atlasData with { ColorIndex = 8 }, atlasData with { Hframes = 0 }, atlasData with { Vframes = -1 },
             atlasData with { TexturePath = null }, atlasData with { TexturePath = "res://Assets/missing.png" },
-            atlasData with { TexturePath = "res://Data/BossCatalog.tres" },
+            atlasData with { TexturePath = BossCatalog.DefaultPath },
             atlasData with { CircleColor = new Color(float.NaN, 0, 0) },
             atlasData with { Position = new Vector2(float.NaN, 0) },
             atlasData with { AngleRadians = float.NaN },

@@ -123,7 +123,7 @@ public partial class BossController : Node2D, IVTimelineOwner
         if (_phases.Count == 0)
         {
             // 直接构造控制器时也使用正式B01定义。
-            var data = BossData.Load("res://Data/Bosses/B01.json");
+            var data = BossCatalog.Load().Get("Boss_01");
             for (int index = 0; index < data.Phases.Count; index++) _phases.Add(new DataBossPhase(data.Phases[index], index));
         }
 		_phasesStarted = true;

@@ -14,7 +14,7 @@ public partial class AngleIndicator : Control
         {
             // 复用游戏数值转换器，避免两套表达式规则。
             using var document = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(text));
-            _angle = VNodeCreator.Read<double>(document.RootElement);
+            _angle = JsonData.Read<double>(document.RootElement);
             TooltipText = $"{_angle:G7} rad / {VMath.RadiansToDegrees(_angle.Value):G7}°\n0向右，π/2向下；顺时针为正。增量、偏移字段显示其自身角度，不代表最终运动方向。";
         }
         catch { _angle = null; TooltipText = "表达式无效，无法显示方向。"; }

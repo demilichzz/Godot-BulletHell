@@ -13,16 +13,16 @@ public partial class BattleVerification
     private void VerifyMigrationBaseline()
     {
         // 配置摘要覆盖全部Boss字段、阶段顺序和Emitter引用，不依赖JSON排版。
-        var catalog = GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
+        var catalog = BossCatalog.Load();
         catalog.Validate();
         var entries = new JsonArray();
-        foreach (string path in catalog.JsonFiles)
+        using var document = JsonDocument.Parse(JsonData.ReadFile(BossCatalog.DefaultPath));
+        foreach (var boss in document.RootElement.GetProperty("Bosses").EnumerateArray())
         {
-            using var document = JsonDocument.Parse(VNodeCreator.ReadFile(path));
             entries.Add(new JsonObject
             {
-                ["Id"] = document.RootElement.GetProperty("Core").GetProperty("Id").GetString(),
-                ["Hash"] = CanonicalHash(document.RootElement)
+                ["Id"] = boss.GetProperty("Core").GetProperty("Id").GetString(),
+                ["Hash"] = CanonicalHash(boss)
             });
         }
         // 两条轨迹分别覆盖圆周移动和阶段切换、回退、重开。
@@ -32,7 +32,7 @@ public partial class BattleVerification
             ["B01Phase01"] = CaptureMigrationBattle(false),
             ["B01Lifecycle"] = CaptureMigrationBattle(true)
         };
-        var expected = JsonNode.Parse(VNodeCreator.ReadFile("res://Tests/Fixtures/MigrationBaseline.json"))!.AsObject();
+        var expected = JsonNode.Parse(JsonData.ReadFile("res://Tests/Fixtures/MigrationBaseline.json"))!.AsObject();
         Check(JsonNode.DeepEquals(actual["Catalog"], expected["Catalog"]), "全部Boss配置与展示顺序保持迁移前基线");
         Check(JsonNode.DeepEquals(actual["B01Phase01"], expected["B01Phase01"]), "B01首阶段720步的运动、弹幕和随机状态保持基线");
         Check(JsonNode.DeepEquals(actual["B01Lifecycle"], expected["B01Lifecycle"]), "阶段切换、回退与重开保持基线");

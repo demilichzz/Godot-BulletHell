@@ -26,7 +26,7 @@ public sealed record BossPhaseDefinition
     internal static BossPhaseDefinition Read(JsonElement element)
     {
         // 序列化器拒绝未知字段，公共解析入口拒绝重复字段。
-        var value = VNodeCreator.Read<BossPhaseDefinition>(element);
+        var value = JsonData.Read<BossPhaseDefinition>(element);
         if (string.IsNullOrWhiteSpace(value.Name) || value.Hp <= 0
             || value.EndCondition is not ("Health" or "Time" or "HealthOrTime")
             || value.DurationMs is <= 0 || (value.EndCondition != "Health" && value.DurationMs is null)
@@ -87,7 +87,7 @@ public sealed record BossMovement
     internal static BossMovement Read(JsonElement element)
     {
         // 先检查类型，再限定该模式可以使用的字段。
-        string type = VNodeCreator.Required(element, "Type").GetString() ?? "";
+        string type = JsonData.Required(element, "Type").GetString() ?? "";
         string[] extra = type switch
         {
             "Center" => new[] { "Target" },
@@ -97,13 +97,13 @@ public sealed record BossMovement
             "Path" => new[] { "PathQueue", "PointCount", "Loop" },
             _ => throw new JsonException("未知Boss移动类型。")
         };
-        VNodeCreator.CheckFields(element, new[] { "Type", "Speed" }.Concat(extra).ToArray());
+        JsonData.CheckFields(element, new[] { "Type", "Speed" }.Concat(extra).ToArray());
         // 配置位置必须同时声明X/Y，避免拼漏坐标静默落到原点。
         foreach (string key in new[] { "Target", "Center", "Min", "Max" })
             if (element.TryGetProperty(key, out var point)) ReadPoint(point);
         if (element.TryGetProperty("Targets", out var targets) && targets.ValueKind == JsonValueKind.Array)
             foreach (var point in targets.EnumerateArray()) ReadPoint(point);
-        var value = VNodeCreator.Read<BossMovement>(element);
+        var value = JsonData.Read<BossMovement>(element);
         if (!float.IsFinite(value.Speed) || value.Speed <= 0 || value.StartMs < 0)
             throw new JsonException("移动速度必须为正有限数，StartMs不能为负。");
         if (value.Target is not null) Point(value.Target);
@@ -140,10 +140,10 @@ public sealed record BossMovement
     /// <returns>有限逻辑像素位置。</returns>
     internal static Vector2 ReadPoint(JsonElement element)
     {
-        VNodeCreator.CheckFields(element, new[] { "X", "Y" });
-        VNodeCreator.Required(element, "X");
-        VNodeCreator.Required(element, "Y");
-        return Point(VNodeCreator.Read<VPathPointAttribute>(element));
+        JsonData.CheckFields(element, new[] { "X", "Y" });
+        JsonData.Required(element, "X");
+        JsonData.Required(element, "Y");
+        return Point(JsonData.Read<VPathPointAttribute>(element));
     }
     /// <summary>检查并转换双精度配置点。</summary>
     /// <param name="point">右下为正的必填像素坐标。</param>

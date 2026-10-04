@@ -10,7 +10,7 @@ public partial class GameManager : Node
     /// <summary>当前活动场景，启动及切换失败时可为空。</summary>
     public Stage? CurrentStage { get; private set; }
     /// <summary>当前 Boss 目录，可在入树前注入测试目录。</summary>
-    [Export] public BossCatalog Catalog { get; set; } = null!;
+    public BossCatalog Catalog { get; set; } = null!;
     /// <summary>返回选择界面时恢复的 Boss 标识。</summary>
     public string SelectedBossId { get; private set; } = "";
     /// <summary>本次运行记住的AI加入选项，默认关闭，不写入磁盘。</summary>
@@ -31,7 +31,7 @@ public partial class GameManager : Node
     {
         GameInput.EnsureBindings();
         AddChild(StageHost);
-        Catalog ??= GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
+        Catalog ??= BossCatalog.Load();
         Catalog.Validate();
         if (Catalog.Entries.Count > 0) SelectedBossId = Catalog.Entries[0].Id;
         RegisterStage(SelectStageId, () => GD.Load<PackedScene>("res://Stage/BossSelectStage.tscn").Instantiate<BossSelectStage>());

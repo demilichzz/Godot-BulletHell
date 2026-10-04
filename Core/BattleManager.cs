@@ -69,7 +69,7 @@ public partial class BattleManager : Node
 			_stopped = false;
 			State = BattleState.Running;
 			_world.AddChild(Bullets);
-			Boss = BossFactory.Create(_bossData ?? BossData.Load("res://Data/Bosses/B01.json"));
+			Boss = BossFactory.Create(_bossData ?? BossCatalog.Load().Get("Boss_01"));
 			Player = new PlayerController { Name = "Player", Position = BattleConfig.PlayerSpawn };
 			// 先建立双方字段与节点，再显式启动Boss阶段，保证阶段可查询玩家。
 			_world.AddChild(Player);

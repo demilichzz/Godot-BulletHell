@@ -48,7 +48,7 @@ public partial class BossDataVerification : Node
     private static JsonObject Fixture()
     {
         // 10与30点血池便于独立验证伤害、超时扣血和总血量。
-        var root = JsonNode.Parse(VNodeCreator.ReadFile("res://Data/Bosses/B01.json"))!.AsObject();
+        var root = JsonNode.Parse(JsonData.ReadFile(BossCatalog.DefaultPath))!["Bosses"]![0]!.DeepClone().AsObject();
         root["Core"]!["MaxHp"] = 40;
         root["Phases"] = JsonNode.Parse("""
         [{"Name":"甲","Hp":10,"DurationMs":100,"EndCondition":"Time","Emitters":[],
@@ -95,7 +95,7 @@ public partial class BossDataVerification : Node
         VMath.setRandomSeed(72);
         double expected = VMath.getRandomDouble(0, 1);
         VMath.setRandomSeed(72);
-        var catalog = GD.Load<BossCatalog>("res://Data/BossCatalog.tres");
+        var catalog = BossCatalog.Load();
         catalog.Validate();
         Check(catalog.Entries.Count == 23 && VMath.getRandomDouble(0, 1) == expected, "23个Boss加载不消耗业务随机");
         foreach (var data in catalog.Entries)
@@ -181,10 +181,10 @@ public partial class BossDataVerification : Node
         battle = Start(BossData.FromJson(root.ToJsonString()));
         Step(battle, 60);
         Check(new Rect2(500, 200, 201, 101).HasPoint(battle.Boss.CurrentPhase!.MoveTarget), "随机目标在配置矩形内");
-        battle = Start(BossData.Load("res://Data/Bosses/B01.json"));
+        battle = Start(BossCatalog.Load().Get("Boss_01"));
         Step(battle, 300);
         Check(Math.Abs(battle.Boss.CurrentPhase!.MoveTarget.DistanceTo(new Vector2(640, 250)) - 200) < 0.001, "B01原圆周随机行为");
-        battle = Start(BossData.Load("res://Data/Bosses/B03.json"));
+        battle = Start(BossCatalog.Load().Get("Boss_03"));
         Step(battle, 360);
         Check(battle.Boss.Position == new Vector2(500, 230), "B03波次间固定目标换位");
         // VPath直线与贝塞尔各自复用原格式，速度为每秒60像素。

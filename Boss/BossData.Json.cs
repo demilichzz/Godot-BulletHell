@@ -3,59 +3,53 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
-/// <summary>从独立Bxx.json加载Boss属性和有序阶段，不嵌入Emitter数据。</summary>
+/// <summary>读取目录内嵌Boss属性和有序阶段，不嵌入Emitter数据。</summary>
 public partial class BossData
 {
     /// <summary>数据化阶段队列；空队列仅用于显式代码阶段配置。</summary>
     public IReadOnlyList<BossPhaseDefinition> Phases { get; private set; } = Array.Empty<BossPhaseDefinition>();
     /// <summary>阶段数由队列长度决定，避免重复保存不一致的数量。</summary>
     public int PhaseCount => Phases.Count;
-    /// <summary>加载独立Boss数据文件，编号至少两位。</summary>
-    /// <param name="path">以Bxx.json命名的Godot或绝对文件路径。</param>
-    /// <returns>经过完整验证的Boss静态数据。</returns>
-    public static BossData Load(string path)
-    {
-        if (!Regex.IsMatch(System.IO.Path.GetFileName(path), @"^B[0-9]{2,}\.json$"))
-            throw new ArgumentException("Boss文件须命名为Bxx.json，编号至少两位。", nameof(path));
-        return FromJson(VNodeCreator.ReadFile(path), path);
-    }
     /// <summary>解析完整Boss JSON，严格拒绝未知、重复及旧字段。</summary>
     /// <param name="json">含Core和非空Phases队列的JSON。</param>
     /// <param name="sourceName">用于错误定位的来源名称。</param>
     /// <returns>独立静态数据；加载不推进战斗或消耗随机。</returns>
     public static BossData FromJson(string json, string sourceName = "内存Boss")
-        => VNodeCreator.Parse(json, sourceName, element =>
+        => JsonData.Parse(json, sourceName, Read);
+    /// <summary>读取目录内的Boss对象，供目录和内存预览共用。</summary>
+    /// <param name="element">包含Core与非空Phases的对象。</param>
+    /// <returns>独立的Boss静态配置。</returns>
+    internal static BossData Read(JsonElement element)
+    {
+        JsonData.CheckFields(element, new[] { "Core", "Phases" });
+        // Core只保存显示、碰撞、出生和总血量。
+        var core = JsonData.Read<BossCoreDefinition>(JsonData.Required(element, "Core"));
+        var queue = JsonData.Required(element, "Phases");
+        if (queue.ValueKind != JsonValueKind.Array || queue.GetArrayLength() == 0)
+            throw new JsonException("Phases必须为非空有序阶段队列。");
+        var phases = new List<BossPhaseDefinition>();
+        foreach (var phase in queue.EnumerateArray())
         {
-            VNodeCreator.CheckFields(element, new[] { "Core", "Phases" });
-            // Core只保存显示、碰撞、出生和总血量。
-            var core = VNodeCreator.Read<BossCoreDefinition>(VNodeCreator.Required(element, "Core"));
-            var queue = VNodeCreator.Required(element, "Phases");
-            if (queue.ValueKind != JsonValueKind.Array || queue.GetArrayLength() == 0)
-                throw new JsonException("Phases必须为非空有序阶段队列。");
-            var phases = new List<BossPhaseDefinition>();
-            foreach (var phase in queue.EnumerateArray())
-            {
-                try { phases.Add(BossPhaseDefinition.Read(phase)); }
-                catch (Exception error) when (error is JsonException or ArgumentException or System.IO.IOException)
-                { throw new JsonException($"Phases[{phases.Count}]: {error.Message}", error); }
-            }
-            if (phases.Sum(phase => (long)phase.Hp) != core.MaxHp)
-                throw new JsonException("Core.MaxHp必须等于全部独立阶段Hp之和。");
-            // 贴图资源仍由Godot缓存管理，配置不持有任何战斗对象。
-            var data = new BossData
-            {
-                Id = core.Id, DisplayName = core.DisplayName,
-                Texture = LoadTexture(core.TexturePath), Portrait = core.PortraitPath is null ? null : LoadTexture(core.PortraitPath),
-                Hframes = core.Hframes, Vframes = core.Vframes, AnimationFps = core.AnimationFps,
-                MaxHp = core.MaxHp, CollisionRadius = core.CollisionRadius, VisualScale = core.VisualScale,
-                SpawnPosition = BossMovement.ReadPoint(VNodeCreator.Required(VNodeCreator.Required(element, "Core"), "SpawnPosition")),
-                Phases = phases.AsReadOnly(), PhaseProfile = ""
-            };
-            data.Validate();
-            return data;
-        });
+            try { phases.Add(BossPhaseDefinition.Read(phase)); }
+            catch (Exception error) when (error is JsonException or ArgumentException or System.IO.IOException)
+            { throw new JsonException($"Phases[{phases.Count}]: {error.Message}", error); }
+        }
+        if (phases.Sum(phase => (long)phase.Hp) != core.MaxHp)
+            throw new JsonException("Core.MaxHp必须等于全部独立阶段Hp之和。");
+        // 贴图资源仍由Godot缓存管理，配置不持有任何战斗对象。
+        var data = new BossData
+        {
+            Id = core.Id, DisplayName = core.DisplayName,
+            Texture = LoadTexture(core.TexturePath), Portrait = core.PortraitPath is null ? null : LoadTexture(core.PortraitPath),
+            Hframes = core.Hframes, Vframes = core.Vframes, AnimationFps = core.AnimationFps,
+            MaxHp = core.MaxHp, CollisionRadius = core.CollisionRadius, VisualScale = core.VisualScale,
+            SpawnPosition = BossMovement.ReadPoint(JsonData.Required(JsonData.Required(element, "Core"), "SpawnPosition")),
+            Phases = phases.AsReadOnly(), PhaseProfile = ""
+        };
+        data.Validate();
+        return data;
+    }
     /// <summary>读取有效Godot贴图资源。</summary>
     /// <param name="path">res://贴图路径。</param>
     /// <returns>已加载的贴图。</returns>

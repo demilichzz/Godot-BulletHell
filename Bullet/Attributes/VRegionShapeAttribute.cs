@@ -23,8 +23,8 @@ public sealed record VRegionShapeAttribute
     internal static VRegionShapeAttribute Read(JsonElement element)
     {
         // 根据类型限制字段；统一反序列化器负责表达式和重复字段校验。
-        string type = VNodeCreator.Required(element, "Type").GetString() ?? "";
-        VNodeCreator.CheckFields(element, type switch
+        string type = JsonData.Required(element, "Type").GetString() ?? "";
+        JsonData.CheckFields(element, type switch
         {
             "Circle" => new[] { "Type", "X", "Y", "Radius" },
             "Rectangle" => new[] { "Type", "X", "Y", "Width", "Height" },
@@ -32,7 +32,7 @@ public sealed record VRegionShapeAttribute
         });
         foreach (var field in element.EnumerateObject())
             if (field.Value.ValueKind == JsonValueKind.Null) throw new JsonException("出界区域字段不能显式为null。");
-        return VNodeCreator.Read<VRegionShapeAttribute>(element);
+        return JsonData.Read<VRegionShapeAttribute>(element);
     }
 
     /// <summary>建立可由同一Creator全部弹幕共享的不可变形状，校验数值范围。</summary>

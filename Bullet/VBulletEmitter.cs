@@ -59,20 +59,20 @@ public class VBulletEmitter : IVTimelineOwner
     /// <summary>加载当前JSON结构，不接受版本字段或旧平铺数组。</summary>
     /// <param name="path">Godot资源路径。</param>
     /// <returns>未启动且拥有独立树的发射器。</returns>
-    public static VBulletEmitter Load(string path) => FromJson(VNodeCreator.ReadFile(path), path);
+    public static VBulletEmitter Load(string path) => FromJson(JsonData.ReadFile(path), path);
 
     /// <summary>解析单根树并建立只读身份，不消耗业务随机。</summary>
     /// <param name="json">当前格式JSON。</param>
     /// <param name="sourceName">错误消息中的来源。</param>
     /// <returns>校验完成的独立发射器。</returns>
     public static VBulletEmitter FromJson(string json, string sourceName = "内存")
-        => VNodeCreator.Parse(json, sourceName, element =>
+        => JsonData.Parse(json, sourceName, element =>
         {
-            VNodeCreator.CheckFields(element, new[] { "Core", "VNodes" });
+            JsonData.CheckFields(element, new[] { "Core", "VNodes" });
             var emitter = new VBulletEmitter
             {
-                Core = VNodeCreator.Read<EmitterCoreAttribute>(VNodeCreator.Required(element, "Core")),
-                Root = VNodeCreator.ReadCreator(VNodeCreator.Required(element, "VNodes")),
+                Core = JsonData.Read<EmitterCoreAttribute>(JsonData.Required(element, "Core")),
+                Root = VNodeCreator.ReadCreator(JsonData.Required(element, "VNodes")),
                 _definition = json
             };
             if (emitter.Core.Damage <= 0 || !Enum.IsDefined(emitter.Core.Team)

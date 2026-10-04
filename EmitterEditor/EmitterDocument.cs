@@ -50,7 +50,7 @@ public sealed class EmitterDocument
     /// <summary>检查JSON语法及重复字段，允许载入业务无效文档供修复。</summary>
     /// <param name="text">完整JSON文本。</param>
     /// <returns>独立的根对象。</returns>
-    public static JsonObject Parse(string text) => VNodeCreator.Parse(text, "编辑文档", element =>
+    public static JsonObject Parse(string text) => JsonData.Parse(text, "编辑文档", element =>
         JsonNode.Parse(element.GetRawText()) as JsonObject ?? throw new JsonException("文档必须是JSON对象。"));
     /// <summary>读取文件；读取失败时保留当前文档。</summary>
     /// <param name="path">操作系统绝对路径。</param>
