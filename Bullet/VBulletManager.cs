@@ -55,7 +55,7 @@ public partial class VBulletManager : Node2D
         }
         // 没有成员的停止树不再占更新入口或名称索引。
         for (int index = _emitters.Count - 1; index >= 0; index--)
-            if (_emitters[index].Timeline is null && _emitters[index].Bullets.Count == 0)
+            if (_emitters[index].Timeline is null && !HasEmitterBullets(_emitters[index]))
             {
                 _emitters[index].Retire();
                 _emitters.RemoveAt(index);
@@ -78,13 +78,14 @@ public partial class VBulletManager : Node2D
 	/// <returns>成功生成的子弹；容量不足时为空。</returns>
 	internal VBullet? Spawn(VBulletDefaultSet settings, VBulletEmitter? emitter)
 	{
-		VBullet.Validate(settings);
+		// 本次完整校验返回的资源直接交给显示初始化，满额时也不跳过校验。
+		var texture = VBullet.Validate(settings);
 		if (!CanSpawn()) return null;
 		// 直接生成仍经过统一初始化、登记和释放流程。
 		var bullet = new VBullet();
 		try
 		{
-			bullet.Configure(settings);
+			bullet.Configure(settings, texture);
 			Register(bullet, emitter);
 			return bullet;
 		}

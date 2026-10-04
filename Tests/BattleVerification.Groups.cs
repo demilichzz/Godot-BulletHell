@@ -28,6 +28,8 @@ public partial class BattleVerification
         ["--targeted-battle-random"] = VerifyBattleRandomIsolation,
         ["--targeted-b01"] = () => { VerifyBoss01Sequence(); VerifyBoss01Stages(); VerifyPhaseSwitch(); },
         ["--targeted-test-selection"] = VerifyGroupSelection,
+        ["--measure-runtime-costs"] = MeasureRuntimeCosts,
+        ["--targeted-runtime-hotpaths"] = VerifyRuntimeHotPaths,
         ["--targeted-migration"] = VerifyMigrationBaseline,
         ["--targeted-catalog"] = VerifyBossCatalog,
         ["--default-battle"] = () =>

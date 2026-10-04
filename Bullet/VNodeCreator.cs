@@ -75,7 +75,7 @@ public partial class VNodeCreator
         foreach (var child in Children) child.VisitMembers(visit);
     }
 
-    /// <summary>共享成员来源的类型过滤视图，不复制存活列表。</summary>
+    /// <summary>共享成员来源的类型过滤视图，不复制存活列表；批量访问使用foreach，避免Count与索引反复扫描。</summary>
     /// <typeparam name="T">需要呈现的节点类型。</typeparam>
     internal sealed class MemberView<T> : IReadOnlyList<T> where T : VNode
     {

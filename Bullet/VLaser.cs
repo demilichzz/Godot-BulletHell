@@ -144,8 +144,7 @@ public partial class VLaser : VBullet
             CircleColor = Color.FromHtml(settings.Color),
             BlendMode = settings.BlendMode == "CoreAdd" ? "Mix" : settings.BlendMode
         };
-        VBullet.Validate(spawn);
-        Configure(spawn);
+        Configure(spawn, VBullet.Validate(spawn));
         // CoreAdd保留主体与外光的原色；统一提高亮芯绘制顺序，避免后出生激光覆盖先出生的白芯。
         _coreLine.UseParentMaterial = settings.BlendMode != "CoreAdd";
         _coreLine.Material = settings.BlendMode == "CoreAdd" ? AdditiveMaterial : null;

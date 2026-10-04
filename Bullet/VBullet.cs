@@ -18,7 +18,8 @@ public partial class VBullet : VNode
     private readonly Sprite2D _sprite = new() { Name = "Sprite", UseParentMaterial = true };
     /// <summary>在创建节点前校验完整参数与贴图资源。</summary>
     /// <param name="settings">出生参数，位置为全局逻辑像素。</param>
-    internal static void Validate(VBulletDefaultSet settings)
+    /// <returns>本次已校验的贴图；圆点模式为null。不缓存跨次出生的校验结果。</returns>
+    internal static Texture2D? Validate(VBulletDefaultSet settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ValidateOutsideTimeout(settings.OutsideTimeoutMs);
@@ -35,9 +36,11 @@ public partial class VBullet : VNode
             || !ValidColorComponent(settings.CircleColor.R) || !ValidColorComponent(settings.CircleColor.G)
             || !ValidColorComponent(settings.CircleColor.B) || !ValidColorComponent(settings.CircleColor.A))
             throw new ArgumentOutOfRangeException(nameof(settings), "子弹参数无效。");
-        if (settings.UseSprite && (string.IsNullOrWhiteSpace(settings.TexturePath) || !ResourceLoader.Exists(settings.TexturePath, "Texture2D")
-            || ResourceLoader.Load(settings.TexturePath) is not Texture2D))
+        if (!settings.UseSprite) return null;
+        if (string.IsNullOrWhiteSpace(settings.TexturePath) || !ResourceLoader.Exists(settings.TexturePath, "Texture2D")
+            || ResourceLoader.Load(settings.TexturePath) is not Texture2D texture)
             throw new ArgumentException("贴图模式需要有效Texture2D资源。", nameof(settings));
+        return texture;
     }
     /// <summary>判断单个颜色分量是否位于有效范围。</summary>
     /// <param name="value">待检查的颜色分量，范围为0至1。</param>
@@ -45,7 +48,8 @@ public partial class VBullet : VNode
     private static bool ValidColorComponent(float value) => float.IsFinite(value) && value >= 0 && value <= 1;
     /// <summary>入树前初始化显示、伤害以及继承的公共运动参数。</summary>
     /// <param name="settings">完整出生参数，位置为全局逻辑像素。</param>
-    internal void Configure(VBulletDefaultSet settings)
+    /// <param name="texture">同次Validate返回的贴图；无贴图模式为null，避免再次按路径查询。</param>
+    internal void Configure(VBulletDefaultSet settings, Texture2D? texture)
     {
         ConfigureMotion(settings.Position, new VNodeMoveAttribute
         {
@@ -61,7 +65,7 @@ public partial class VBullet : VNode
         Team = settings.Team;
         Damage = settings.Damage;
         Radius = settings.Radius;
-        _sprite.Texture = settings.UseSprite ? GD.Load<Texture2D>(settings.TexturePath!) : null;
+        _sprite.Texture = texture;
         _sprite.Hframes = settings.Hframes;
         _sprite.Vframes = settings.Vframes;
         _sprite.Frame = settings.ColorIndex;
