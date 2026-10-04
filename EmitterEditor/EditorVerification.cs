@@ -198,18 +198,24 @@ public partial class EditorVerification : Node
         {
             if (OS.GetCmdlineUserArgs().Contains("--targeted-boss"))
             {
+                VerifySaveSnapshots();
                 await VerifyBossEditor();
                 await VerifyCatalogWorkspace();
                 await VerifySharedModes();
                 GetTree().Quit();
                 return;
             }
+            VerifyDocumentTransactions();
             VerifyDocuments();
             // 实际实例化的编辑器场景。
             var editor = GD.Load<PackedScene>("res://EmitterEditor/EmitterEditor.tscn").Instantiate<EmitterEditor>();
             editor.StartInCatalog = false; AddChild(editor);
             await Settle();
             Check(editor.Canvas.Markers.Count == 1, "默认根基础项图标");
+            // 显式校验按钮必须检查当前文档，不能沿用上次布局或预览的成功状态。
+            editor.Document.Edit(root => root["Unknown"] = true); Press(editor, "校验");
+            Check(Descendants<Label>(editor).Any(label => label.TooltipText.Contains("Unknown: 未知字段")), "校验按钮报告当前非法字段");
+            editor.Document.Undo(); editor.Refresh(); await Settle();
             // 实际画布输入经过命中检测和选择回调。
             var marker = editor.Canvas.Markers[0];
             // 属性和JSON页面容器。

@@ -24,7 +24,8 @@ public partial class BossData
     /// <param name="element">包含Core与非空Phases的对象。</param>
     /// <returns>独立的Boss静态配置。</returns>
     /// <param name="loadEmitter">可选Emitter创建入口。</param>
-    internal static BossData Read(JsonElement element, Func<string, VBulletEmitter>? loadEmitter = null)
+    /// <param name="validateEmitter">可选纯引用检查，不作为运行工厂保存。</param>
+    internal static BossData Read(JsonElement element, Func<string, VBulletEmitter>? loadEmitter = null, Action<string>? validateEmitter = null)
     {
         JsonData.CheckFields(element, new[] { "Core", "Phases" });
         // Core只保存显示、碰撞、出生和总血量。
@@ -35,7 +36,7 @@ public partial class BossData
         var phases = new List<BossPhaseDefinition>();
         foreach (var phase in queue.EnumerateArray())
         {
-            try { phases.Add(BossPhaseDefinition.Read(phase, loadEmitter)); }
+            try { phases.Add(BossPhaseDefinition.Read(phase, loadEmitter, validateEmitter)); }
             catch (Exception error) when (error is JsonException or ArgumentException or System.IO.IOException)
             { throw new JsonException($"Phases[{phases.Count}]: {error.Message}", error); }
         }

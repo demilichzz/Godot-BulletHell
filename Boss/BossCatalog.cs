@@ -30,6 +30,22 @@ public sealed class BossCatalog
     /// <returns>完整有效目录；读取不消耗业务随机。</returns>
     /// <param name="loadEmitter">可选预览资源入口。</param>
     public static BossCatalog FromJson(string json, string sourceName = "内存Boss目录", Func<string, VBulletEmitter>? loadEmitter = null)
+        => ReadJson(json, sourceName, loadEmitter, null);
+
+    /// <summary>仅检查目录及外部引用，不把检查回调保存为运行时Emitter工厂。</summary>
+    /// <param name="json">完整目录文本。</param>
+    /// <param name="sourceName">诊断来源。</param>
+    /// <param name="validateEmitter">本次校验的引用检查入口，不返回运行树。</param>
+    internal static void CheckJson(string json, string sourceName, Action<string> validateEmitter)
+        => ReadJson(json, sourceName, null, validateEmitter);
+
+    /// <summary>共用严格读取逻辑，将引用检查与运行时创建入口分开。</summary>
+    /// <param name="json">完整目录文本。</param>
+    /// <param name="sourceName">诊断来源。</param>
+    /// <param name="loadEmitter">预览运行树工厂，空值使用正式加载入口。</param>
+    /// <param name="validateEmitter">可选纯校验回调，省略时调用运行树工厂检查。</param>
+    /// <returns>完整有效的目录。</returns>
+    private static BossCatalog ReadJson(string json, string sourceName, Func<string, VBulletEmitter>? loadEmitter, Action<string>? validateEmitter)
         => JsonData.Parse(json, sourceName, root =>
         {
             JsonData.CheckFields(root, new[] { "Bosses" });
@@ -43,7 +59,7 @@ public sealed class BossCatalog
                 try
                 {
                     // 元素读取共用Boss校验，目录额外检查唯一身份。
-                    var data = BossData.Read(element, loadEmitter);
+                    var data = BossData.Read(element, loadEmitter, validateEmitter);
                     if (!identifiers.Add(data.Id)) throw new JsonException("重复Boss ID：" + data.Id);
                     entries.Add(data);
                 }

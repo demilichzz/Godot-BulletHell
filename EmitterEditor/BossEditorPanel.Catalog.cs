@@ -10,7 +10,7 @@ public partial class BossEditorPanel
     /// <summary>当前Boss零基下标；负一代表目录根。</summary>
     public int SelectedBossIndex { get; private set; } = -1;
     /// <summary>选中Boss的原始数据，修改须经过文档事务。</summary>
-    public JsonObject SelectedBossRoot => Document.Root["Bosses"]?[SelectedBossIndex]?.AsObject()
+    public JsonObject SelectedBossRoot => Document.At("/Bosses/" + SelectedBossIndex)?.AsObject()
         ?? throw new InvalidOperationException("请先选择有效Boss。");
     /// <summary>按需建立的共享Emitter编辑内容。</summary>
     public EmitterPanel? EmitterPanel { get; private set; }

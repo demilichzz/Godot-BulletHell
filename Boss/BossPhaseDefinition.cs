@@ -24,7 +24,8 @@ public sealed record BossPhaseDefinition
     /// <param name="element">完整阶段JSON对象。</param>
     /// <returns>带已校验移动配置和只读路径队列的定义。</returns>
     /// <param name="loadEmitter">可选预览加载入口，不共享有状态Emitter。</param>
-    internal static BossPhaseDefinition Read(JsonElement element, Func<string, VBulletEmitter>? loadEmitter = null)
+    /// <param name="validateEmitter">可选纯引用检查；运行时仍使用独立创建入口。</param>
+    internal static BossPhaseDefinition Read(JsonElement element, Func<string, VBulletEmitter>? loadEmitter = null, Action<string>? validateEmitter = null)
     {
         // 移动配置只解析一次，运行阶段不再持有未解释的JSON对象。
         JsonData.CheckFields(element, new[] { "Name", "Hp", "DurationMs", "EndCondition", "Emitters", "Movement" });
@@ -49,7 +50,8 @@ public sealed record BossPhaseDefinition
             if (string.IsNullOrWhiteSpace(path) || !path.StartsWith("res://", StringComparison.Ordinal)
                 || !path.EndsWith(".json", StringComparison.Ordinal))
                 throw new JsonException("Emitter必须引用res://下的独立JSON文件。");
-            (loadEmitter ?? VBulletEmitter.Load)(path);
+            if (validateEmitter is not null) validateEmitter(path);
+            else (loadEmitter ?? VBulletEmitter.Load)(path);
         }
         return value with
         {

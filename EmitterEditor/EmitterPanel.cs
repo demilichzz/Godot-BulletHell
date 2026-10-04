@@ -326,7 +326,7 @@ public partial class EmitterPanel : Control
     private void StartPreview()
     {
         Canvas.CancelDrag();
-        RequireAppliedDraft(); Document.Validate();
+        RequireAppliedDraft();
         Preview.Start(Document.Text); _previewText = Document.Text;
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
         Canvas.PreviewTexture = _viewport.GetTexture(); UpdatePreview();
