@@ -79,13 +79,13 @@ public partial class BossEditorPanel : VBoxContainer
         _phases.ItemSelected += CatalogTreeSelected;
         _catalogButtons.Add(Button(hierarchy, "+ 新建Boss文件…", AddBoss));
         _catalogButtons.Add(Button(hierarchy, "+ 引用Boss文件…", AddBossReference));
-        Button(hierarchy, "+ 添加阶段", AddPhase);
+        _addPhase = Button(hierarchy, "+ 添加阶段", AddPhase);
         var actions = new HBoxContainer(); hierarchy.AddChild(actions);
-        Button(actions, "复制", DuplicateSelection); Button(actions, "删除", DeleteSelection);
+        _duplicate = Button(actions, "复制", DuplicateSelection); _delete = Button(actions, "删除", DeleteSelection);
         _up = Button(actions, "↑", () => MoveSelection(-1)); _down = Button(actions, "↓", () => MoveSelection(1));
-        _contentHost = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; workspace.AddChild(_contentHost);
+        var contentHost = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; workspace.AddChild(contentHost);
         var content = new HSplitContainer { SplitOffsets = new[] { 675 }, SizeFlagsVertical = SizeFlags.ExpandFill };
-        _bossContent = content; _contentHost.AddChild(content);
+        contentHost.AddChild(content);
         var center = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; content.AddChild(center);
         center.AddChild(new Label { Text = "场地 1280 × 800 · 坐标右下为正 · 速度：像素/秒" });
         Canvas.SizeFlagsVertical = SizeFlags.ExpandFill; center.AddChild(Canvas);

@@ -1,4 +1,4 @@
-Timestamp: 2026-10-04T13:21:42+09:00
+Timestamp: 2026-10-04T17:19:02+09:00
 
 # 战斗领域规则
 
@@ -53,7 +53,9 @@ Timestamp: 2026-10-04T13:21:42+09:00
 
 ### 格式与引用
 
-- Boss目录统一为 `Data/BossCatalog.json` 的有序 `Bosses` 数组，每个Boss内嵌Core和Phases；阶段按声明顺序引用独立Emitter JSON。正式战斗、预览和测试共用数据阶段，不保留Profile注册或代码阶段分支。
+- Boss目录 `Data/BossCatalog.json` 只保存有序 `Bosses` 路径数组，可为空；每个独立Boss JSON保存Core和Phases，阶段以Emitters数组按声明顺序引用独立Emitter JSON。正式加载拒绝重复文件引用、重复Boss ID、缺失文件及错误类型，引用错误须包含目录下标、路径和内部位置。正式战斗、预览和测试共用数据阶段，不保留内嵌Boss目录、Profile注册或代码阶段分支。
+- Boss与Emitter编辑模式分别持有文档、草稿、历史和保存范围。Boss树仅为列表、Boss、阶段；阶段只编辑Emitter路径，通过顶层跳转至Emitter模式编辑，不内嵌Emitter面板。Boss模式保存不写Emitter；单独保存目录以磁盘Boss校验，保存全部先统一冻结校验，再按Boss、目录顺序写入。
+- Boss整体或阶段预览使用已应用的Boss数据及启动时冻结的Emitter磁盘文本，阶段激活时创建独立运行树。Emitter模式的未保存内容不影响Boss校验、保存、静态布局或预览；磁盘变化使后续布局检查与新预览更新，不混入已启动的预览。
 
 - JSON不保留Version，只解析当前结构；旧字段及未知、重复字段拒绝加载。最新规范为../BulletHell_Design/BulletData/数据化_最新版.md；旧版文档按数据化_vN归档，文档编号不参与运行。
 - VBulletEmitter直接持有Core和单个Root，JSON字段为Core和单个VNodes对象，Children数组内嵌子Creator，不增加Definition中间层。Emitter.Core含可选Name、RefObject（Boss或null）、Team、Damage和StopMode；子弹出生时复制Team、Damage，VNode不持有。

@@ -27,6 +27,7 @@ public sealed class BossEditorSession
     /// <returns>本会话拥有的Boss或目录文档。</returns>
     public EditorDocument OpenDocument(string path, EditorDocumentKind? expected = null)
     {
+        // 规范路径查找已有身份；仅首次打开时读取类型与内容。
         string full = EditorDocument.FullPath(path);
         if (_files.TryGetValue(full, out var existing))
         {
@@ -42,9 +43,9 @@ public sealed class BossEditorSession
     /// <returns>唯一的独立Boss文档。</returns>
     public EditorDocument OpenBoss(string path)
     {
+        // 目录引用必须位于项目内，且只能登记独立Boss。
         string full = BossCatalog.PathIdentity(path);
         var document = OpenDocument(full, EditorDocumentKind.Boss);
-        if (document.Kind != EditorDocumentKind.Boss) throw new InvalidOperationException("引用目标不是Boss文件：" + path);
         return document;
     }
     /// <summary>新建独立文档，已有工作区保留在会话中。</summary>
@@ -53,6 +54,7 @@ public sealed class BossEditorSession
     public EditorDocument New(EditorDocumentKind kind)
     {
         if (kind == EditorDocumentKind.Emitter) throw new ArgumentException("Boss模式不能创建Emitter。");
+        // 尚无文件身份的模板独立保存修改状态。
         var document = new EditorDocument(kind); _untitled.Add(document); Root = document; return document;
     }
     /// <summary>确认丢弃后移除已被替换的未命名工作区，不删除有名文件。</summary>
@@ -68,6 +70,7 @@ public sealed class BossEditorSession
     public void Save(EditorDocument document, string path)
     {
         if (!Documents.Contains(document)) throw new InvalidOperationException("文档不属于Boss会话。");
+        // 写盘成功后才将目标登记为文档身份。
         string target = CheckTarget(document, path);
         document.Save(target); Register(document, target);
     }
@@ -79,10 +82,12 @@ public sealed class BossEditorSession
     public EditorDocument SaveCopy(EditorDocument source, string path, bool makeRoot)
     {
         if (source.Draft is not null) throw new InvalidOperationException("请先应用JSON草稿。");
+        // 规范化目标用于会话冲突检查；副本不改变来源身份。
         string target = EditorDocument.FullPath(path);
         if (_files.ContainsKey(target) || (source.FilePath.Length > 0 && target.Equals(source.FilePath, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("另存副本须选择未在本会话打开的新路径。");
         EditorDocument.CheckTargetKind(target, source.Kind);
+        // 新副本拥有独立JSON、草稿和历史。
         var copy = new EditorDocument(source.Kind); copy.ApplyText(source.Text); copy.Save(target);
         _files.Add(target, copy); if (makeRoot) Root = copy; return copy;
     }
@@ -92,6 +97,7 @@ public sealed class BossEditorSession
     /// <returns>规范化目标。</returns>
     private string CheckTarget(EditorDocument document, string path)
     {
+        // 规范化目标用于会话冲突检查；副本不改变来源身份。
         string target = EditorDocument.FullPath(path);
         if (_files.TryGetValue(target, out var occupied) && !ReferenceEquals(occupied, document))
             throw new InvalidOperationException("目标文件已在Boss会话中打开。");
@@ -102,6 +108,7 @@ public sealed class BossEditorSession
     /// <param name="target">目标完整路径。</param>
     private void Register(EditorDocument document, string target)
     {
+        // 移除该文档旧键，保留其他文件的身份。
         foreach (string key in _files.Where(pair => ReferenceEquals(pair.Value, document)).Select(pair => pair.Key).ToArray()) _files.Remove(key);
         _untitled.Remove(document); _files[target] = document;
     }
@@ -109,9 +116,11 @@ public sealed class BossEditorSession
     /// <returns>同一次预览或保存使用的独立运行树工厂。</returns>
     internal static Func<string, VBulletEmitter> CaptureDiskEmitters()
     {
+        // 每个规范化路径冻结一次文本，返回对象不放入缓存。
         var texts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         return path =>
         {
+            // 本次读取的文件身份及对应冻结文本。
             string full = EditorDocument.FullPath(path);
             if (!texts.TryGetValue(full, out string? text)) texts[full] = text = File.ReadAllText(full);
             return VBulletEmitter.FromJson(text, path);
@@ -120,9 +129,11 @@ public sealed class BossEditorSession
     /// <summary>预校验全部冻结内容，再按Boss、目录顺序保存；中途失败如实报告已完成文件。</summary>
     public void SaveAll()
     {
+        // 先冻结本模式所有文档；任何草稿或未命名文件都阻止批次写盘。
         var documents = Documents.ToArray();
         if (documents.Any(document => document.Draft is not null)) throw new InvalidOperationException("请先应用Boss模式的全部JSON草稿。");
         if (documents.Any(document => document.FilePath.Length == 0)) throw new InvalidOperationException("请先为未命名Boss或目录选择保存位置。");
+        // 文件文本、Emitter工厂及校验集合只在当前保存批次内共享。
         var texts = documents.ToDictionary(document => document.FilePath, document => document.Text, StringComparer.OrdinalIgnoreCase);
         var emitters = CaptureDiskEmitters(); var checkedEmitters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         /// <summary>冻结并读取Boss文本；未打开引用只在本次首次访问时读取。</summary>
@@ -130,6 +141,7 @@ public sealed class BossEditorSession
         /// <returns>本次固定文本。</returns>
         string ReadBoss(string path)
         {
+            // 本次读取的文件身份及对应冻结文本。
             string full = EditorDocument.FullPath(path);
             if (!texts.TryGetValue(full, out string? text)) texts[full] = text = File.ReadAllText(full);
             return text;
@@ -137,9 +149,11 @@ public sealed class BossEditorSession
         /// <summary>同一保存批次仅检查一次相同磁盘Emitter。</summary>
         /// <param name="path">Emitter引用。</param>
         void CheckEmitter(string path) { if (checkedEmitters.Add(EditorDocument.FullPath(path))) emitters(path); }
+        // 按Boss先于目录准备操作；干净文件也须参与引用校验。
         var pending = new List<EditorDocument.PreparedSave>();
         foreach (var document in documents.OrderBy(document => document.Kind == EditorDocumentKind.BossCatalog))
         {
+            // 此文件的目标与冻结操作在全部校验结束前均不写盘。
             string target = CheckTarget(document, document.FilePath);
             var save = document.PrepareSave(target, text =>
             {
@@ -149,6 +163,7 @@ public sealed class BossEditorSession
             if (document.Dirty) pending.Add(save);
         }
         foreach (var save in pending) save.EnsureCurrent();
+        // 逐文件记录成功范围，失败时保持剩余文件脏状态。
         var completed = new List<string>();
         try { foreach (var save in pending) { save.Write(); completed.Add(save.Target); } }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)

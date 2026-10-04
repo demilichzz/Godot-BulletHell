@@ -245,7 +245,7 @@ public partial class EmitterPanel
         var before = !_moveChildren && spatial ? new EditorLayout(Document.Validate()) : null;
         Document.Edit(_ => { change(); if (before is not null) EditorPositionTools.PreserveChildren(Document, _selection, before); }); StopPreview();
         SyncJson(); ValidateLayout(); UpdateTitle();
-       
+
         if (rebuild) Callable.From(() => { if (IsInsideTree()) Refresh(); }).CallDeferred();
     }
     /// <summary>设置文档中现有字段或数组项。</summary>

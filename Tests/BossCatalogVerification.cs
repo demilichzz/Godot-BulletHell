@@ -36,7 +36,8 @@ public partial class BattleVerification
         RejectCatalog(new JsonObject { ["Bosses"] = new JsonArray(paths[0], "res://Data/Bosses/../Bosses/B01.json") }.ToJsonString(), "重复Boss文件");
         // 注入冻结文本只替换文件读取，仍经过全部正式Boss和阶段校验。
         string first = JsonData.ReadFile(paths[0]);
-        RejectCatalog(reordered.ToJsonString(), "重复Boss ID", _ => first);
+        RejectCatalog(reordered.ToJsonString(), "Core.Id: 重复Boss ID", _ => first);
+        RejectCatalog("{\"Bosses\":[\"res://../outside.json\"]}", "res://../outside.json");
         var invalidBoss = JsonNode.Parse(first)!.AsObject(); invalidBoss["Phases"] = new JsonArray();
         RejectCatalog(new JsonObject { ["Bosses"] = new JsonArray(paths[0]) }.ToJsonString(), paths[0], _ => invalidBoss.ToJsonString());
         invalidBoss = JsonNode.Parse(first)!.AsObject(); invalidBoss["Phases"]![0]!["Emitters"] = new JsonArray("res://missing-emitter.json");

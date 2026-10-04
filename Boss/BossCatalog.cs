@@ -46,7 +46,7 @@ public sealed class BossCatalog
                     paths.Add(path);
                 }
                 catch (Exception error) when (error is JsonException or ArgumentException)
-                { throw new JsonException($"Bosses[{paths.Count}]: {error.Message}", error); }
+                { throw new JsonException($"Bosses[{paths.Count}] ({value.GetRawText()}): {error.Message}", error); }
             }
             return Array.AsReadOnly(paths.ToArray());
         });
@@ -97,7 +97,7 @@ public sealed class BossCatalog
             {
                 var data = readBoss is null && loadEmitter is null && validateEmitter is null ? BossData.Load(path)
                     : JsonData.Parse((readBoss ?? JsonData.ReadFile)(path), path, root => BossData.Read(root, loadEmitter, validateEmitter));
-                if (!identifiers.Add(data.Id)) throw new JsonException("重复Boss ID：" + data.Id);
+                if (!identifiers.Add(data.Id)) throw new JsonException("Core.Id: 重复Boss ID：" + data.Id);
                 entries.Add(data);
             }
             catch (Exception error) when (error is JsonException or ArgumentException or IOException or UnauthorizedAccessException)

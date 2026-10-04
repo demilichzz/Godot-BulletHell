@@ -122,7 +122,7 @@ public partial class EditorVerification
     }
 
     /// <summary>验证Godot导入描述、源图片和二进制产物均按内容检查，不修改正式资源。</summary>
-    /// <param name="session">包含合法Boss的会话。</param>
+    /// <param name="boss">包含合法配置的独立Boss文档。</param>
     /// <param name="cache">已使用的布局缓存。</param>
     /// <param name="canvas">隐藏画布。</param>
     private void VerifyLayoutImportChanges(EditorDocument boss, EditorLayoutCache cache, EditorCanvas canvas)
@@ -162,7 +162,7 @@ public partial class EditorVerification
         finally { boss.Undo(); }
     }
     /// <summary>验证贴图源文件、嵌套资源以及内存尺寸变化均参与依赖失效。</summary>
-    /// <param name="session">已有合法Boss与Emitter引用的会话。</param>
+    /// <param name="boss">已有合法Emitter磁盘引用的独立Boss文档。</param>
     /// <param name="cache">已经预热的缓存。</param>
     /// <param name="canvas">隐藏的真实画布。</param>
     /// <param name="textureResource">临时Texture2D资源路径。</param>

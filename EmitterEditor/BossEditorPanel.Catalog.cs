@@ -14,11 +14,9 @@ public partial class BossEditorPanel
     // 当前Boss与JSON页分别记住文档身份，刷新或切换不会把旧草稿写到新文件。
     private EditorDocument? _selectedBoss, _shownDocument;
     private string _referenceError = "";
-    private HSplitContainer _bossContent = null!;
     private HBoxContainer _bossControls = null!;
-    private VBoxContainer _contentHost = null!;
     private readonly List<Button> _catalogButtons = new();
-    private Button _up = null!, _down = null!;
+    private Button _up = null!, _down = null!, _duplicate = null!, _delete = null!, _addPhase = null!;
     private readonly Dictionary<string, TreeItem> _catalogItems = new();
     /// <summary>当前工作区是否拥有真实路径目录。</summary>
     private bool HasCatalog => Session.Root?.Kind == EditorDocumentKind.BossCatalog;
@@ -81,7 +79,11 @@ public partial class BossEditorPanel
             _json.Text = Document.Draft ?? _jsonBaseline;
             _bossControls.Visible = _selectedBoss is not null && SelectedBossIndex >= 0;
             foreach (var button in _catalogButtons) button.Disabled = !HasCatalog;
-            _up.Disabled = _down.Disabled = !HasCatalog && SelectedPhase < 0;
+            // 单文件只允许阶段操作；列表根或错误引用不提供Boss内容操作。
+            _up.Disabled = _down.Disabled = SelectedBossIndex < 0 || (!HasCatalog && SelectedPhase < 0);
+            _duplicate.Disabled = _selectedBoss is null || SelectedBossIndex < 0 || (!HasCatalog && SelectedPhase < 0);
+            _delete.Disabled = SelectedBossIndex < 0 || (!HasCatalog && SelectedPhase < 0);
+            _addPhase.Disabled = _selectedBoss is null || SelectedBossIndex < 0;
             RebuildCatalogTree(); BuildInspector(); ValidateCanvas(); UpdateTitle();
             if (_referenceError.Length > 0) Status(_referenceError, true);
         }

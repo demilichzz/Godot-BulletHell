@@ -57,7 +57,7 @@ public sealed class EditorSession
         RegisterSavedEmitter(document, target);
     }
 
-    /// <summary>检查Emitter保存目标，供单文件与批量保存共用。</summary>
+    /// <summary>检查Emitter单文件保存目标及会话身份。</summary>
     /// <param name="document">本会话持有的Emitter。</param>
     /// <param name="path">请求的保存路径。</param>
     /// <returns>可写入的规范化目标路径。</returns>

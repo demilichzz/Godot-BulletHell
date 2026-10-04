@@ -117,6 +117,15 @@ public partial class EditorVerification
         }
         session.SaveAll();
         Check(!session.HasUnsaved && BossCatalog.Load(catalogPath).Entries[0].DisplayName == "修改乙", "重试按Boss再目录完成写入");
+        // 单独保存目录只校验磁盘Boss；不隐式写入已打开Boss的未保存内容。
+        first.Edit(root => root["Core"]!["Id"] = "Second");
+        session.Save(session.Root!, catalogPath);
+        Check(first.Dirty && BossData.Load(firstResource).Id != "Second", "单独保存目录不使用或写入Boss编辑内容");
+        first.Undo();
+        string validBoss = File.ReadAllText(firstPath);
+        File.WriteAllText(firstPath, "{}");
+        Reject(() => session.Save(session.Root!, catalogPath), "单独保存目录拒绝磁盘失效Boss，即使会话内容有效");
+        File.WriteAllText(firstPath, validBoss);
         first.Edit(root => root["Core"]!["DisplayName"] = "再次修改"); string before = File.ReadAllText(firstPath);
         emitter.Edit(root => root["Core"]!["Damage"] = 0); File.WriteAllText(emitterPath, emitter.Text);
         Reject(session.SaveAll, "磁盘Emitter错误阻止Boss保存"); Check(File.ReadAllText(firstPath) == before && first.Dirty, "预校验失败无部分写入");

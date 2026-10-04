@@ -126,7 +126,7 @@ public partial class EmitterPanel : Control
         try { SyncJson(); RebuildTree(); BuildInspector(); ValidateLayout(); UpdateTitle(); }
         finally { _refreshing = false; }
         Document.Selection = _selection;
-       
+
     }
     /// <summary>校验当前数据并刷新基础图标，错误明确显示。</summary>
     private void ValidateLayout()
