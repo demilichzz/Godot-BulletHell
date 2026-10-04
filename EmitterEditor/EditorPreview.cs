@@ -4,9 +4,7 @@ using System;
 /// <summary>只在独立编辑器进程使用的预览战斗，不改变正式场景和业务源码。</summary>
 public partial class EditorPreview : Node2D
 {
-    // 工厂注册仅发生在本进程，专用阶段不会进入正式Boss目录。
-    private const string Profile = "__EmitterEditorPreview";
-    private static bool _registered;
+    // 预览通过正式数据阶段运行，不注册额外代码阶段。
     private BattleManager? _battle;
     /// <summary>当前正式Boss实例，用于阶段和血池预览。</summary>
     public BossController? Boss => _battle?.Boss;
@@ -29,11 +27,15 @@ public partial class EditorPreview : Node2D
         Stop();
         try
         {
-            if (!_registered) { BossFactory.RegisterProfile(Profile, () => new BossPhase[] { new PreviewPhase() }); _registered = true; }
-            // 纯色静态图标只提供合法Boss资源，画布另外绘制角色标记。
-            var icon = new GradientTexture2D { Width = 8, Height = 8 };
+            // 使用静止的通用阶段；画布另外绘制锚点，Boss贴图保持隐藏。
+            var data = BossData.FromJson("""
+                {"Core":{"Id":"EmitterPreview","DisplayName":"预览锚点","TexturePath":"res://Assets/Units/Boss_01.png",
+                 "MaxHp":300,"SpawnPosition":{"X":640,"Y":250}},
+                 "Phases":[{"Name":"弹幕编辑预览","Hp":300,"DurationMs":null,"EndCondition":"Health","Emitters":[],
+                 "Movement":{"Type":"Center","Target":{"X":640,"Y":250}}}]}
+                """);
             _battle = new BattleManager(); AddChild(_battle);
-            _battle.Initialize(this, new BossData { Id = Profile, DisplayName = "预览锚点", PhaseProfile = Profile, Texture = icon, Hframes = 1, Vframes = 1, AnimationFps = 0 });
+            _battle.Initialize(this, data);
             _battle.SetPhysicsProcess(false);
             _battle.Player.Attack.Stop();
             _battle.Boss.Visible = false; _battle.Player.Visible = false;
@@ -100,15 +102,5 @@ public partial class EditorPreview : Node2D
         // 当前活动弹幕，仅读取状态或调整显示。
         foreach (var bullet in _battle.Bullets.ActiveBullets)
             if (bullet is not VLaser && bullet.IsAlive) DrawCircle(bullet.WorldPosition, Math.Max(2, (float)bullet.Radius), new Color("91d7ff"));
-    }
-    /// <summary>不移动、不绑定正式关卡弹幕的编辑器专用阶段。</summary>
-    private sealed class PreviewPhase : BossPhase
-    {
-        /// <summary>预览阶段名称。</summary>
-        public override string Name => "弹幕编辑预览";
-        /// <summary>保持Boss初始位置。</summary>
-        /// <param name="boss">预览Boss。</param>
-        /// <returns>当前逻辑位置。</returns>
-        protected override Vector2 GetInitialMoveTarget(BossController boss) => boss.Position;
     }
 }

@@ -63,7 +63,7 @@ public sealed class BossCatalog
             if (data is null) throw new ArgumentException("Boss目录包含空配置。");
             data.Validate();
             if (!identifiers.Add(data.Id)) throw new ArgumentException("重复Boss ID：" + data.Id);
-            if (data.Phases.Count == 0) BossFactory.ValidateProfile(data.PhaseProfile);
+            if (data.Phases.Count == 0) throw new ArgumentException("Boss必须包含数据阶段：" + data.Id);
         }
     }
 

@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Text.Json.Nodes;
 
 /// <summary>验证场景切换、独立 Boss 配置和选择界面的集成行为。</summary>
 public partial class StageVerification : Node
@@ -52,15 +53,23 @@ public partial class StageVerification : Node
                 && ResourceUid.GetIdPath(ResourceUid.TextToId("uid://cyx82pr2q67tt")) == "res://Assets/Units/Boss_05.png", "图片资源身份保留");
             // 使用七个仅测试可见的配置，覆盖多行和不完整末行。
             var entries = new System.Collections.Generic.List<BossData>();
+            var template = JsonNode.Parse(JsonData.ReadFile(BossCatalog.DefaultPath))!["Bosses"]![0]!;
             for (int index = 0; index < 7; index++)
-                entries.Add(new BossData
-                {
-                    Id = $"test_{index}", DisplayName = $"测试 Boss {index}",
-                    Texture = GD.Load<Texture2D>("res://Assets/Units/Boss_01.png"),
-                    Hframes = 2, Vframes = 2, AnimationFps = 4,
-                    MaxHp = 100 + index * 10, CollisionRadius = 32 + index,
-                    VisualScale = 2 + index * 0.1f, SpawnPosition = new Vector2(600 + index, 250)
-                });
+            {
+                // 测试目录同样经过正式JSON加载，不依赖已移除的Profile入口。
+                var root = template.DeepClone();
+                var core = root["Core"]!;
+                core["Id"] = $"test_{index}"; core["DisplayName"] = $"测试 Boss {index}";
+                core["MaxHp"] = 100 + index * 10; core["CollisionRadius"] = 32 + index;
+                core["VisualScale"] = 2 + index * 0.1f; core["SpawnPosition"]!["X"] = 600 + index;
+                root["Phases"] = JsonNode.Parse("""
+                    [{"Name":"场景切换测试","Hp":100,"DurationMs":null,"EndCondition":"Health","Emitters":[],
+                      "Movement":{"Type":"Center","Target":{"X":600,"Y":250}}}]
+                    """);
+                root["Phases"]![0]!["Hp"] = 100 + index * 10;
+                root["Phases"]![0]!["Movement"]!["Target"]!["X"] = 600 + index;
+                entries.Add(BossData.FromJson(root.ToJsonString()));
+            }
             var catalog = new BossCatalog(entries);
             catalog.Validate();
             var game = new GameManager { Catalog = catalog };
@@ -219,7 +228,7 @@ public partial class StageVerification : Node
             battle.Player.Attack.Stop();
             BossPhase phase = battle.Boss.CurrentPhase!;
             Check(battle.Boss.DisplayName == data.DisplayName && battle.Boss.Hp == 300
-                && phase is DataBossPhase { Index: 0 }
+                && phase is BossPhase { Index: 0 }
                 && (id == "Boss_03" || !battle.Boss.TrySwitchAdjacentPhase(1)), "新Boss进入对应基础阶段");
             VBulletEmitter emitter = phase.Emitters[0];
             Check(phase.Emitters.Count == data.Phases[0].Emitters.Count, "每个新阶段绑定对应发射器");
@@ -326,7 +335,8 @@ public partial class StageVerification : Node
         Check(preview.Texture.GetSize() == new Vector2(64, 64), "动画不改变选择图片");
         card.Free();
         // 单帧配置保持静态，独立肖像仍优先。
-        var single = new BossData { Texture = data.GetSelectionTexture() };
+        var single = BossCatalog.Load().Get("Boss_01");
+        single.Texture = data.GetSelectionTexture(); single.Hframes = single.Vframes = 1; single.AnimationFps = 0;
         single.Validate();
         Check(single.GetSelectionTexture() == single.Texture, "单帧选择贴图兼容");
         battle.StopBattle();

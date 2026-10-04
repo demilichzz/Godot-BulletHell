@@ -14,7 +14,7 @@ public enum VBulletTeam
 }
 
 /// <summary>拥有一棵Creator树，控制共通参数、生成生命周期和名称查找。</summary>
-public class VBulletEmitter : IVTimelineOwner
+public sealed class VBulletEmitter : IVTimelineOwner
 {
     /// <summary>发射器共通配置。</summary>
     public EmitterCoreAttribute Core { get; private set; } = new();
@@ -31,8 +31,6 @@ public class VBulletEmitter : IVTimelineOwner
     // 两类查找标识允许交叉重名；仅作查找，不决定更新顺序。
     private Dictionary<string, VNodeCreator> _ids = new(StringComparer.Ordinal);
     private Dictionary<string, VNodeCreator> _names = new(StringComparer.Ordinal);
-    // 数据原文用于复用时建立独立运行树，不保存旧格式。
-    private string? _definition;
     private BossController? _owner;
     private Node2D? _nodeContainer;
     private bool _started;
@@ -72,8 +70,7 @@ public class VBulletEmitter : IVTimelineOwner
             var emitter = new VBulletEmitter
             {
                 Core = JsonData.Read<EmitterCoreAttribute>(JsonData.Required(element, "Core")),
-                Root = VNodeCreator.ReadCreator(JsonData.Required(element, "VNodes")),
-                _definition = json
+                Root = VNodeCreator.ReadCreator(JsonData.Required(element, "VNodes"))
             };
             if (emitter.Core.Damage <= 0 || !Enum.IsDefined(emitter.Core.Team)
                 || emitter.Core.RefObject is not (null or "Boss") || emitter.Core.StopMode is not ("KeepBullets" or "ClearBullets"))
@@ -95,32 +92,8 @@ public class VBulletEmitter : IVTimelineOwner
         Manager = manager;
         Timeline = GlobalEvent.CreateTimeline(this);
         manager.RegisterEmitter(this);
-        try { Build(manager, owner); }
+        try { BindGeneration(Root, null); }
         catch { Stop(); throw; }
-    }
-
-    /// <summary>派生发射器可绑定数据或登记代码规则。</summary>
-    /// <param name="manager">本场子弹管理器。</param>
-    /// <param name="owner">生命周期所属Boss。</param>
-    protected virtual void Build(VBulletManager manager, BossController owner)
-    {
-        if (_definition is not null) BindGeneration(Root, null);
-    }
-
-    /// <summary>复用数据时重新加载独立树，避免批次和所属发射器共享。</summary>
-    /// <param name="definition">已加载但未启动的数据定义。</param>
-    protected void UseDefinition(VBulletEmitter definition)
-    {
-        if (Timeline is null || definition._definition is null || definition._started)
-            throw new InvalidOperationException("只能在Build内绑定未启动的数据定义。");
-        // JSON在加载时已严格校验，重新构造为每个Emitter隔离运行状态。
-        var copy = FromJson(definition._definition);
-        Core = copy.Core;
-        Root = copy.Root;
-        _definition = copy._definition;
-        _ids = copy._ids;
-        _names = copy._names;
-        BindGeneration(Root, null);
     }
 
     /// <summary>登记某个实际父对象的直接子生成规则。</summary>
@@ -239,15 +212,9 @@ public class VBulletEmitter : IVTimelineOwner
     /// <summary>全场结束或遗留子弹耗尽后解除查找索引。</summary>
     internal void Retire() { _ids.Clear(); _names.Clear(); _owner = null; }
 
-    /// <summary>代码规则直接生成单颗子弹，仍经过统一登记。</summary>
-    /// <param name="manager">本场子弹管理器。</param>
-    /// <param name="settings">完整出生参数。</param>
-    /// <returns>成功生成的子弹，满额为空。</returns>
-    protected VBullet? AddBullet(VBulletManager manager, VBulletDefaultSet settings) => manager.Spawn(settings, this);
-
     /// <summary>Creator的子弹创建入口。</summary>
     /// <param name="manager">本场子弹管理器。</param>
     /// <param name="settings">求值后的完整出生参数。</param>
     /// <returns>成功生成的子弹，满额为空。</returns>
-    internal VBullet? AddCreatorBullet(VBulletManager manager, VBulletDefaultSet settings) => AddBullet(manager, settings);
+    internal VBullet? AddCreatorBullet(VBulletManager manager, VBulletDefaultSet settings) => manager.Spawn(settings, this);
 }

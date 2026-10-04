@@ -104,7 +104,7 @@ public partial class BossDataVerification : Node
             var battle = Start(data);
             for (int index = 0; index < data.PhaseCount; index++)
             {
-                Check(battle.Boss.CurrentPhase is DataBossPhase && battle.Boss.PhaseIndex == index, "正式入口使用数据化阶段");
+                Check(battle.Boss.CurrentPhase is BossPhase && battle.Boss.PhaseIndex == index, "正式入口使用数据化阶段");
                 Step(battle, 65);
                 Check(battle.Boss.CurrentPhase!.Emitters.Count == data.Phases[index].Emitters.Count, "全部Emitter引用按阶段绑定");
                 if (index + 1 < data.PhaseCount) Check(battle.Boss.TrySwitchAdjacentPhase(1), "阶段按队列可切换");

@@ -1,4 +1,4 @@
-Timestamp: 2026-09-28T21:49:36+09:00
+Timestamp: 2026-10-04T12:45:25+09:00
 
 # 战斗领域规则
 
@@ -42,15 +42,17 @@ Timestamp: 2026-09-28T21:49:36+09:00
 
 - VNodeCreator统一配置、子树、批次生成、随机和批量修改，VBulletCreator继承后增加子弹校验与管理器创建。每个Emitter仅持有一个Root，允许子弹根和子弹Creator拥有Children，现有内容原则上将子弹Creator放在末层。
 - Creator持续持有Children和Batches；一次生成规则触发对应一个内层成员列表，包含全部轮次。公开批次仅保存存活成员、按建立序排列；内部待生任务可保留暂时空批次，恢复后仍归原批次。Members及VBulletCreator.Bullets是唯一批次来源的只读投影。批量参数操作作用于当前Creator全部批次，不隐式修改Children。实际对象保存Creator、具体ParentVNode和固定BirthIndex。Manager只通过树推进树内成员，不重复更新。
-- 具体Emitter的`Build`可登记代码时间规则或调用UseDefinition绑定VBulletEmitter.Load加载的数据；已迁移发射器的生成频率只在JSON的Timeline定义；`Start`仅调用一次`Build`，未登记时间线动作则不发射，不提供绕过时间线的手动立即发射入口。
+- Emitter直接从JSON加载独立Creator树，生成频率只在JSON的Timeline定义；`Start`仅激活一次并登记根生成规则，未登记时间线动作则不发射。不保留具体Emitter类、Build或UseDefinition，不提供绕过时间线的手动立即发射入口。
 - Phase只绑定和停止Emitter，不保存发射频率。
-- 后续修改具体Emitter时，若非必要，禁止新增内部类、辅助函数和类字段；发射相关处理只在`Build`及其局部变量和回调中实现。如果确实必须新增内部类、函数或类字段，先说明原因并取得用户确认后再添加。
+- 具体弹幕通过Emitter JSON配置。不得为单个Emitter新增内部类、辅助函数或类字段；若现有通用能力不足、确需新增此类代码结构，先说明原因并取得用户确认。
 - VNode寿命可省略，表示持续至父节点或Emitter结束；会多次生成的定义必须有有限寿命。节点到期取消后代VNode与未来生成，已发子弹继续存活；Follow子弹参考消失时保留当前世界位置并转为独立运动，不继承父速度。
 - Emitter停止清理纯节点并真正取消未来生成动作。KeepBullets保留已发子弹及成员动作，Manager保留运行树直到遗留子弹耗尽；ClearBullets通过Manager清除所属子弹。任意父VNode/VBullet到期均结束纯节点后代、取消后代生成，但不清除已发子弹。父Creator没有成员时仍遍历Children；全场清理、重开、胜利和离场清理树、批次、时间线及索引。
 
 ## 数据协议
 
 ### 格式与引用
+
+- Boss目录统一为 `Data/BossCatalog.json` 的有序 `Bosses` 数组，每个Boss内嵌Core和Phases；阶段按声明顺序引用独立Emitter JSON。正式战斗、预览和测试共用数据阶段，不保留Profile注册或代码阶段分支。
 
 - JSON不保留Version，只解析当前结构；旧字段及未知、重复字段拒绝加载。最新规范为../BulletHell_Design/BulletData/数据化_最新版.md；旧版文档按数据化_vN归档，文档编号不参与运行。
 - VBulletEmitter直接持有Core和单个Root，JSON字段为Core和单个VNodes对象，Children数组内嵌子Creator，不增加Definition中间层。Emitter.Core含可选Name、RefObject（Boss或null）、Team、Damage和StopMode；子弹出生时复制Team、Damage，VNode不持有。

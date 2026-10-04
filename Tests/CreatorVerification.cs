@@ -126,7 +126,7 @@ public partial class BattleVerification
         var attackEmitter = VBulletEmitter.FromJson(attack);
         attackEmitter.Start(switching.Boss, switching.Bullets);
         switching.StepFixed(Vector2.Zero, false);
-        Check(switching.Boss.CurrentPhase is DataBossPhase { Index: 1 }, "树内子弹碰撞期间允许切换阶段并追加运行树");
+        Check(switching.Boss.CurrentPhase is BossPhase { Index: 1 }, "树内子弹碰撞期间允许切换阶段并追加运行树");
         Check(switching.Boss.CurrentPhase!.Emitters.All(item => item.Timeline!.ElapsedUnits == 0), "运动阶段新建Emitter从零龄开始");
         switchingWorld.Free();
     }

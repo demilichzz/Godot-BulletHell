@@ -1,11 +1,11 @@
-Timestamp: 2026-09-26T23:53:56+09:00
+Timestamp: 2026-10-04T12:45:25+09:00
 
 # C# 开发规则
 
 ## 命名
 
-- 具体阶段类使用 `B{Boss编号}_Phase{阶段编号}`，例如 `B01_Phase01`；具体发射器类使用 `B{Boss编号}P{阶段编号}_Emitter{发射器编号}`，例如 `B01P01_Emitter01`。
-- 编号至少两位，不足补零；新增同类沿用此规则，文件名与类名一致，通用基类保留原名。
+- 具体Boss和阶段在 `Data/BossCatalog.json` 中定义，由通用 `BossPhase` 执行；不为单个Boss新增阶段类或发射器包装类。
+- 手工Emitter JSON文件使用 `B{Boss编号}P{阶段编号}_Emitter{发射器编号}.json`；编号至少两位，不足补零。通用C#文件名与类名一致。
 
 ## with 表达式
 

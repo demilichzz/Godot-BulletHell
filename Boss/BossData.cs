@@ -27,8 +27,6 @@ public partial class BossData : Resource
     [Export] public float VisualScale { get; set; } = BattleConfig.BossScale;
     /// <summary>出生位置，单位为逻辑像素，右和下为正，默认(640,250)。</summary>
     [Export] public Vector2 SpawnPosition { get; set; } = BattleConfig.BossSpawn;
-    /// <summary>阶段组合注册键，默认Boss_01。</summary>
-    [Export] public string PhaseProfile { get; set; } = "Boss_01";
     /// <summary>检查配置是否能用于生成 Boss。</summary>
     public void Validate()
     {

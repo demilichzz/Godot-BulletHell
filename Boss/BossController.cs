@@ -12,7 +12,7 @@ public partial class BossController : Node2D, IVTimelineOwner
 	/// <summary>当前阶段剩余生命点数，数据化阶段独立受伤。</summary>
     public int PhaseHp { get; private set; }
     /// <summary>当前阶段最大生命点数。</summary>
-    public int PhaseMaxHp => CurrentPhase is DataBossPhase phase ? phase.Definition.Hp : MaxHp;
+    public int PhaseMaxHp => CurrentPhase?.Definition.Hp ?? MaxHp;
     /// <summary>当前阶段的零基序号。</summary>
     public int PhaseIndex => _phaseIndex;
     /// <summary>阶段队列长度。</summary>
@@ -124,7 +124,7 @@ public partial class BossController : Node2D, IVTimelineOwner
         {
             // 直接构造控制器时也使用正式B01定义。
             var data = BossCatalog.Load().Get("Boss_01");
-            for (int index = 0; index < data.Phases.Count; index++) _phases.Add(new DataBossPhase(data.Phases[index], index));
+            for (int index = 0; index < data.Phases.Count; index++) _phases.Add(new BossPhase(data.Phases[index], index));
         }
 		_phasesStarted = true;
 		Timeline = GlobalEvent.CreateTimeline(this);
@@ -139,7 +139,7 @@ public partial class BossController : Node2D, IVTimelineOwner
 	private void EnterPhase()
 	{
 		CurrentPhase = _phases[_phaseIndex];
-        if (CurrentPhase is DataBossPhase dataPhase) PhaseHp = dataPhase.Definition.Hp;
+        PhaseHp = CurrentPhase.Definition.Hp;
 		CurrentPhase.Enter(this);
 		PhaseChanged?.Invoke(CurrentPhase);
 	}
@@ -154,31 +154,20 @@ public partial class BossController : Node2D, IVTimelineOwner
 		UpdatePhase();
 		Timeline?.AdvanceUnits(VTimeline.SecondsToUnits(delta));
 		CurrentPhase?.Advance(this, delta);
-        if (CurrentPhase is DataBossPhase) UpdatePhase();
+        UpdatePhase();
 	}
     /// <summary>结算当前阶段条件，取消旧时间线并按队列进入下一阶段。</summary>
     private void UpdatePhase()
     {
         // 独立阶段一次只结算当前血池，超额伤害不触及下一阶段。
-        if (CurrentPhase is DataBossPhase dataPhase)
-        {
-            if (!dataPhase.ShouldEnd(this)) return;
-            Hp -= PhaseHp;
-            PhaseHp = 0;
-            HealthChanged?.Invoke(Hp);
-            if (_phaseIndex + 1 == _phases.Count) { Defeat(); return; }
-            ExitCurrentPhase();
-            _phaseIndex++;
-            EnterPhase();
-            return;
-        }
-        // 显式代码阶段保持自身结束条件，供隔离扩展阶段使用。
-        while (Hp > 0 && CurrentPhase is not null && _phaseIndex + 1 < _phases.Count && CurrentPhase.ShouldEnd(this))
-        {
-			ExitCurrentPhase();
-            _phaseIndex++;
-            EnterPhase();
-        }
+        if (CurrentPhase is null || !CurrentPhase.ShouldEnd(this)) return;
+        Hp -= PhaseHp;
+        PhaseHp = 0;
+        HealthChanged?.Invoke(Hp);
+        if (_phaseIndex + 1 == _phases.Count) { Defeat(); return; }
+        ExitCurrentPhase();
+        _phaseIndex++;
+        EnterPhase();
     }
 	/// <summary>按累计秒数推进逐行排列的图集帧，保留余量并支持一次跨越多个循环。</summary>
 	/// <param name="delta">本次更新的非负有限秒数。</param>
@@ -198,23 +187,14 @@ public partial class BossController : Node2D, IVTimelineOwner
 	public bool TakeDamage(int damage)
 	{
 		if (IsDefeated || CurrentPhase is null || damage <= 0) return false;
-        if (CurrentPhase is DataBossPhase)
-        {
-            // 已耗尽的仅时间阶段继续移动与发射，但不再接受伤害。
-            int applied = Math.Min(PhaseHp, damage);
-            if (applied == 0) return false;
-            PhaseHp -= applied;
-            Hp -= applied;
-            HealthChanged?.Invoke(Hp);
-            UpdatePhase();
-            return true;
-        }
-        if (Hp == 0) return false;
-		Hp = Math.Max(0, Hp - damage);
-		HealthChanged?.Invoke(Hp);
-		if (Hp == 0) Defeat();
-        else UpdatePhase();
-		return true;
+        // 已耗尽的仅时间阶段继续移动与发射，但不再接受伤害。
+        int applied = Math.Min(PhaseHp, damage);
+        if (applied == 0) return false;
+        PhaseHp -= applied;
+        Hp -= applied;
+        HealthChanged?.Invoke(Hp);
+        UpdatePhase();
+        return true;
 	}
 	/// <summary>计算指定数据化阶段及其后续阶段的满血总和。</summary>
     /// <param name="index">队列内的零基阶段序号。</param>
@@ -224,7 +204,7 @@ public partial class BossController : Node2D, IVTimelineOwner
         // 加载时已校验总和不超过int范围。
         int total = 0;
         for (int current = index; current < _phases.Count; current++)
-            total = checked(total + ((DataBossPhase)_phases[current]).Definition.Hp);
+            total = checked(total + _phases[current].Definition.Hp);
         return total;
     }
     /// <summary>只执行一次最终死亡，取消阶段及Boss时间线。</summary>

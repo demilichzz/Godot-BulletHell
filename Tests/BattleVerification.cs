@@ -282,7 +282,7 @@ public partial class BattleVerification : Node
 		battle.StepFixed(Vector2.Zero, false);
 		Check(first.Timeline is not null && bossTimeline?.ElapsedUnits == VTimerProcessor.FixedStepUnits, "首阶段与Boss独立计时");
 		Check(boss.TrySwitchAdjacentPhase(1) && first.Timeline is null
-			&& boss.CurrentPhase is DataBossPhase { Index: 1 } && ReferenceEquals(boss.Timeline, bossTimeline)
+			&& boss.CurrentPhase is BossPhase { Index: 1 } && ReferenceEquals(boss.Timeline, bossTimeline)
 			&& changes == 1, "阶段切换保留Boss时间线");
 		battle.StepFixed(Vector2.Zero, false);
 		Check(crossPhaseActions == 1 && bossTimeline!.ElapsedUnits == 2 * VTimerProcessor.FixedStepUnits,
@@ -308,7 +308,8 @@ public partial class BattleVerification : Node
 		var victoryBoss = battle.Boss;
 		var victoryPlayer = battle.Player;
 		var victoryBullets = battle.Bullets;
-		victoryBoss.TakeDamage(300);
+        // 每次伤害只消耗当前独立血池，逐阶段结束后再检查胜利绑定。
+        for (int phase = 0; phase < victoryBoss.PhaseCount; phase++) victoryBoss.TakeDamage(victoryBoss.PhaseHp);
 		battle.StepFixed(Vector2.Zero, false);
 		Check(battle.State == BattleState.Victory && ReferenceEquals(GlobalEvent.GetBoss(), victoryBoss)
 			&& ReferenceEquals(GlobalEvent.GetPlayer(), victoryPlayer)
@@ -363,7 +364,7 @@ public partial class BattleVerification : Node
         })!;
 
         battle.StepFixed(Vector2.Zero, false, false, true);
-        Check(boss.CurrentPhase is DataBossPhase { Index: 1 } && boss.Hp == 200
+        Check(boss.CurrentPhase is BossPhase { Index: 1 } && boss.Hp == 200
             && boss.Position.DistanceTo(new Vector2(640, 240)) < bossPosition.DistanceTo(new Vector2(640, 240))
             && battle.Player.Position == playerPosition, "E切入阶段02并在当前物理步开始移动");
         Check(GodotObject.IsInstanceValid(oldBullet) && battle.Bullets.ActiveCount == 1
@@ -390,27 +391,27 @@ public partial class BattleVerification : Node
         Check(ReferenceEquals(boss.CurrentPhase, beforeBoth) && boss.Hp == beforeBothHp
             && boss.Position == beforeBothPosition, "同时按Q/E不切换或重置");
         battle.StepFixed(Vector2.Zero, false, false, true);
-        Check(boss.CurrentPhase is DataBossPhase { Index: 2 } && boss.Hp == 100 && boss.Position == beforeBothPosition, "E切入阶段03");
+        Check(boss.CurrentPhase is BossPhase { Index: 2 } && boss.Hp == 100 && boss.Position == beforeBothPosition, "E切入阶段03");
         // 末阶段计时器数量用于确认边界按键不重复注册。
         var phaseThreeActions = battle.Timers.TimelineActionCount;
         boss.TakeDamage(1);
         battle.StepFixed(Vector2.Zero, false, false, true);
-        Check(boss.CurrentPhase is DataBossPhase { Index: 2 } && boss.Hp == 99 && battle.Timers.TimelineActionCount == phaseThreeActions, "末阶段E不循环且不回血");
+        Check(boss.CurrentPhase is BossPhase { Index: 2 } && boss.Hp == 99 && battle.Timers.TimelineActionCount == phaseThreeActions, "末阶段E不循环且不回血");
         battle.StepFixed(Vector2.Zero, false, true, false);
-        Check(boss.CurrentPhase is DataBossPhase { Index: 1 } && boss.Hp == 200, "Q返回阶段02");
+        Check(boss.CurrentPhase is BossPhase { Index: 1 } && boss.Hp == 200, "Q返回阶段02");
         battle.StepFixed(Vector2.Zero, false, true, false);
-        Check(boss.CurrentPhase is DataBossPhase { Index: 0 } && boss.Hp == 300, "Q返回阶段01");
+        Check(boss.CurrentPhase is BossPhase { Index: 0 } && boss.Hp == 300, "Q返回阶段01");
         boss.TakeDamage(1);
         battle.StepFixed(Vector2.Zero, false, true, false);
-        Check(boss.CurrentPhase is DataBossPhase { Index: 0 } && boss.Hp == 299, "首阶段Q不循环且不回血");
+        Check(boss.CurrentPhase is BossPhase { Index: 0 } && boss.Hp == 299, "首阶段Q不循环且不回血");
 
         battle.Restart();
         battle.Player.Attack.Stop();
         boss = battle.Boss;
         battle.Boss.TakeDamage(101);
-        Check(boss.CurrentPhase is DataBossPhase { Index: 1 } && boss.Hp == 200 && boss.PhaseHp == 100, "自然切换独立血池不继承超额伤害");
+        Check(boss.CurrentPhase is BossPhase { Index: 1 } && boss.Hp == 200 && boss.PhaseHp == 100, "自然切换独立血池不继承超额伤害");
         battle.Boss.TakeDamage(100);
-        Check(boss.CurrentPhase is DataBossPhase { Index: 2 } && boss.Hp == 100, "自然受伤进入阶段03不回血");
+        Check(boss.CurrentPhase is BossPhase { Index: 2 } && boss.Hp == 100, "自然受伤进入阶段03不回血");
         battle.Boss.TakeDamage(100);
         battle.StepFixed(Vector2.Zero, false);
         Check(battle.State == BattleState.Victory && boss.CurrentPhase is null, "外部致死后固定步进入胜利");
@@ -457,7 +458,7 @@ public partial class BattleVerification : Node
         battle.Player.Attack.Stop();
         var boss = battle.Boss;
         boss.TakeDamage(100); boss.TakeDamage(100);
-        Check(boss.CurrentPhase is DataBossPhase { Index: 2 } && !boss.CurrentPhase.IsMoving,
+        Check(boss.CurrentPhase is BossPhase { Index: 2 } && !boss.CurrentPhase.IsMoving,
             "阶段03切入时保持当前位置");
         Vector2 origin = boss.GlobalPosition;
         VerificationClock.BossSeconds(battle, 0.999);
@@ -504,7 +505,7 @@ public partial class BattleVerification : Node
         VerificationClock.BossSeconds(battle, 0.05);
         Check(secondBullet.Speed == 150 && rings.Batches[1][0].Speed == 0, "第二颗延后50ms变向");
         VerificationClock.BossSeconds(battle, 1.95);
-        Check(boss.CurrentPhase is DataBossPhase { Index: 2 } && boss.CurrentPhase.IsMoving
+        Check(boss.CurrentPhase is BossPhase { Index: 2 } && boss.CurrentPhase.IsMoving
             && Math.Abs(boss.CurrentPhase.MoveTarget.DistanceTo(new Vector2(640, 250)) - 200) < 0.001,
             "阶段03仍在第五秒选择圆周移动目标");
         world.Free();
@@ -525,7 +526,7 @@ public partial class BattleVerification : Node
                 Position = new Vector2(-1000, -1000),
                 Speed = 0
             });
-        var limited = new B01P03_Emitter01();
+        var limited = VBulletEmitter.Load("res://Data/Emitters/B01P03_Emitter01.json");
         limited.Start(stoppedBattle.Boss, stoppedBattle.Bullets);
         VerificationClock.EmitterSeconds(stoppedBattle, 1, limited);
         // 后续延迟成员在满额时跳过，不创建成员动作。
@@ -546,7 +547,7 @@ public partial class BattleVerification : Node
         var battle = CreateBattle(out var world);
         battle.Player.Attack.Stop();
         var boss = battle.Boss;
-        Check(boss.MaxHp == 300 && boss.Hp == 300 && boss.CurrentPhase is DataBossPhase { Index: 0 }, "默认入口首阶段300血");
+        Check(boss.MaxHp == 300 && boss.Hp == 300 && boss.CurrentPhase is BossPhase { Index: 0 }, "默认入口首阶段300血");
         VerificationClock.BossSeconds(battle, 1);
         var first = boss.CurrentPhase!;
         var surviving = first.Emitters[0];
@@ -557,7 +558,7 @@ public partial class BattleVerification : Node
         boss.TakeDamage(99);
         Check(boss.Hp == 201 && ReferenceEquals(first, boss.CurrentPhase), "201血保持阶段01");
         boss.TakeDamage(1);
-        Check(boss.Hp == 200 && boss.CurrentPhase is DataBossPhase { Index: 1 }, "200血立即进入阶段02");
+        Check(boss.Hp == 200 && boss.CurrentPhase is BossPhase { Index: 1 }, "200血立即进入阶段02");
         Check(first.Emitters.Count == 0 && surviving.Bullets.Count == 24
             && surviving.Timeline is null, "旧阶段停止发射器但保留既有子弹");
         VerificationClock.BossSeconds(battle, 0.99);
@@ -571,7 +572,7 @@ public partial class BattleVerification : Node
         boss.TakeDamage(99);
         Check(boss.Hp == 101 && ReferenceEquals(second, boss.CurrentPhase), "101血保持阶段02");
         boss.TakeDamage(1);
-        Check(boss.CurrentPhase is DataBossPhase { Index: 2 } && battle.Timers.TimelineActionCount > 0,
+        Check(boss.CurrentPhase is BossPhase { Index: 2 } && battle.Timers.TimelineActionCount > 0,
             "100血进入阶段03，已发子弹的行为计时器继续存活");
         VerificationClock.BossSeconds(battle, 1);
         var third = boss.CurrentPhase!;
@@ -586,13 +587,13 @@ public partial class BattleVerification : Node
         Check(battle.State == BattleState.Victory && boss.CurrentPhase is null
             && battle.Timers.TimelineActionCount == 0, "0血胜利清理全部阶段");
         battle.Restart();
-        Check(battle.Boss.Hp == 300 && battle.Boss.CurrentPhase is DataBossPhase { Index: 0 }
+        Check(battle.Boss.Hp == 300 && battle.Boss.CurrentPhase is BossPhase { Index: 0 }
             && battle.Timers.TimelineActionCount == 4, "重开恢复三阶段初始配置");
         // 超额伤害只消耗当前独立血池，只进入下一个阶段。
         var entered = new System.Collections.Generic.List<int>();
-        battle.Boss.PhaseChanged += phase => entered.Add(((DataBossPhase)phase).Index);
+        battle.Boss.PhaseChanged += phase => entered.Add(((BossPhase)phase).Index);
         battle.Boss.TakeDamage(250);
-        Check(battle.Boss.Hp == 200 && battle.Boss.CurrentPhase is DataBossPhase { Index: 1 }
+        Check(battle.Boss.Hp == 200 && battle.Boss.CurrentPhase is BossPhase { Index: 1 }
             && entered.SequenceEqual(new[] { 1 }), "大伤害不跨越独立阶段血池");
         Check(battle.Timers.TimelineActionCount == 2, "切换后只保留新阶段和玩家动作");
         // 正式工厂入口也注册三个独立阶段。
@@ -600,9 +601,9 @@ public partial class BattleVerification : Node
         world.AddChild(configured);
         configured.StartPhases();
         configured.TakeDamage(100);
-        Check(configured.CurrentPhase is DataBossPhase { Index: 1 }, "正式配置进入阶段02");
+        Check(configured.CurrentPhase is BossPhase { Index: 1 }, "正式配置进入阶段02");
         configured.TakeDamage(100);
-        Check(configured.CurrentPhase is DataBossPhase { Index: 2 }, "正式配置进入阶段03");
+        Check(configured.CurrentPhase is BossPhase { Index: 2 }, "正式配置进入阶段03");
         configured.Free();
         battle.Restart();
         battle.Player.Attack.Stop();
@@ -621,7 +622,7 @@ public partial class BattleVerification : Node
             battle.Boss.Advance(seconds);
             battle.Bullets.Advance(seconds, battle.Player, battle.Boss);
         }, battle.Bullets.DispatchTimelines);
-        Check(battle.Boss.CurrentPhase is DataBossPhase { Index: 1 } && battle.Bullets.ActiveCount == 0,
+        Check(battle.Boss.CurrentPhase is BossPhase { Index: 1 } && battle.Bullets.ActiveCount == 0,
             "血线碰撞先于同刻发射，旧阶段不多发一轮");
         VerificationClock.BossSeconds(battle, 1);
         Check(battle.Bullets.ActiveCount == 72 && battle.Boss.CurrentPhase!.Emitters.Count == 1,
@@ -676,7 +677,7 @@ public partial class BattleVerification : Node
         // 停止初始阶段，以下计时验证只观察单独启动的发射器。
         battle.Boss.Stop();
         battle.Boss.GlobalPosition = origin;
-        var delayed = new B01P01_Emitter02();
+        var delayed = VBulletEmitter.Load("res://Data/Emitters/B01P01_Emitter02.json");
         delayed.Start(battle.Boss, manager);
         VerificationClock.EmitterSeconds(battle, 1, delayed);
         Check(delayed.Bullets.Count == 16 && delayed.Bullets.All(bullet => bullet.Speed == 300),
@@ -686,8 +687,8 @@ public partial class BattleVerification : Node
         Check(delayed.Bullets.All(bullet => bullet.Speed == 300), "发射器02两秒前保持初速");
         VerificationClock.BossSeconds(battle, 0.001);
         Check(delayed.Bullets.All(bullet => bullet.Speed == 300), "发射器02两秒后仍保持出生速度300");
-        var first = new B01P01_Emitter01();
-        var second = new B01P01_Emitter01();
+        var first = VBulletEmitter.Load("res://Data/Emitters/B01P01_Emitter01.json");
+        var second = VBulletEmitter.Load("res://Data/Emitters/B01P01_Emitter01.json");
         first.Start(battle.Boss, manager);
         second.Start(battle.Boss, manager);
         VerificationClock.EmitterSeconds(battle, 1, first, second);
@@ -736,13 +737,13 @@ public partial class BattleVerification : Node
         manager.Advance(0, battle.Player, battle.Boss);
         Check(manager.ActiveCount == 0, "直接生成的单颗弹幕命中后注销");
         for (int index = 0; index < BattleConfig.MaxBullets - 1; index++) manager.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with { Position = origin });
-        var partial = new B01P01_Emitter01();
+        var partial = VBulletEmitter.Load("res://Data/Emitters/B01P01_Emitter01.json");
         partial.Start(battle.Boss, manager);
         VerificationClock.EmitterSeconds(battle, 1, partial);
         Check(partial.Bullets.Count == 1 && manager.ActiveCount == BattleConfig.MaxBullets
             && manager.GetChildCount() == BattleConfig.MaxBullets, "满额只登记成功对象");
         partial.Stop();
-        var blocked = new B01P01_Emitter01();
+        var blocked = VBulletEmitter.Load("res://Data/Emitters/B01P01_Emitter01.json");
         blocked.Start(battle.Boss, manager);
         VerificationClock.EmitterSeconds(battle, 1, blocked);
         Check(blocked.Bullets.Count == 0 && manager.GetChildCount() == BattleConfig.MaxBullets, "满额不产生孤立节点");

@@ -20,7 +20,7 @@ public partial class BattleVerification
         battle.Player.Attack.Stop();
         var manager = battle.Bullets;
         var origin = new Vector2(-10000, -10000);
-        var emitter = new B01P01_Emitter01();
+        var emitter = VBulletEmitter.Load("res://Data/Emitters/B01P01_Emitter01.json");
         VMath.setRandomSeed(317);
         double untouched = VMath.getRandomDouble(0, 1);
         VMath.setRandomSeed(317);

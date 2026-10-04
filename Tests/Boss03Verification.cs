@@ -26,7 +26,7 @@ public partial class BattleVerification
     {
         // 一秒前没有弹幕；首轮三个无显示源各生成八条蓝色激光。
         var battle = CreateBoss03Battle(out var world);
-        Check(battle.Boss.CurrentPhase is DataBossPhase { Index: 0 } && battle.Boss.Hp == 300, "Boss03从第一阶段满血开始");
+        Check(battle.Boss.CurrentPhase is BossPhase { Index: 0 } && battle.Boss.Hp == 300, "Boss03从第一阶段满血开始");
         Check(!battle.Boss.TrySwitchAdjacentPhase(-1), "第一阶段不可向前切换");
         VerificationClock.BattleSeconds(battle, 59.0 / 60, Vector2.Zero, false);
         Check(battle.Bullets.ActiveCount == 0, "首轮在1000ms开始");
@@ -48,25 +48,25 @@ public partial class BattleVerification
         VerificationClock.BattleSeconds(battle, 1.3, Vector2.Zero, false);
         Check(battle.Bullets.ActiveBullets.OfType<VLaser>().Count() == 24 && battle.Boss.Position == new Vector2(500, 230),
             "6000ms从换位后的Boss快照再发一轮");
-        Check(battle.Boss.TrySwitchAdjacentPhase(1) && battle.Boss.CurrentPhase is DataBossPhase { Index: 1 }
+        Check(battle.Boss.TrySwitchAdjacentPhase(1) && battle.Boss.CurrentPhase is BossPhase { Index: 1 }
             && battle.Boss.Hp == 200 && battle.Bullets.ActiveCount == 0, "切入阶段2设置血线且清除上一阶段弹幕");
         VerificationClock.BattleSeconds(battle, 7, Vector2.Zero, false);
         Check(battle.Bullets.ActiveCount > 0 && battle.Boss.CurrentPhase!.Emitters.Count == 1
             && battle.Bullets.ActiveBullets.OfType<VLaser>().All(laser => laser.Settings.Color == "#FF3048"), "阶段2开始红色弹带与激光，不残留首阶段发射");
-        Check(battle.Boss.TrySwitchAdjacentPhase(1) && battle.Boss.CurrentPhase is DataBossPhase { Index: 2 }
+        Check(battle.Boss.TrySwitchAdjacentPhase(1) && battle.Boss.CurrentPhase is BossPhase { Index: 2 }
             && battle.Boss.Hp == 100 && !battle.Boss.TrySwitchAdjacentPhase(1), "阶段3为末阶段且初始血线100");
         Check(battle.Boss.CurrentPhase!.Emitters.Count == 0 && battle.Bullets.ActiveCount == 0, "阶段3保持空阶段并清除第二阶段弹幕");
         Check(battle.Boss.TrySwitchAdjacentPhase(-1) && battle.Boss.TrySwitchAdjacentPhase(-1)
-            && battle.Boss.CurrentPhase is DataBossPhase { Index: 0 } && battle.Boss.Hp == 300, "可回到阶段1并重建发射器");
+            && battle.Boss.CurrentPhase is BossPhase { Index: 0 } && battle.Boss.Hp == 300, "可回到阶段1并重建发射器");
         battle.Boss.TakeDamage(100);
-        Check(battle.Boss.CurrentPhase is DataBossPhase { Index: 1 }, "累计损失100点自然进入阶段2");
+        Check(battle.Boss.CurrentPhase is BossPhase { Index: 1 }, "累计损失100点自然进入阶段2");
         battle.Boss.TakeDamage(100);
-        Check(battle.Boss.CurrentPhase is DataBossPhase { Index: 2 }, "累计损失200点自然进入阶段3");
+        Check(battle.Boss.CurrentPhase is BossPhase { Index: 2 }, "累计损失200点自然进入阶段3");
         battle.Boss.TakeDamage(100);
         battle.StepFixed(Vector2.Zero, false);
         Check(battle.State == BattleState.Victory && battle.Bullets.ActiveCount == 0, "第三阶段击破后正常结束战斗");
         battle.Restart();
-        Check(battle.Boss.CurrentPhase is DataBossPhase { Index: 0 } && battle.Boss.Hp == 300 && battle.Bullets.ActiveCount == 0,
+        Check(battle.Boss.CurrentPhase is BossPhase { Index: 0 } && battle.Boss.Hp == 300 && battle.Bullets.ActiveCount == 0,
             "重开回到首阶段完整初态");
         world.Free();
         Check(CaptureBoss03(false).SequenceEqual(CaptureBoss03(true)), "相同完整初态、输入和种子逐步重现，额外渲染刷新不影响业务");

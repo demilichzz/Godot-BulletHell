@@ -7,7 +7,7 @@ using System.Text.Json;
 /// <summary>读取目录内嵌Boss属性和有序阶段，不嵌入Emitter数据。</summary>
 public partial class BossData
 {
-    /// <summary>数据化阶段队列；空队列仅用于显式代码阶段配置。</summary>
+    /// <summary>正式运行使用的非空有序阶段队列。</summary>
     public IReadOnlyList<BossPhaseDefinition> Phases { get; private set; } = Array.Empty<BossPhaseDefinition>();
     /// <summary>阶段数由队列长度决定，避免重复保存不一致的数量。</summary>
     public int PhaseCount => Phases.Count;
@@ -49,7 +49,7 @@ public partial class BossData
             Hframes = core.Hframes, Vframes = core.Vframes, AnimationFps = core.AnimationFps,
             MaxHp = core.MaxHp, CollisionRadius = core.CollisionRadius, VisualScale = core.VisualScale,
             SpawnPosition = BossMovement.ReadPoint(JsonData.Required(JsonData.Required(element, "Core"), "SpawnPosition")),
-            Phases = phases.AsReadOnly(), PhaseProfile = "", EmitterLoader = loadEmitter ?? VBulletEmitter.Load
+            Phases = phases.AsReadOnly(), EmitterLoader = loadEmitter ?? VBulletEmitter.Load
         };
         data.Validate();
         return data;
