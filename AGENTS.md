@@ -1,4 +1,4 @@
-Timestamp: 2026-09-28T21:49:36+09:00
+Timestamp: 2026-10-04T11:35:22+09:00
 
 # 项目协作约定
 
@@ -10,9 +10,28 @@ Timestamp: 2026-09-28T21:49:36+09:00
 - 实现时遇到重要歧义，或必须改变已确认的核心设计、业务行为、数据结构或公共接口时，停止相关修改并向用户确认。不得为实现方便改变需求，或进行无关重构、顺手扩大范围。
 - 在当前对话内连续完成已授权工作，沿用已确认的设计和上下文，不为分析、实现和测试重复建立上下文或生成内部交接规格。后续指令只改变明确指定的部分，其余约束继续有效。
 
+## Worktree 与分支
+
+本项目使用长期 Git Worktree 支持多个对话在不同分支并行开发。主仓库目录保留在 `D:\Develop\Projects\BulletHell`，各功能 Worktree 与它位于同一父目录，共享 Git 历史，各自拥有独立的工作文件和暂存区。
+
+| 分支 | 工作范围 | 工作目录 |
+|---|---|---|
+| `develop` | 全局修改及功能集成 | `D:\Develop\Projects\BulletHell` |
+| `feature/editor` | 编辑器修改，原 `develop_editor` | `D:\Develop\Projects\BulletHell-editor` |
+| `feature/aichar` | AI 角色逻辑修改 | `D:\Develop\Projects\BulletHell-aichar` |
+| `feature/battle` | Boss、发射器、弹幕逻辑修改 | `D:\Develop\Projects\BulletHell-battle` |
+| `feature/display` | 画面显示修改 | `D:\Develop\Projects\BulletHell-display` |
+
+- 开始修改前确认当前 Worktree 路径、分支和未提交修改；仅在当前对话对应的 Worktree 内编辑、暂存、提交和测试，不为切换任务而更改其他 Worktree 的分支或文件。
+- 同一分支只在一个 Worktree 中检出；同一 Worktree 同时只允许一个对话执行写入任务。不同分支可并行开发，分支分工不代表合并时不会发生文件冲突。
+- 新功能分支以 `develop` 为起点；全局改动通过 Git 合并同步到功能分支，功能完成后合入 `develop`。不使用跨 Worktree 复制生产代码的方式同步，也不擅自重写已发布分支的历史。
+- 各 Worktree 独立生成 Godot 导入缓存与构建输出，不共用 `.godot`、`bin` 或 `obj` 目录。
+- 文档仍共用 `D:\Develop\Projects\BulletHell_Design`；修改共用文档前确认是否有其他对话正在维护同一文件。结构索引继续按用户明确要求更新。
+- 多对话并行不改变单个对话的授权、测试范围及禁用子 Agent 的约定。
+
 ## 按需加载
 
-本文件及领域规则中的相对文件路径均以 BulletHell 项目根目录为基准。按任务读取并遵守相关规则，可同时加载多个文件，不预加载无关内容：
+本文件及领域规则中的项目内相对文件路径均以当前 BulletHell Worktree 根目录为基准。按任务读取并遵守相关规则，可同时加载多个文件，不预加载无关内容：
 
 | 任务内容 | 规则文件 |
 |---|---|
@@ -40,4 +59,4 @@ Timestamp: 2026-09-28T21:49:36+09:00
 
 ## Git 提交范围
 
-仅在 BulletHell 的 Git 根目录暂存和提交项目内修改；不纳入同级 BulletHell_Design 或其他目录，不为提交而将设计材料移动或复制回项目。
+仅在当前 BulletHell Worktree 的 Git 根目录暂存和提交该工作区内的项目修改；不纳入共用的 BulletHell_Design 或其他 Worktree、其他目录，不为提交而将设计材料移动或复制回项目。
