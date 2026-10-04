@@ -5,17 +5,19 @@ using System.IO;
 /// <summary>编辑器顶层工作区，统一管理会话、文件窗口、模式切换和退出保护。</summary>
 public partial class EmitterEditor : Control
 {
-    /// <summary>独立Emitter与Boss目录共用的唯一文件会话。</summary>
+    /// <summary>仅属于Emitter模式的文件会话。</summary>
     public EditorSession Session { get; } = new();
+    /// <summary>与Emitter草稿隔离的Boss文件会话。</summary>
+    public BossEditorSession BossSession { get; } = new();
     /// <summary>首次启动是否进入Boss目录，默认是。</summary>
     public bool StartInCatalog { get; set; } = true;
     /// <summary>当前独立Emitter文档；尚未进入该模式时不可访问。</summary>
-    public EmitterDocument Document => EmitterContent.Document;
+    public EditorDocument Document => EmitterContent.Document;
     /// <summary>独立Emitter画布，供顶层定位与交互访问。</summary>
     public EditorCanvas Canvas => EmitterContent.Canvas;
     /// <summary>独立Emitter预览，使用正式战斗入口。</summary>
     public EditorPreview Preview => EmitterContent.Preview;
-    /// <summary>独立Emitter内容面板，与目录嵌入面板使用同一类型。</summary>
+    /// <summary>仅属于Emitter模式的内容面板。</summary>
     public EmitterPanel EmitterContent => _emitter ?? throw new InvalidOperationException("尚未打开独立Emitter工作区。");
     // 窗口服务和内容宿主只属于顶层，不由内容面板递归创建。
     private readonly EditorFileDialogs _files = new();
@@ -47,14 +49,14 @@ public partial class EmitterEditor : Control
         Guard(() =>
         {
             if (emitterPath is not null) OpenEmitter(emitterPath);
-            if (catalogPath is not null) { SwitchMode(true); BossPanel!.Open(catalogPath); }
+            if (catalogPath is not null) { BossSession.Open(catalogPath); SwitchMode(true); }
             else if (emitterPath is null) SwitchMode(StartInCatalog);
         });
     }
 
     /// <summary>按需创建独立Emitter面板，文件动作只向工作区回调。</summary>
     /// <param name="document">首次打开的文档；为空时新建未命名文档。</param>
-    private void EnsureEmitter(EmitterDocument? document = null)
+    private void EnsureEmitter(EditorDocument? document = null)
     {
         if (_emitter is not null) return;
         _emitter = new EmitterPanel { ConfirmRequested = _files.Confirm };
@@ -92,6 +94,13 @@ public partial class EmitterEditor : Control
         }
         SwitchMode(false);
     }
+    /// <summary>从Boss引用跳转，确认结束后再次检查磁盘，失败不替换当前文档。</summary>
+    /// <param name="path">Emitter资源路径。</param>
+    private void OpenEmitterReference(string path) => ReplaceUntitledThen(() =>
+    {
+        if (!EditorDocument.CanOpenEmitter(path)) throw new InvalidOperationException("Emitter文件已失效或类型不正确：" + path);
+        OpenEmitter(path);
+    });
     /// <summary>用户确认后新建文档；已命名文件仍保留在会话中。</summary>
     public void NewEmitter()
     {
@@ -117,7 +126,7 @@ public partial class EmitterEditor : Control
         else action();
     }
     /// <summary>保存指定内容面板的文档，路径身份统一由会话维护。</summary>
-    /// <param name="panel">独立或嵌入的Emitter面板。</param>
+    /// <param name="panel">独立Emitter面板。</param>
     /// <param name="choosePath">是否请求另存。</param>
     private void SaveEmitter(EmitterPanel panel, bool choosePath)
     {
@@ -162,7 +171,7 @@ public partial class EmitterEditor : Control
     {
         if (what != NotificationWMCloseRequest || !IsNodeReady()) return;
         if (IsBossMode) BossPanel?.Suspend(); else _emitter?.Suspend();
-        if (Session.HasUnsaved) _files.Confirm("会话中存在未保存的目录、Emitter或JSON草稿。退出将放弃这些内容。", () => GetTree().Quit());
+        if (Session.HasUnsaved || BossSession.HasUnsaved) _files.Confirm("会话中存在未保存的目录、Boss、Emitter或JSON草稿。退出将放弃这些内容。", () => GetTree().Quit());
         else GetTree().Quit();
     }
 }

@@ -18,7 +18,7 @@ public static class EditorPositionTools
     /// <param name="path">Creator指针。</param>
     /// <param name="basis">基础项零基下标。</param>
     /// <param name="delta">世界逻辑像素位移。</param>
-    public static void Translate(EmitterDocument document, string path, int basis, Vector2 delta)
+    public static void Translate(EditorDocument document, string path, int basis, Vector2 delta)
     {
         if (delta.LengthSquared() < 0.00000001f) return;
         // 解析保留表达式的有效配置；逐级创建必要的复制覆盖。
@@ -56,7 +56,7 @@ public static class EditorPositionTools
     /// <param name="document">已应用父位置修改的事务内文档。</param>
     /// <param name="path">被修改的Creator；空字符串表示Emitter。</param>
     /// <param name="before">修改前的完整布局。</param>
-    public static void PreserveChildren(EmitterDocument document, string path, EditorLayout before)
+    public static void PreserveChildren(EditorDocument document, string path, EditorLayout before)
     {
         foreach (var marker in before.Markers.Where(marker => path.Length == 0 || marker.Path.StartsWith(path + "/Children/", StringComparison.Ordinal)))
         {

@@ -4,8 +4,19 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-/// <summary>编辑器文档，保留表达式、显式null及复制指令，不保存运行对象。</summary>
-public sealed partial class EmitterDocument
+/// <summary>编辑文件类型，分别校验Emitter、Boss和路径目录。</summary>
+public enum EditorDocumentKind
+{
+    /// <summary>独立弹幕树。</summary>
+    Emitter,
+    /// <summary>独立Boss及其阶段。</summary>
+    Boss,
+    /// <summary>Boss文件路径列表。</summary>
+    BossCatalog
+}
+
+/// <summary>三种文件共用的事务、修订、草稿与历史，不共享领域内容。</summary>
+public sealed partial class EditorDocument
 {
     // 历史仅保存JSON，避免撤销时共享可变节点；最多保留100次修改。
     private readonly Stack<(string Text, string Selection)> _undo = new(), _redo = new();
@@ -16,8 +27,8 @@ public sealed partial class EmitterDocument
     private string _text = "";
     /// <summary>已应用内容的单调修订号；草稿、选择及保存不改变它。</summary>
     public long Revision { get; private set; }
-    /// <summary>是否为Boss目录文档；另一模式编辑独立Emitter。</summary>
-    public bool IsCatalog { get; }
+    /// <summary>固定的文件类型，决定模板和正式校验入口。</summary>
+    public EditorDocumentKind Kind { get; }
     /// <summary>事务内返回工作副本；事务外返回独立快照，修改须通过Edit提交。</summary>
     public JsonObject Root => _working ?? (JsonObject)_root.DeepClone();
     /// <summary>文件绝对路径；新建文档为空。</summary>
@@ -37,8 +48,8 @@ public sealed partial class EmitterDocument
     /// <summary>是否可以重做。</summary>
     public bool CanRedo => _redo.Count > 0;
     /// <summary>建立可直接预览的独立文档。</summary>
-    /// <param name="catalog">为真时使用Boss目录模板，否则使用Emitter模板。</param>
-    public EmitterDocument(bool catalog = false) { IsCatalog = catalog; New(); }
+    /// <param name="kind">文档类型，默认Emitter。</param>
+    public EditorDocument(EditorDocumentKind kind = EditorDocumentKind.Emitter) { Kind = kind; New(); }
     /// <summary>按当前模式重置为未保存的新建Boss或发射器。</summary>
     public void New()
     {
@@ -49,13 +60,13 @@ public sealed partial class EmitterDocument
          "BaseAttributes":[{"Angle":0,"Speed":180,"RefMoveQueue":[{"Type":"XYMove","X":0,"Y":0}]}],
          "AddAttributes":{"Angle":"TAU/12"},"Timeline":[{"StartMs":0,"IntervalMs":1000}]}}
         """)!.AsObject();
-        if (IsCatalog) next = JsonNode.Parse("""
+        if (Kind == EditorDocumentKind.Boss) next = JsonNode.Parse("""
         {"Core":{"Id":"NewBoss","DisplayName":"新Boss","TexturePath":"res://Assets/Units/Boss_01.png",
          "Hframes":2,"Vframes":2,"AnimationFps":4,"MaxHp":100,"CollisionRadius":32,"VisualScale":3,"SpawnPosition":{"X":640,"Y":250}},
          "Phases":[{"Name":"阶段01","Hp":100,"DurationMs":60000,"EndCondition":"HealthOrTime","Emitters":[],
          "Movement":{"Type":"Center","Speed":200,"Target":{"X":640,"Y":240}}}]}
         """)!.AsObject();
-        if (IsCatalog) next = new JsonObject { ["Bosses"] = new JsonArray(next) };
+        if (Kind == EditorDocumentKind.BossCatalog) next = new JsonObject { ["Bosses"] = new JsonArray() };
         Publish(next, next.ToJsonString(TextOptions));
         Selection = ""; Draft = null;
         FilePath = "";
@@ -74,8 +85,7 @@ public sealed partial class EmitterDocument
         EnsureIdle();
         // 先完整读取，成功后才替换当前数据。
         var next = Parse(File.ReadAllText(path));
-        if ((IsCatalog && (next.ContainsKey("VNodes") || next.ContainsKey("Phases"))) || (!IsCatalog && (next.ContainsKey("Bosses") || next.ContainsKey("Phases"))))
-            throw new JsonException("文件属于另一编辑模式，请先切换顶部模式。");
+        if (DetectKind(next) != Kind) throw new JsonException("文件属于另一文档类型，请使用相应打开入口。");
         // 路径和序列化也须成功后才发布。
         string target = Path.GetFullPath(path), text = next.ToJsonString(TextOptions);
         Publish(next, text); FilePath = target; _saved = Text; Selection = ""; Draft = null;
@@ -161,18 +171,30 @@ public sealed partial class EmitterDocument
     /// <summary>使用游戏加载器校验，不启动战斗或消耗随机。</summary>
     /// <returns>未启动且独立的运行定义。</returns>
     public VBulletEmitter Validate() => VBulletEmitter.FromJson(Text, FilePath.Length == 0 ? "新建发射器" : FilePath);
-    /// <summary>使用正式Boss加载器验证当前Boss文档。</summary>
-    /// <returns>独立的Boss数据。</returns>
-    /// <param name="index">目录中的零基Boss下标。</param>
-    /// <param name="loadEmitter">可选编辑会话资源入口。</param>
-    public BossData ValidateBoss(int index = 0, Func<string, VBulletEmitter>? loadEmitter = null)
-        => BossData.FromJson((_working ?? _root)["Bosses"]?[index]?.ToJsonString() ?? throw new InvalidOperationException("请先选择Boss。"), FilePath, loadEmitter);
-    /// <summary>校验完整目录及其全部Emitter引用。</summary>
-    /// <param name="loadEmitter">可选内存预览资源入口。</param>
-    /// <returns>完整有效的目录。</returns>
-    public BossCatalog ValidateCatalog(Func<string, VBulletEmitter>? loadEmitter = null) => BossCatalog.FromJson(Text, FilePath, loadEmitter);
-    /// <summary>按文档模式校验，始终不推进战斗。</summary>
-    public void ValidateCurrent() { if (IsCatalog) ValidateCatalog(); else Validate(); }
+    /// <summary>校验独立Boss；预览可提供冻结的磁盘Emitter工厂。</summary>
+    /// <param name="loadEmitter">每次创建独立树的可选工厂。</param>
+    /// <returns>完整Boss定义。</returns>
+    public BossData ValidateBoss(Func<string, VBulletEmitter>? loadEmitter = null) => BossData.FromJson(Text, FilePath, loadEmitter);
+    /// <summary>校验目录及磁盘上的Boss引用。</summary>
+    /// <returns>完整Boss目录。</returns>
+    public BossCatalog ValidateCatalog() => BossCatalog.FromJson(Text, FilePath);
+    /// <summary>按文件类型校验，不推进战斗。</summary>
+    public void ValidateCurrent()
+    {
+        if (Kind == EditorDocumentKind.BossCatalog) ValidateCatalog();
+        else if (Kind == EditorDocumentKind.Boss) ValidateBoss();
+        else Validate();
+    }
+    /// <summary>识别文件根结构；业务参数错误留给正式校验，允许进入编辑器修复。</summary>
+    /// <param name="root">已经通过语法和重复字段检查的根对象。</param>
+    /// <returns>唯一匹配的文件类型。</returns>
+    public static EditorDocumentKind DetectKind(JsonObject root)
+    {
+        if (root["Bosses"] is JsonArray && !root.ContainsKey("Core") && !root.ContainsKey("Phases") && !root.ContainsKey("VNodes")) return EditorDocumentKind.BossCatalog;
+        if (root["Core"] is JsonObject && root["Phases"] is JsonArray && !root.ContainsKey("VNodes") && !root.ContainsKey("Bosses")) return EditorDocumentKind.Boss;
+        if (root["Core"] is JsonObject && root["VNodes"] is JsonObject && !root.ContainsKey("Phases") && !root.ContainsKey("Bosses")) return EditorDocumentKind.Emitter;
+        throw new JsonException("无法识别文件：需要Boss路径列表、Core + Phases或Core + VNodes。");
+    }
     /// <summary>通过JSON Pointer定位节点。</summary>
     /// <param name="pointer">空字符串表示根；字段中的斜线按~1转义。</param>
     /// <returns>事务内工作节点；事务外独立快照；显式null返回null。</returns>

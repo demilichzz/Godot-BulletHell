@@ -4,292 +4,246 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
 
-/// <summary>统一导航目录、Boss、阶段、Emitter引用与Creator，所有目录操作共用一份历史。</summary>
+/// <summary>Boss模式仅显示列表、Boss和阶段；所有内容修改归属独立文件。</summary>
 public partial class BossEditorPanel
 {
-    /// <summary>当前Boss零基下标；负一代表目录根。</summary>
+    /// <summary>目录中的Boss下标；-1表示列表根。</summary>
     public int SelectedBossIndex { get; private set; } = -1;
-    /// <summary>选中Boss的原始数据，修改须经过文档事务。</summary>
-    public JsonObject SelectedBossRoot => Document.At("/Bosses/" + SelectedBossIndex)?.AsObject()
-        ?? throw new InvalidOperationException("请先选择有效Boss。");
-    /// <summary>按需建立的共享Emitter编辑内容。</summary>
-    public EmitterPanel? EmitterPanel { get; private set; }
-    // 当前Emitter引用及相对Creator指针，不作为业务标识保存。
-    private int _selectedEmitter = -1;
-    private string _creatorPath = "";
+    /// <summary>选中Boss的事务内工作对象或事务外快照。</summary>
+    public JsonObject SelectedBossRoot => (_selectedBoss ?? throw new InvalidOperationException("请先选择有效Boss。")).Root;
+    // 当前Boss与JSON页分别记住文档身份，刷新或切换不会把旧草稿写到新文件。
+    private EditorDocument? _selectedBoss, _shownDocument;
+    private string _referenceError = "";
     private HSplitContainer _bossContent = null!;
     private HBoxContainer _bossControls = null!;
     private VBoxContainer _contentHost = null!;
+    private readonly List<Button> _catalogButtons = new();
+    private Button _up = null!, _down = null!;
     private readonly Dictionary<string, TreeItem> _catalogItems = new();
-    private bool _emitterRefreshQueued;
+    /// <summary>当前工作区是否拥有真实路径目录。</summary>
+    private bool HasCatalog => Session.Root?.Kind == EditorDocumentKind.BossCatalog;
+    /// <summary>取得选中Boss的相对字段。</summary>
+    /// <param name="path">JSON指针。</param>
+    /// <returns>字段工作对象或独立快照。</returns>
+    private JsonNode? At(string path) => _selectedBoss?.At(path);
 
-    /// <summary>将Boss相对字段指针映射到完整目录。</summary>
-    /// <param name="path">以Core或Phases开头的相对指针。</param>
-    /// <returns>原文节点，缺失时为空。</returns>
-    private JsonNode? At(string path) => Document.At("/Bosses/" + SelectedBossIndex + path);
-
-    /// <summary>选择Boss或其阶段，保留所有文档草稿。</summary>
-    /// <param name="boss">Boss零基下标，-1选择目录。</param>
-    /// <param name="phase">阶段零基下标，-1选择Boss。</param>
+    /// <summary>选择Boss或阶段，先结束旧预览并保留原文档草稿。</summary>
+    /// <param name="boss">目录下标；单文件使用0；-1为列表根。</param>
+    /// <param name="phase">阶段下标；-1为Boss共用属性。</param>
     public void SelectBoss(int boss, int phase = -1)
     {
-        GetViewport().GuiGetFocusOwner()?.ReleaseFocus();
-        SelectedBossIndex = boss; SelectedPhase = phase; _selectedEmitter = -1; _creatorPath = "";
-        RememberSelection(); Refresh();
+        Suspend(); Session.Root!.Selection = boss.ToString();
+        ResolveSelection(); SelectedPhase = phase; RememberSelection(); Refresh();
     }
-
-    /// <summary>从阶段引用进入同一会话中的Emitter和Creator。</summary>
-    /// <param name="boss">Boss零基下标。</param>
-    /// <param name="phase">阶段零基下标。</param>
-    /// <param name="emitter">引用在阶段内的零基下标。</param>
-    /// <param name="creatorPath">相对Emitter的Creator指针，空值选择Emitter属性。</param>
-    public void SelectEmitter(int boss, int phase, int emitter, string creatorPath = "")
+    /// <summary>记录工作区选择和Boss内部阶段选择，两个历史互不混入。</summary>
+    private void RememberSelection()
     {
-        GetViewport().GuiGetFocusOwner()?.ReleaseFocus();
-        SelectedBossIndex = boss; SelectedPhase = phase; _selectedEmitter = emitter; _creatorPath = creatorPath;
-        RememberSelection(); Refresh();
+        Session.Root!.Selection = SelectedBossIndex.ToString();
+        if (_selectedBoss is not null) _selectedBoss.Selection = HasCatalog ? SelectedPhase.ToString() : $"{SelectedBossIndex}/{SelectedPhase}";
     }
-
-    /// <summary>记录选择，使撤销和重做恢复操作前后的正确对象。</summary>
-    private void RememberSelection() => Document.Selection = SelectionKey(SelectedBossIndex, SelectedPhase, _selectedEmitter, _creatorPath);
-
-    /// <summary>生成仅用于编辑会话的树项键。</summary>
-    /// <param name="boss">Boss下标。</param>
-    /// <param name="phase">阶段下标。</param>
-    /// <param name="emitter">引用下标。</param>
-    /// <param name="creator">Creator相对指针。</param>
-    /// <returns>可恢复的选择文本，不写入游戏JSON。</returns>
-    private static string SelectionKey(int boss, int phase, int emitter = -1, string creator = "") => $"{boss}/{phase}/{emitter}|{creator}";
-
-    /// <summary>恢复历史中的树位置并把已失效选择收敛到有效父项。</summary>
-    private void RestoreSelection()
+    /// <summary>恢复文件选择；无效引用保留占位，不把其他文件内容冒充目标。</summary>
+    private void ResolveSelection()
     {
-        // 空文档状态默认选择目录根。
-        string[] parts = Document.Selection.Split('|');
-        string[] indexes = parts[0].Split('/');
-        SelectedBossIndex = indexes.Length == 3 && int.TryParse(indexes[0], out int boss) ? boss : -1;
-        SelectedPhase = indexes.Length == 3 && int.TryParse(indexes[1], out int phase) ? phase : -1;
-        _selectedEmitter = indexes.Length == 3 && int.TryParse(indexes[2], out int emitter) ? emitter : -1;
-        _creatorPath = parts.Length == 2 ? parts[1] : "";
-        // 只校验结构边界，业务非法数据仍允许在属性或原文中修复。
-        int count = (Document.Root["Bosses"] as JsonArray)?.Count ?? 0;
-        SelectedBossIndex = Math.Clamp(SelectedBossIndex, -1, count - 1);
-        int phases = SelectedBossIndex < 0 ? 0 : (SelectedBossRoot["Phases"] as JsonArray)?.Count ?? 0;
-        SelectedPhase = Math.Clamp(SelectedPhase, -1, phases - 1);
-        int emitters = SelectedPhase < 0 ? 0 : (SelectedBossRoot["Phases"]?[SelectedPhase]?["Emitters"] as JsonArray)?.Count ?? 0;
-        _selectedEmitter = Math.Clamp(_selectedEmitter, -1, emitters - 1);
-        RememberSelection();
+        _selectedBoss = null; _referenceError = ""; SelectedPhase = -1;
+        var root = Session.Root!;
+        if (!HasCatalog)
+        {
+            string[] selection = root.Selection.Split('/');
+            SelectedBossIndex = selection[0] == "-1" ? -1 : 0; _selectedBoss = root;
+            if (selection.Length == 2 && int.TryParse(selection[1], out int phase)) SelectedPhase = phase;
+        }
+        else
+        {
+            var paths = root.At("/Bosses") as JsonArray;
+            SelectedBossIndex = int.TryParse(root.Selection, out int index) ? Math.Clamp(index, -1, (paths?.Count ?? 0) - 1) : -1;
+            if (SelectedBossIndex >= 0)
+            {
+                try
+                {
+                    string path = paths![SelectedBossIndex]?.GetValue<string>() ?? throw new InvalidOperationException("Boss路径为空。");
+                    _selectedBoss = Session.OpenBoss(path);
+                    if (int.TryParse(_selectedBoss.Selection, out int phase)) SelectedPhase = phase;
+                }
+                catch (Exception error) { _referenceError = error.Message; }
+            }
+        }
+        int count = (_selectedBoss?.At("/Phases") as JsonArray)?.Count ?? 0;
+        SelectedPhase = Math.Clamp(SelectedPhase, -1, count - 1);
     }
-
-    /// <summary>刷新统一树与选中的编辑内容，不丢弃原文草稿。</summary>
+    /// <summary>刷新树、当前文件原文及静态布局，模式内没有Emitter编辑内容。</summary>
     private void RefreshCatalog()
     {
-        StopPreview(); EmitterPanel?.StopWorkspacePreview(); _refreshing = true;
+        StopPreview(); _refreshing = true;
         try
         {
-            RestoreSelection();
-            // CodeEdit统一使用LF，不能用Windows序列化换行判定草稿。
-            _jsonBaseline = Document.Text.ReplaceLineEndings("\n"); _json.Text = Document.Draft ?? _jsonBaseline;
-            _bossContent.Visible = _bossControls.Visible = _selectedEmitter < 0;
-            // 嵌入内容使用自身校验状态，避免两条状态栏挤占画布高度。
-            _status.Visible = _selectedEmitter < 0;
-            if (EmitterPanel is not null) EmitterPanel.Visible = _selectedEmitter >= 0;
-            if (_selectedEmitter >= 0)
-            {
-                // 引用只打开会话中的唯一文档，重复引用共享同一撤销栈。
-                string path = SelectedBossRoot["Phases"]![SelectedPhase]!["Emitters"]![_selectedEmitter]!.GetValue<string>();
-                var document = Session.OpenEmitter(path);
-                if (EmitterPanel is null)
-                {
-                    EmitterPanel = new EmitterPanel { ShowHierarchy = false, ConfirmRequested = Files.Confirm, SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-                    // 引用面板只保存当前引用；另存由独立文件模式提供。
-                    EmitterPanel.SaveRequested += _ => SaveEmitterRequested?.Invoke(EmitterPanel, false);
-                    _contentHost.AddChild(EmitterPanel);
-                    EmitterPanel.WorkspaceChanged += EmitterChanged;
-                }
-                EmitterPanel.UseDocument(document, _creatorPath);
-                _creatorPath = EmitterPanel.SelectedCreator; RememberSelection();
-            }
-            else { BuildInspector(); ValidateCanvas(); }
-            RebuildCatalogTree(); UpdateTitle();
+            ResolveSelection();
+            _shownDocument = Document; _jsonBaseline = Document.Text.ReplaceLineEndings("\n");
+            _json.Text = Document.Draft ?? _jsonBaseline;
+            _bossControls.Visible = _selectedBoss is not null && SelectedBossIndex >= 0;
+            foreach (var button in _catalogButtons) button.Disabled = !HasCatalog;
+            _up.Disabled = _down.Disabled = !HasCatalog && SelectedPhase < 0;
+            RebuildCatalogTree(); BuildInspector(); ValidateCanvas(); UpdateTitle();
+            if (_referenceError.Length > 0) Status(_referenceError, true);
         }
-        catch (Exception error)
-        {
-            // 引用读取失败时保留目录和原始字段，仍可回到阶段修复路径。
-            RebuildCatalogTree(); Status(error.Message, true);
-        }
+        catch (Exception error) { Status(error.Message, true); }
         finally { _refreshing = false; }
     }
-
-    /// <summary>从真实树项恢复选择，延迟刷新避免删除正在派发信号的项。</summary>
-    private void CatalogTreeSelected()
-    {
-        if (_refreshing || _phases.GetSelected() is not { } item) return;
-        Document.Selection = item.GetMetadata(0).AsString();
-        Callable.From(() => { if (IsInsideTree()) Refresh(); }).CallDeferred();
-    }
-
-    /// <summary>建立主层级，只有选中Emitter才展开Creator原文以避免一次加载全部文件。</summary>
+    /// <summary>建立严格的三级树；失效文件仍显示路径和诊断。</summary>
     private void RebuildCatalogTree()
     {
-        // 保留当前手动展开状态；选中分支总是展开。
         var expanded = _catalogItems.Where(pair => !pair.Value.Collapsed).Select(pair => pair.Key).ToHashSet();
         _phases.Clear(); _catalogItems.Clear();
-        var root = AddCatalogItem(null, "Boss 列表", SelectionKey(-1, -1));
-        if (Document.Root["Bosses"] is JsonArray bosses)
+        var root = AddCatalogItem(null, HasCatalog ? "Boss 列表" : "Boss 列表（单文件）", "-1/-1");
+        int count = HasCatalog ? (Session.Root!.At("/Bosses") as JsonArray)?.Count ?? 0 : 1;
+        for (int index = 0; index < count; index++)
         {
-            // Boss和阶段均严格使用原文数组顺序。
-            for (int boss = 0; boss < bosses.Count; boss++)
+            string path = ""; EditorDocument? document = null; string error = "";
+            try
             {
-                var data = bosses[boss] as JsonObject;
-                var core = data?["Core"] as JsonObject;
-                string key = SelectionKey(boss, -1);
-                var item = AddCatalogItem(root, core is null ? "无效Boss · 请在JSON页修复" : $"{core["Id"]} · {core["DisplayName"]}", key);
-                item.Collapsed = boss != SelectedBossIndex && !expanded.Contains(key);
-                if (data?["Phases"] is not JsonArray phases) continue;
-                for (int phase = 0; phase < phases.Count; phase++)
+                if (HasCatalog)
                 {
-                    key = SelectionKey(boss, phase);
-                    var phaseData = phases[phase] as JsonObject;
-                    var phaseItem = AddCatalogItem(item, $"{phase + 1:00} · {phaseData?["Name"] ?? "无效阶段"}", key);
-                    phaseItem.Collapsed = (boss != SelectedBossIndex || phase != SelectedPhase) && !expanded.Contains(key);
-                    if (phaseData?["Emitters"] is not JsonArray emitters) continue;
-                    for (int emitter = 0; emitter < emitters.Count; emitter++)
-                    {
-                        string path = emitters[emitter]?.ToString() ?? "无效引用";
-                        var reference = AddCatalogItem(phaseItem, System.IO.Path.GetFileNameWithoutExtension(path), SelectionKey(boss, phase, emitter));
-                        reference.SetTooltipText(0, path + "\n修改文件会影响所有引用此文件的阶段；删除引用不会删除文件。");
-                        if (boss == SelectedBossIndex && phase == SelectedPhase && emitter == _selectedEmitter
-                            && EmitterPanel?.Document.Root["VNodes"] is JsonObject creator)
-                            AddCatalogCreator(reference, creator, "/VNodes");
-                    }
+                    path = Session.Root!.At("/Bosses/" + index)?.GetValue<string>() ?? "";
+                    document = Session.OpenBoss(path);
                 }
+                else document = Session.Root;
             }
+            catch (Exception failure) { error = failure.Message; }
+            var data = document?.Root; string key = $"{index}/-1";
+            var item = AddCatalogItem(root, data is null ? "无效Boss · " + path
+                : $"{data["Core"]?["Id"]} · {data["Core"]?["DisplayName"]}" + (document!.Dirty || document.Draft is not null ? " ●" : ""), key);
+            item.SetTooltipText(0, error.Length > 0 ? error : document!.FilePath);
+            item.Collapsed = index != SelectedBossIndex && !expanded.Contains(key);
+            if (data?["Phases"] is not JsonArray phases) continue;
+            for (int phase = 0; phase < phases.Count; phase++)
+                AddCatalogItem(item, $"{phase + 1:00} · {(phases[phase] as JsonObject)?["Name"] ?? "无效阶段"}", $"{index}/{phase}");
         }
-        if (_catalogItems.TryGetValue(Document.Selection, out var selected)) selected.Select(0);
-        else root.Select(0);
+        if (_catalogItems.TryGetValue($"{SelectedBossIndex}/{SelectedPhase}", out var selected)) selected.Select(0); else root.Select(0);
     }
-
-    /// <summary>追加带稳定界面定位信息的树项。</summary>
-    /// <param name="parent">父项；空值创建根。</param>
-    /// <param name="label">显示文本。</param>
-    /// <param name="key">会话选择键。</param>
+    /// <summary>追加带选择键的树项。</summary>
+    /// <param name="parent">父树项。</param>
+    /// <param name="label">可见名称。</param>
+    /// <param name="key">Boss与阶段下标。</param>
     /// <returns>新树项。</returns>
     private TreeItem AddCatalogItem(TreeItem? parent, string label, string key)
     {
-        var item = _phases.CreateItem(parent); item.SetText(0, label); item.SetMetadata(0, key);
-        _catalogItems[key] = item; return item;
+        var item = _phases.CreateItem(parent); item.SetText(0, label); item.SetMetadata(0, key); _catalogItems[key] = item; return item;
     }
-
-    /// <summary>将当前Emitter原始Creator树接在引用之下。</summary>
-    /// <param name="parent">上层引用或Creator。</param>
-    /// <param name="creator">原始Creator声明。</param>
-    /// <param name="path">相对Emitter的JSON指针。</param>
-    private void AddCatalogCreator(TreeItem parent, JsonObject creator, string path)
+    /// <summary>树事件结束后再切换，避免销毁派发中的树项。</summary>
+    private void CatalogTreeSelected()
     {
-        var core = creator["Core"] as JsonObject;
-        var item = AddCatalogItem(parent, $"{core?["Name"] ?? "未命名"} · {core?["Type"] ?? "复制"}",
-            SelectionKey(SelectedBossIndex, SelectedPhase, _selectedEmitter, path));
-        if (creator["Children"] is JsonArray children)
-            for (int index = 0; index < children.Count; index++)
-                if (children[index] is JsonObject child) AddCatalogCreator(item, child, path + "/Children/" + index);
+        if (_refreshing || _phases.GetSelected() is not { } item) return;
+        string[] parts = item.GetMetadata(0).AsString().Split('/');
+        int boss = int.Parse(parts[0]), phase = int.Parse(parts[1]);
+        Callable.From(() => { if (IsInsideTree()) SelectBoss(boss, phase); }).CallDeferred();
     }
-
-    /// <summary>合并本帧Emitter变化通知，更新统一树和保存标记。</summary>
-    private void EmitterChanged()
+    /// <summary>展示路径列表；单文件虚拟根不提供目录编辑。</summary>
+    private void BuildCatalogFields()
     {
-        if (_refreshing || _emitterRefreshQueued) return;
-        _emitterRefreshQueued = true;
-        Callable.From(() =>
+        _fields.AddChild(new Label { Text = HasCatalog ? "Boss文件路径列表 · 移除引用不会删除文件" : "单文件工作区 · 选择Boss或阶段编辑内容" });
+        if (!HasCatalog) return;
+        if (Session.Root!.At("/Bosses") is not JsonArray paths) { Status("Bosses必须为路径数组，请在JSON页修复。", true); return; }
+        for (int index = 0; index < paths.Count; index++)
         {
-            _emitterRefreshQueued = false;
-            if (!IsInsideTree() || _selectedEmitter < 0 || EmitterPanel is null) return;
-            _creatorPath = EmitterPanel.SelectedCreator; RememberSelection();
-            _refreshing = true;
-            try { RebuildCatalogTree(); UpdateTitle(); }
-            finally { _refreshing = false; }
-        }).CallDeferred();
+            int position = index; string pointer = "/Bosses/" + index;
+            var row = new VBoxContainer(); _fields.AddChild(row);
+            var input = EditorFieldControls.Text(paths[index], typeof(string), pointer, Guard, () => _refreshing,
+                value => ChangeCatalog(array => array[position] = value)); row.AddChild(input);
+            var actions = new HBoxContainer(); row.AddChild(actions);
+            EditorArrayControls.AddActions(actions, pointer, position, paths.Count, Guard, () => _refreshing,
+                direction => ChangeCatalog(array => EditorArrayControls.Move(array, position, direction)),
+                remove: () => ChangeCatalog(array => array.RemoveAt(position)), removeText: "移除引用");
+            Button(actions, "选择Boss文件…", () => Files.Open("选择Boss文件", "res://Data/Bosses", path =>
+                ChangeCatalog(array => array[position] = ProjectSettings.LocalizePath(path)), true));
+        }
     }
-
-    /// <summary>执行目录数组事务，同时保存操作前后选择。</summary>
-    /// <param name="change">修改Boss数组的回调。</param>
+    /// <summary>仅修改路径目录；切换到列表根，使保存及撤销明确作用于目录。</summary>
+    /// <param name="change">路径数组编辑操作。</param>
     private void ChangeCatalog(Action<JsonArray> change)
     {
-        RequireApplied(); RememberSelection();
-        Document.Edit(root => { change(root["Bosses"]!.AsArray()); RememberSelection(); });
-        Refresh();
+        if (!HasCatalog) throw new InvalidOperationException("单文件工作区没有可修改的目录。");
+        var document = Session.Root!;
+        if (document.Draft is not null) throw new InvalidOperationException("请先应用目录JSON草稿。");
+        document.Edit(root => change(root["Bosses"]!.AsArray()));
+        document.Selection = "-1"; Refresh();
     }
-
-    /// <summary>添加一个通用数据Boss，分配唯一ID。</summary>
-    public void AddBoss() => ChangeCatalog(bosses =>
+    /// <summary>选择已有Boss并加入路径目录。</summary>
+    private void AddBossReference() => Files.Open("引用Boss文件", "res://Data/Bosses", AddReference, true);
+    /// <summary>追加有效独立Boss路径，不重复引用同一个文件。</summary>
+    /// <param name="path">选择的项目内路径。</param>
+    private void AddReference(string path)
     {
-        // 模板与新目录共用同一结构，复制节点后解除原父引用。
-        var next = new EmitterDocument(true).Root["Bosses"]![0]!.DeepClone().AsObject();
-        next["Core"]!["Id"] = UniqueBossId(bosses, "NewBoss");
-        bosses.Add(next); SelectedBossIndex = bosses.Count - 1; SelectedPhase = _selectedEmitter = -1; _creatorPath = "";
-    });
-
-    /// <summary>为新增或复制Boss分配不冲突身份，不改变其他Boss。</summary>
-    /// <param name="bosses">当前目录数组。</param>
-    /// <param name="basis">建议的ID前缀。</param>
-    /// <returns>目录内唯一ID。</returns>
-    private static string UniqueBossId(JsonArray bosses, string basis)
-    {
-        var names = bosses.Select(boss => boss?["Core"]?["Id"]?.ToString()).ToHashSet(StringComparer.Ordinal);
-        string next = basis; int suffix = 2;
-        while (names.Contains(next)) next = basis + "_" + suffix++;
-        return next;
+        string resource = ProjectSettings.LocalizePath(path); string full = BossCatalog.PathIdentity(resource);
+        Session.OpenBoss(resource);
+        ChangeCatalog(paths =>
+        {
+            if (paths.Any(value => value is JsonValue && EditorDocument.FullPath(value.ToString()).Equals(full, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("目录已引用该Boss文件。");
+            paths.Add(resource);
+        });
+        SelectBoss((Session.Root!.At("/Bosses") as JsonArray)!.Count - 1);
     }
-
-    /// <summary>复制当前Boss、阶段或Emitter引用，文件内容不重复保存。</summary>
+    /// <summary>以独立文件创建Boss模板，保存成功后才加入目录。</summary>
+    public void AddBoss() => CreateBossFile(new EditorDocument(EditorDocumentKind.Boss));
+    /// <summary>保存新建或复制Boss，再加入当前目录；取消或失败不创建引用。</summary>
+    /// <param name="source">独立模板或复制文档。</param>
+    private void CreateBossFile(EditorDocument source)
+    {
+        if (!HasCatalog) throw new InvalidOperationException("请在目录工作区新增Boss文件。");
+        if (Session.Root!.Draft is not null) throw new InvalidOperationException("请先应用目录JSON草稿。");
+        var catalog = Session.Root;
+        var names = Session.Documents.Where(document => document.Kind == EditorDocumentKind.Boss).Select(document => document.At("/Core/Id")?.ToString()).ToHashSet(StringComparer.Ordinal);
+        string basis = source.At("/Core/Id")!.ToString(), id = basis; int suffix = 2;
+        while (names.Contains(id)) id = basis + "_" + suffix++;
+        source.Edit(root => root["Core"]!["Id"] = id);
+        Files.Save("创建独立Boss文件", "res://Data/Bosses", id + ".json", path =>
+        {
+            if (!ReferenceEquals(Session.Root, catalog) || catalog.Draft is not null) throw new InvalidOperationException("目录状态已改变，请重新新增。");
+            BossCatalog.PathIdentity(ProjectSettings.LocalizePath(path));
+            Session.SaveCopy(source, path, false); AddReference(path);
+        });
+    }
+    /// <summary>复制阶段或独立Boss；Boss复制必须选择新文件。</summary>
     private void DuplicateSelection()
     {
-        if (_creatorPath.Length > 0) { EmitterPanel!.DuplicateCreator(); return; }
-        if (SelectedBossIndex < 0) throw new InvalidOperationException("请先选择Boss、阶段或引用。");
-        if (_selectedEmitter >= 0)
+        RequireApplied();
+        if (SelectedPhase >= 0) DuplicatePhase();
+        else if (_selectedBoss is not null && SelectedBossIndex >= 0)
         {
-            Change(root => { var references = root["Phases"]![SelectedPhase]!["Emitters"]!.AsArray(); references.Insert(_selectedEmitter + 1, references[_selectedEmitter]?.DeepClone()); _selectedEmitter++; _creatorPath = ""; });
+            var copy = new EditorDocument(EditorDocumentKind.Boss); copy.ApplyText(Document.Text); CreateBossFile(copy);
         }
-        else if (SelectedPhase >= 0) DuplicatePhase();
-        else ChangeCatalog(bosses =>
-        {
-            var copy = SelectedBossRoot.DeepClone().AsObject();
-            copy["Core"]!["Id"] = UniqueBossId(bosses, copy["Core"]!["Id"]!.ToString());
-            bosses.Insert(SelectedBossIndex + 1, copy); SelectedBossIndex++;
-        });
+        else throw new InvalidOperationException("请先选择Boss或阶段。");
     }
-
-    /// <summary>删除Boss、阶段或引用；从不删除共享Emitter文件。</summary>
+    /// <summary>删除阶段或目录引用，永不删除磁盘文件。</summary>
     private void DeleteSelection()
     {
-        if (_creatorPath.Length > 0) { EmitterPanel!.DeleteCreator(); return; }
-        if (SelectedBossIndex < 0) throw new InvalidOperationException("不能删除目录根。");
-        if (_selectedEmitter >= 0)
-            Change(root => { root["Phases"]![SelectedPhase]!["Emitters"]!.AsArray().RemoveAt(_selectedEmitter); _selectedEmitter = -1; _creatorPath = ""; });
-        else if (SelectedPhase >= 0) DeletePhase();
-        else ChangeCatalog(bosses => { bosses.RemoveAt(SelectedBossIndex); SelectedBossIndex = Math.Min(SelectedBossIndex, bosses.Count - 1); });
+        if (SelectedPhase >= 0) DeletePhase();
+        else if (SelectedBossIndex >= 0) { int index = SelectedBossIndex; ChangeCatalog(paths => paths.RemoveAt(index)); }
+        else throw new InvalidOperationException("不能删除列表根。");
     }
-
-    /// <summary>调整当前层级数组顺序并跟随移动后的对象。</summary>
-    /// <param name="direction">-1向上，1向下。</param>
+    /// <summary>按当前层级排序，单文件只允许阶段排序。</summary>
+    /// <param name="direction">-1向上或1向下。</param>
     private void MoveSelection(int direction)
     {
-        if (_creatorPath.Length > 0) { EmitterPanel!.MoveCreator(direction); return; }
-        if (_selectedEmitter >= 0)
+        if (SelectedPhase >= 0) MovePhase(direction);
+        else if (SelectedBossIndex >= 0) { int index = SelectedBossIndex; ChangeCatalog(paths => EditorArrayControls.Move(paths, index, direction)); }
+    }
+    /// <summary>Emitter引用仅提供路径编辑、选择及跳转。</summary>
+    /// <param name="parent">属性容器。</param>
+    /// <param name="pointer">引用字段指针。</param>
+    /// <param name="path">当前资源路径。</param>
+    private void EmitterReferenceField(VBoxContainer parent, string pointer, string path)
+    {
+        var input = EditorFieldControls.Text(JsonValue.Create(path), typeof(string), pointer, Guard, () => _refreshing,
+            value => Change(_ => Set(pointer, value))); parent.AddChild(input);
+        var row = new HBoxContainer(); parent.AddChild(row);
+        Button(row, "选择Emitter文件…", () => Files.Open("选择Emitter文件", "res://Data/Emitters", selected =>
+            Change(_ => Set(pointer, JsonValue.Create(ProjectSettings.LocalizePath(selected)))), true));
+        var jump = Button(row, "在 Emitter 模式编辑", () =>
         {
-            Change(root =>
-            {
-                var references = root["Phases"]![SelectedPhase]!["Emitters"]!.AsArray(); int next = _selectedEmitter + direction;
-                if (next < 0 || next >= references.Count) return;
-                var value = references[_selectedEmitter]; references.RemoveAt(_selectedEmitter); references.Insert(next, value); _selectedEmitter = next;
-            });
-        }
-        else if (SelectedPhase >= 0) MovePhase(direction);
-        else if (SelectedBossIndex >= 0) ChangeCatalog(bosses =>
-        {
-            int next = SelectedBossIndex + direction;
-            if (next < 0 || next >= bosses.Count) return;
-            var value = bosses[SelectedBossIndex]; bosses.RemoveAt(SelectedBossIndex); bosses.Insert(next, value); SelectedBossIndex = next;
+            string current = At(pointer)?.ToString() ?? "";
+            if (!EditorDocument.CanOpenEmitter(current)) throw new InvalidOperationException("Emitter引用已失效或文件类型错误。");
+            Suspend(); OpenEmitterRequested?.Invoke(current);
         });
+        jump.Disabled = !EditorDocument.CanOpenEmitter(path); jump.SetMeta("emitter_path", path);
     }
 }

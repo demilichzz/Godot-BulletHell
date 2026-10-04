@@ -10,8 +10,8 @@ internal sealed partial class EditorLayoutCache
     /// <summary>仅保存内容指纹与校验相关尺寸，不保留运行树或Godot资源对象。</summary>
     private sealed class Dependencies
     {
-        // 文件键按Windows路径身份比较；文本来源额外保存已打开文档修订。
-        private readonly Dictionary<string, (string Text, long? Revision)> _sources = new(StringComparer.OrdinalIgnoreCase);
+        // 文件键按Windows路径身份比较；Emitter文本始终取自磁盘。
+        private readonly Dictionary<string, string> _sources = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string?> _files = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, (int Width, int Height)> _textures = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _references = new(StringComparer.Ordinal);
@@ -21,13 +21,12 @@ internal sealed partial class EditorLayoutCache
 
         /// <summary>同一次Boss检查中只解析一次相同Emitter引用，不保留解析所得运行树。</summary>
         /// <param name="path">正式协议中的Emitter路径。</param>
-        /// <param name="session">当前内存文档与磁盘来源。</param>
-        internal void CheckEmitter(string path, EditorSession session)
+        internal void CheckEmitter(string path)
         {
             string full = Path.GetFullPath(ProjectSettings.GlobalizePath(path));
             if (_sources.ContainsKey(full)) return;
-            var source = session.ReadEmitterSource(path);
-            var emitter = VBulletEmitter.FromJson(source.Text, path);
+            string source = File.ReadAllText(full);
+            var emitter = VBulletEmitter.FromJson(source, path);
             AddEmitter(emitter); _sources.Add(full, source);
         }
 
@@ -86,15 +85,14 @@ internal sealed partial class EditorLayoutCache
         }
 
         /// <summary>比较当前真实内容及资源状态；失败时重新走正式加载器生成准确诊断。</summary>
-        /// <param name="session">Boss会话，Emitter缓存没有JSON外部引用。</param>
         /// <returns>全部依赖可观察且没有变化时为真。</returns>
-        internal bool Matches(EditorSession? session)
+        internal bool Matches()
         {
             if (!_reusable) return false;
             try
             {
                 foreach (var source in _sources)
-                    if (session is null || session.ReadEmitterSource(source.Key) != source.Value) return false;
+                    if (File.ReadAllText(source.Key) != source.Value) return false;
                 foreach (var file in _files)
                     if (file.Value is null ? File.Exists(file.Key) : FileDigest(file.Key) != file.Value) return false;
                 foreach (var reference in _references)

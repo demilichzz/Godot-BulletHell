@@ -1,6 +1,6 @@
 using Godot;
 
-/// <summary>顶层模式导航，两个内容面板共用会话，不互相创建工作区。</summary>
+/// <summary>顶层模式导航，两个内容面板独立持有会话，不互相创建工作区。</summary>
 public partial class EmitterEditor
 {
     /// <summary>当前是否显示Boss目录工作区。</summary>
@@ -18,11 +18,11 @@ public partial class EmitterEditor
         var bar = new HBoxContainer(); host.AddChild(bar);
         bar.AddChild(new Label { Text = "编辑模式", CustomMinimumSize = new Vector2(80, 0) });
         _modeMenu.AddItem("Emitter 弹幕编辑"); _modeMenu.AddItem("Boss 目录与阶段编辑");
-        _modeMenu.TooltipText = "两种模式共享同一路径的文档、JSON草稿和撤销历史。";
+        _modeMenu.TooltipText = "两种模式分别保存文档和草稿；Boss引用只读取已保存的Emitter文件。";
         bar.AddChild(_modeMenu);
         _modeMenu.ItemSelected += index => Guard(() => SwitchMode(index == 1));
     }
-    /// <summary>停止旧预览并刷新目标面板，共享文档修改在模式切换时可见。</summary>
+    /// <summary>停止旧预览并恢复目标面板；返回Boss模式时重新检查磁盘依赖。</summary>
     /// <param name="boss">为真时显示Boss目录，否则显示独立Emitter。</param>
     public void SwitchMode(bool boss)
     {
@@ -30,8 +30,8 @@ public partial class EmitterEditor
         if (IsBossMode) BossPanel?.Suspend(); else _emitter?.Suspend();
         if (boss && BossPanel is null)
         {
-            BossPanel = new BossEditorPanel { Session = Session, Files = _files };
-            BossPanel.SaveEmitterRequested += (panel, choosePath) => Guard(() => SaveEmitter(panel, choosePath));
+            BossPanel = new BossEditorPanel { Session = BossSession, Files = _files };
+            BossPanel.OpenEmitterRequested += path => Guard(() => OpenEmitterReference(path));
             _host.AddChild(BossPanel);
         }
         if (!boss) EnsureEmitter();

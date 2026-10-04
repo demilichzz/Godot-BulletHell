@@ -171,7 +171,7 @@ public static class EditorSchema
     public static List<Field> Fields(Type type, JsonObject value, string creatorType, string context)
     {
         // 顶层Emitter和Creator结构不使用运行对象序列化。
-        if (type == typeof(EmitterDocument)) return new()
+        if (type == typeof(EditorDocument)) return new()
         {
             new("Core", typeof(EmitterCoreAttribute), new JsonObject(), "发射器共用属性。"),
             new("VNodes", typeof(JsonObject), Creator("VBullet"), "唯一根生成器；子节点位于Children。")

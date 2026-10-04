@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 
 /// <summary>文档保存先冻结并校验内容，再原子替换单个文件。</summary>
-public sealed partial class EmitterDocument
+public sealed partial class EditorDocument
 {
     /// <summary>按文档模式校验后原子写入JSON；失败不更新保存状态。</summary>
     /// <param name="path">目标文件绝对路径。</param>
@@ -29,7 +29,7 @@ public sealed partial class EmitterDocument
     internal sealed class PreparedSave
     {
         // 保留原文件身份和修订，阻止陈旧保存覆盖新编辑或另存后的文件身份。
-        private readonly EmitterDocument _document;
+        private readonly EditorDocument _document;
         private readonly string _text, _sourcePath;
         private readonly long _revision;
         private bool _completed;
@@ -38,7 +38,7 @@ public sealed partial class EmitterDocument
         /// <summary>捕获文档状态，校验由外层准备入口执行。</summary>
         /// <param name="document">要保存的唯一会话文档。</param>
         /// <param name="target">已经规范化的绝对目标路径。</param>
-        internal PreparedSave(EmitterDocument document, string target)
+        internal PreparedSave(EditorDocument document, string target)
         {
             _document = document; _text = document._text; _sourcePath = document.FilePath;
             _revision = document.Revision; Target = target;

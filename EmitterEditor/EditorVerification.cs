@@ -64,7 +64,7 @@ public partial class EditorVerification : Node
     private void VerifyDocuments()
     {
         // 本次文档验证使用的独立实例。
-        var document = new EmitterDocument();
+        var document = new EditorDocument();
         document.Validate(); Check(document.Dirty, "新建文档必须标为未保存");
         // 编辑前的完整原文，用于验证撤销。
         string original = document.Text;
@@ -76,7 +76,7 @@ public partial class EditorVerification : Node
         string path = ProjectSettings.GlobalizePath("res://.tools/editor-roundtrip.json"); _temporary.Add(path);
         document.Save(path); Check(!document.Dirty, "成功保存更新脏状态");
         // 从磁盘重新打开的独立文档。
-        var reopened = new EmitterDocument(); reopened.Open(path);
+        var reopened = new EditorDocument(); reopened.Open(path);
         Check(JsonNode.DeepEquals(document.Root, reopened.Root), "保存再打开保留所有JSON值");
         // 失败写入前的文件内容基线。
         string saved = File.ReadAllText(path);
@@ -94,8 +94,8 @@ public partial class EditorVerification : Node
         foreach (string file in Directory.GetFiles(ProjectSettings.GlobalizePath("res://Data/Emitters"), "*.json", SearchOption.AllDirectories))
         {
             // 当前真实输入文档的独立副本。
-            var source = new EmitterDocument(); source.Open(file); source.Validate();
-            Check(JsonNode.DeepEquals(EmitterDocument.Parse(File.ReadAllText(file)), EmitterDocument.Parse(source.Text)), "原文往返失真：" + file);
+            var source = new EditorDocument(); source.Open(file); source.Validate();
+            Check(JsonNode.DeepEquals(EditorDocument.Parse(File.ReadAllText(file)), EditorDocument.Parse(source.Text)), "原文往返失真：" + file);
             Check(new EditorLayout(source.Validate()).Markers.Count > 0, "真实Emitter静态布局及路径采样：" + file);
             fileCount++;
         }

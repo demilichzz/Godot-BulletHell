@@ -27,7 +27,7 @@ public partial class EmitterPanel
             _properties.AddChild(new Label { Text = "当前编辑复制声明的覆盖项；未填写字段继承复制源。", AutowrapMode = TextServer.AutowrapMode.WordSmart });
         // 用独立容器判断空结果，说明文字不计入属性命中。
         var fields = new VBoxContainer(); _properties.AddChild(fields);
-        ObjectFields(fields, selected, _selection.Length == 0 ? typeof(EmitterDocument) : typeof(JsonObject), _selection, creatorType, "", 0);
+        ObjectFields(fields, selected, _selection.Length == 0 ? typeof(EditorDocument) : typeof(JsonObject), _selection, creatorType, "", 0);
         if (fields.GetChildCount() == 0)
             fields.AddChild(new Label { Text = "没有匹配的属性。试试中文或英文名称，或清空搜索。", AutowrapMode = TextServer.AutowrapMode.WordSmart });
     }
@@ -69,15 +69,15 @@ public partial class EmitterPanel
         foreach (var pair in value.ToArray().OrderBy(pair => { int index = fields.FindIndex(field => field.Name == pair.Key); return index < 0 ? int.MaxValue : index; }))
         {
             if (type == typeof(JsonObject) && pair.Key == "Children") continue;
-            if (type == typeof(EmitterDocument) && pair.Key == "VNodes") continue;
+            if (type == typeof(EditorDocument) && pair.Key == "VNodes") continue;
             // 对应当前JSON字段的类型及说明。
             var field = fields.Find(entry => entry.Name == pair.Key) ?? new EditorSchema.Field(pair.Key, InferType(pair.Value), null, "当前协议未识别的字段；请核对或删除。" );
-            if (!MatchesProperty(path + "/" + EmitterDocument.Escape(pair.Key), pair.Value, field.ValueType, creatorType, pair.Key)) continue;
-            FieldControl(parent, pair.Value, field.ValueType, path + "/" + EmitterDocument.Escape(pair.Key), creatorType, pair.Key, field.Tip, depth);
+            if (!MatchesProperty(path + "/" + EditorDocument.Escape(pair.Key), pair.Value, field.ValueType, creatorType, pair.Key)) continue;
+            FieldControl(parent, pair.Value, field.ValueType, path + "/" + EditorDocument.Escape(pair.Key), creatorType, pair.Key, field.Tip, depth);
         }
         // 尚未显式填写且允许添加的字段。
         var missing = fields.Where(field => !value.ContainsKey(field.Name) && field.Name != "Children" &&
-            MatchesProperty(path + "/" + EmitterDocument.Escape(field.Name), null, field.ValueType, creatorType, field.Name)).ToList();
+            MatchesProperty(path + "/" + EditorDocument.Escape(field.Name), null, field.ValueType, creatorType, field.Name)).ToList();
         if (missing.Count == 0) return;
         // 当前属性及操作按钮的横向容器。
         var row = new HBoxContainer(); parent.AddChild(row);
@@ -245,7 +245,7 @@ public partial class EmitterPanel
         var before = !_moveChildren && spatial ? new EditorLayout(Document.Validate()) : null;
         Document.Edit(_ => { change(); if (before is not null) EditorPositionTools.PreserveChildren(Document, _selection, before); }); StopPreview();
         SyncJson(); ValidateLayout(); UpdateTitle();
-        WorkspaceChanged?.Invoke();
+       
         if (rebuild) Callable.From(() => { if (IsInsideTree()) Refresh(); }).CallDeferred();
     }
     /// <summary>设置文档中现有字段或数组项。</summary>

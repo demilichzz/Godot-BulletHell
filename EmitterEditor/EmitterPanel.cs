@@ -9,17 +9,13 @@ using System.Text.Json.Nodes;
 public partial class EmitterPanel : Control
 {
     /// <summary>当前编辑文档，预览只读取其快照。</summary>
-    public EmitterDocument Document { get; private set; } = new();
-    /// <summary>是否显示独立Creator导航；目录模式由外部统一树负责导航。</summary>
-    public bool ShowHierarchy { get; init; } = true;
+    public EditorDocument Document { get; private set; } = new();
     /// <summary>供顶层添加新建、打开和另存按钮的工具栏。</summary>
     public HBoxContainer FileTools { get; } = new();
     /// <summary>请求所属工作区保存；参数表示是否另存。</summary>
     public event Action<bool>? SaveRequested;
     /// <summary>请求工作区确认丢弃草稿，面板不自行创建窗口。</summary>
     public Action<string, Action>? ConfirmRequested { get; init; }
-    /// <summary>文档或Creator选择变化，通知外部统一树刷新。</summary>
-    public event Action? WorkspaceChanged;
     /// <summary>基础布局及动态图像画布。</summary>
     public EditorCanvas Canvas { get; } = new();
     /// <summary>只属于编辑器进程的预览环境。</summary>
@@ -92,14 +88,6 @@ public partial class EmitterPanel : Control
         var nodeRow = new HBoxContainer(); hierarchy.AddChild(nodeRow);
         AddButton(nodeRow, "复制", DuplicateCreator); AddButton(nodeRow, "删除", DeleteCreator);
         AddButton(nodeRow, "↑", () => MoveCreator(-1)); AddButton(nodeRow, "↓", () => MoveCreator(1));
-        if (!ShowHierarchy)
-        {
-            // 目录树负责导航；操作控件搬到横向工具栏，隐藏内部树避免两个左栏。
-            var tools = new HBoxContainer(); layout.AddChild(tools); layout.MoveChild(tools, workspace.GetIndex());
-            visibility.Reparent(tools); moveChildren.Reparent(tools); addRow.Reparent(tools); nodeRow.Reparent(tools);
-            hierarchy.Reparent(layout); hierarchy.Hide();
-        }
-        // 场地画布和属性面板的分栏容器。
         var content = new HSplitContainer { SplitOffsets = new[] { 730 } }; workspace.AddChild(content);
         // 中央画布及场地说明的纵向容器。
         var center = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; content.AddChild(center);
@@ -115,7 +103,7 @@ public partial class EmitterPanel : Control
         source.AddChild(new Label { Text = "完整原文 · 应用后同步图形界面\n小数字段支持PI/TAU表达式；毫秒与数量使用整数。" });
         _json.SizeFlagsVertical = SizeFlags.ExpandFill; _json.CustomMinimumSize = new Vector2(400, 0);
         _json.GuttersDrawLineNumbers = true; _json.SyntaxHighlighter = new CodeHighlighter(); source.AddChild(_json);
-        _json.TextChanged += () => { if (!_refreshing) { _jsonDirty = _json.Text != _jsonBaseline; Document.Draft = _jsonDirty ? _json.Text : null; UpdateTitle(); WorkspaceChanged?.Invoke(); } };
+        _json.TextChanged += () => { if (!_refreshing) { _jsonDirty = _json.Text != _jsonBaseline; Document.Draft = _jsonDirty ? _json.Text : null; UpdateTitle(); } };
         AddButton(source, "应用 JSON 草稿", () => { Document.ApplyText(_json.Text); _jsonDirty = false; Refresh(); });
         AddButton(source, "放弃 JSON 草稿", () => ConfirmRequested?.Invoke("放弃当前Emitter尚未应用的JSON草稿？", () => { Document.Draft = null; _jsonDirty = false; SyncJson(); UpdateTitle(); }));
         _status.AutowrapMode = TextServer.AutowrapMode.WordSmart; _status.CustomMinimumSize = new Vector2(0, 45); layout.AddChild(_status);
@@ -138,7 +126,7 @@ public partial class EmitterPanel : Control
         try { SyncJson(); RebuildTree(); BuildInspector(); ValidateLayout(); UpdateTitle(); }
         finally { _refreshing = false; }
         Document.Selection = _selection;
-        WorkspaceChanged?.Invoke();
+       
     }
     /// <summary>校验当前数据并刷新基础图标，错误明确显示。</summary>
     private void ValidateLayout()
@@ -220,7 +208,7 @@ public partial class EmitterPanel : Control
         _selection = _tree.GetSelected()?.GetMetadata(0).AsString() ?? "";
         _tabs.CurrentTab = 0;
         Canvas.SelectedPath = _selection; Canvas.SelectedBasis = 0; Canvas.QueueRedraw(); BuildInspector();
-        Document.Selection = _selection; WorkspaceChanged?.Invoke();
+        Document.Selection = _selection;
     }
     /// <summary>画布选择定位Creator和基础项；继承子树定位到复制声明。</summary>
     /// <param name="marker">点击的基础位置图标。</param>

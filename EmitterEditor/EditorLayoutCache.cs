@@ -15,75 +15,69 @@ internal sealed partial class EditorLayoutCache
     /// <summary>校验当前Emitter或复用仍有效的静态结果，再复制到可交互画布。</summary>
     /// <param name="document">当前已应用文档，草稿仍按原界面规则独立保存。</param>
     /// <param name="canvas">接收独立显示数组的画布。</param>
-    internal void ApplyEmitter(EmitterDocument document, EditorCanvas canvas)
+    internal void ApplyEmitter(EditorDocument document, EditorCanvas canvas)
     {
-        if (_emitter is null || !_emitter.Matches(document, -1, null))
+        if (_emitter is null || !_emitter.Matches(document))
         {
             // 临时运行定义只用于正式校验和静态采样，不进入缓存。
             var emitter = document.Validate();
             var dependencies = new Dependencies(); dependencies.AddEmitter(emitter);
             var layout = new EditorLayout(emitter);
-            _emitter = new Entry<Snapshot>(document, -1, dependencies, new Snapshot(layout.Markers, layout.Paths));
+            _emitter = new Entry<Snapshot>(document, dependencies, new Snapshot(layout.Markers, layout.Paths));
             BuildCount++;
         }
         _emitter.Value.Apply(canvas);
     }
 
     /// <summary>校验所选Boss及所有引用；仅切换阶段时复用定义，按需计算该阶段静态几何。</summary>
-    /// <param name="document">共享目录文档。</param>
-    /// <param name="bossIndex">有效零基Boss下标。</param>
+    /// <param name="document">独立Boss文档。</param>
     /// <param name="phaseIndex">有效阶段下标，-1表示Boss共用属性。</param>
-    /// <param name="session">当前共享引用及草稿来源。</param>
     /// <param name="canvas">接收布局的画布。</param>
     /// <returns>当前校验内容对应的状态说明。</returns>
-    internal string ApplyBoss(EmitterDocument document, int bossIndex, int phaseIndex, EditorSession session, EditorCanvas canvas)
+    internal string ApplyBoss(EditorDocument document, int phaseIndex, EditorCanvas canvas)
     {
-        if (_boss is null || !_boss.Matches(document, bossIndex, session))
+        if (_boss is null || !_boss.Matches(document))
         {
             var dependencies = new Dependencies();
-            string json = document.At("/Bosses/" + bossIndex)?.ToJsonString() ?? throw new InvalidOperationException("请先选择Boss。");
+            string json = document.Text;
             // 纯引用校验按规范化路径去重，本次解析完成后不保留Emitter工厂或运行对象。
             var data = JsonData.Parse(json, document.FilePath, root => BossData.Read(root,
-                validateEmitter: path => dependencies.CheckEmitter(path, session)));
+                validateEmitter: path => dependencies.CheckEmitter(path)));
             dependencies.AddTexture(data.Texture!.ResourcePath);
             if (data.Portrait is not null) dependencies.AddTexture(data.Portrait.ResourcePath);
-            _boss = new Entry<BossLayout>(document, bossIndex, dependencies, new BossLayout(data));
+            _boss = new Entry<BossLayout>(document, dependencies, new BossLayout(data));
             BuildCount++;
         }
         _boss.Value.Get(phaseIndex).Apply(canvas);
         return _boss.Value.Status;
     }
 
-    /// <summary>固定文档身份、修订和依赖来源，不将草稿作为已应用内容。</summary>
+    /// <summary>固定独立文档身份、修订和磁盘依赖来源，不将草稿作为已应用内容。</summary>
     /// <typeparam name="T">不向画布外借可变集合的静态结果。</typeparam>
     private sealed class Entry<T>
     {
         // 修订不能跨文档或另存后的文件身份复用；来源由本次检查冻结。
-        private readonly EmitterDocument _document;
+        private readonly EditorDocument _document;
         private readonly long _revision;
         private readonly string _path;
-        private readonly int _bossIndex;
         private readonly Dependencies _dependencies;
         /// <summary>只由缓存内部消费的静态结果。</summary>
         internal T Value { get; }
         /// <summary>登记已经完成校验的静态结果。</summary>
         /// <param name="document">本次文档身份。</param>
-        /// <param name="bossIndex">Boss下标，Emitter为-1。</param>
         /// <param name="dependencies">本次实际读取的外部依赖。</param>
         /// <param name="value">独立静态结果。</param>
-        internal Entry(EmitterDocument document, int bossIndex, Dependencies dependencies, T value)
+        internal Entry(EditorDocument document, Dependencies dependencies, T value)
         {
             _document = document; _revision = document.Revision; _path = document.FilePath;
-            _bossIndex = bossIndex; _dependencies = dependencies; Value = value;
+            _dependencies = dependencies; Value = value;
         }
         /// <summary>检查文档和依赖是否仍匹配，外部异常交还正式校验生成诊断。</summary>
         /// <param name="document">当前文档。</param>
-        /// <param name="bossIndex">当前Boss下标。</param>
-        /// <param name="session">Boss引用来源；Emitter布局为空。</param>
         /// <returns>全部身份、内容和资源检查一致时为真。</returns>
-        internal bool Matches(EmitterDocument document, int bossIndex, EditorSession? session)
+        internal bool Matches(EditorDocument document)
             => ReferenceEquals(_document, document) && _revision == document.Revision && _path == document.FilePath
-                && _bossIndex == bossIndex && _dependencies.Matches(session);
+                && _dependencies.Matches();
     }
 
     /// <summary>独立冻结的显示数组；应用时复制折线，画布拖动或外部改写不能污染下次复用。</summary>

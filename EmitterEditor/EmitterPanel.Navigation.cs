@@ -57,8 +57,8 @@ public partial class EmitterPanel
         {
             // 已有对象内同时匹配显式字段和可添加字段，不创建任何默认数据。
             var fields = EditorSchema.Fields(type, obj, creatorType, context);
-            return fields.Any(field => MatchesProperty(path + "/" + EmitterDocument.Escape(field.Name), null, field.ValueType, creatorType, field.Name)) ||
-                obj.Any(pair => MatchesProperty(path + "/" + EmitterDocument.Escape(pair.Key), pair.Value,
+            return fields.Any(field => MatchesProperty(path + "/" + EditorDocument.Escape(field.Name), null, field.ValueType, creatorType, field.Name)) ||
+                obj.Any(pair => MatchesProperty(path + "/" + EditorDocument.Escape(pair.Key), pair.Value,
                     fields.Find(field => field.Name == pair.Key)?.ValueType ?? InferType(pair.Value), creatorType, pair.Key));
         }
         if (value is JsonArray array)
@@ -124,7 +124,7 @@ public partial class EmitterPanel
             // 保留亚像素位置到0.001逻辑像素，避免屏幕缩放带来过长小数。
             target = new Vector2((float)Math.Round(target.X, 3), (float)Math.Round(target.Y, 3));
             var before = new EditorLayout(Document.Validate());
-            var draft = new EmitterDocument(); draft.ApplyText(Document.Text);
+            var draft = new EditorDocument(); draft.ApplyText(Document.Text);
             draft.Edit(_ =>
             {
                 EditorPositionTools.Translate(draft, marker.Path, marker.Basis, target - marker.Position);

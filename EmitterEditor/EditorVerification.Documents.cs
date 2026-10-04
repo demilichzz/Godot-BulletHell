@@ -13,7 +13,7 @@ public partial class EditorVerification
         string path = ProjectSettings.GlobalizePath("res://.tools/document-transactions.json");
         string alternate = ProjectSettings.GlobalizePath("res://.tools/document-transactions-copy.json");
         _temporary.AddRange(new[] { path, alternate });
-        var document = new EmitterDocument(); document.Save(path);
+        var document = new EditorDocument(); document.Save(path);
         string original = document.Text;
         long revision = document.Revision;
         // 事务外拿到的根与局部节点都必须是独立快照。
@@ -88,67 +88,50 @@ public partial class EditorVerification
         GD.Print($"Document text reads: 10000, bytes allocated: {GC.GetAllocatedBytesForCurrentThread() - allocated}, characters: {length}");
     }
 
-    /// <summary>检查跨文件预校验、部分写盘失败及下一次保存对外部引用的重新检查。</summary>
+    /// <summary>检查Boss模式跨文件冻结、部分写盘失败及磁盘Emitter隔离。</summary>
     private void VerifySaveSnapshots()
     {
-        // 第一、第二文件打开编辑，第三文件保留为外部引用。
-        string firstResource = "res://.tools/save-batch-first.json", secondResource = "res://.tools/save-batch-second.json";
-        string externalResource = "res://.tools/save-batch-external.json";
+        // 临时目录、两个Boss及一个共享Emitter，所有写入只在忽略目录。
+        string firstResource = "res://.tools/save-boss-first.json", secondResource = "res://.tools/save-boss-second.json";
+        string emitterResource = "res://.tools/save-disk-emitter.json";
         string firstPath = ProjectSettings.GlobalizePath(firstResource), secondPath = ProjectSettings.GlobalizePath(secondResource);
-        string externalPath = ProjectSettings.GlobalizePath(externalResource), catalogPath = ProjectSettings.GlobalizePath("res://.tools/save-batch-catalog.json");
-        _temporary.AddRange(new[] { firstPath, secondPath, externalPath, catalogPath });
-        var fixture = new EmitterDocument(); fixture.Save(firstPath); fixture.Save(secondPath); fixture.Save(externalPath);
-        var catalog = new EmitterDocument(true);
-        catalog.Edit(root => root["Bosses"]![0]!["Phases"]![0]!["Emitters"] = new JsonArray(firstResource, secondResource, externalResource, firstResource));
-        catalog.Save(catalogPath);
-        var session = new EditorSession(); session.OpenCatalog(catalogPath);
-        var first = session.OpenEmitter(firstResource); var second = session.OpenEmitter(secondResource);
-        first.Edit(root => root["Core"]!["Damage"] = 7); second.Edit(root => root["Core"]!["Damage"] = 9);
-        session.Catalog.Edit(root => root["Bosses"]![0]!["Core"]!["DisplayName"] = "已修改目录");
+        string emitterPath = ProjectSettings.GlobalizePath(emitterResource), catalogPath = ProjectSettings.GlobalizePath("res://.tools/save-boss-catalog.json");
+        _temporary.AddRange(new[] { firstPath, secondPath, emitterPath, catalogPath });
+        var emitter = new EditorDocument(); emitter.Save(emitterPath);
+        var fixture = new EditorDocument(EditorDocumentKind.Boss);
+        fixture.Edit(root => root["Phases"]![0]!["Emitters"] = new JsonArray(emitterResource)); fixture.Save(firstPath);
+        fixture.Edit(root => root["Core"]!["Id"] = "Second"); fixture.Save(secondPath);
+        var catalog = new EditorDocument(EditorDocumentKind.BossCatalog);
+        catalog.Edit(root => root["Bosses"] = new JsonArray(firstResource, secondResource)); catalog.Save(catalogPath);
+        var session = new BossEditorSession(); session.Open(catalogPath);
+        var first = session.OpenBoss(firstResource); var second = session.OpenBoss(secondResource);
+        first.Edit(root => root["Core"]!["DisplayName"] = "修改甲"); second.Edit(root => root["Core"]!["DisplayName"] = "修改乙");
+        session.Root!.Edit(root => EditorArrayControls.Move(root["Bosses"]!.AsArray(), 1, -1));
         string catalogBefore = File.ReadAllText(catalogPath), secondBefore = File.ReadAllText(secondPath);
-        // Windows文件共享限制模拟第二次原子替换失败；第一文件已成功写入。
         using (var locked = new FileStream(secondPath, FileMode.Open, System.IO.FileAccess.Read, FileShare.Read))
         {
-            string diagnostic = "";
-            try { session.SaveAll(); } catch (IOException error) { diagnostic = error.Message; }
-            Check(diagnostic.StartsWith("保存全部未完成。已保存文件：" + Path.GetFullPath(firstPath) + "。", StringComparison.Ordinal),
-                "部分保存失败明确报告已经写入的文件");
-            Check(!first.Dirty && second.Dirty && session.Catalog.Dirty && session.HasUnsaved,
-                "部分失败保留准确的逐文件保存状态");
-            Check(VBulletEmitter.Load(firstResource).Core.Damage == 7 && File.ReadAllText(secondPath) == secondBefore
-                && File.ReadAllText(catalogPath) == catalogBefore, "第二文件失败后目录尚未被写入");
+            string diagnostic = ""; try { session.SaveAll(); } catch (IOException error) { diagnostic = error.Message; }
+            Check(diagnostic.StartsWith("保存全部未完成。已保存文件：" + Path.GetFullPath(firstPath) + "。", StringComparison.Ordinal), "部分保存报告已完成文件：" + diagnostic);
+            Check(!first.Dirty && second.Dirty && session.Root.Dirty && session.HasUnsaved, "失败保留逐文件准确状态");
+            Check(File.ReadAllText(secondPath) == secondBefore && File.ReadAllText(catalogPath) == catalogBefore, "Boss失败后目录尚未写入");
         }
         session.SaveAll();
-        Check(!session.HasUnsaved && VBulletEmitter.Load(secondResource).Core.Damage == 9
-            && BossCatalog.Load(catalogPath).Entries[0].DisplayName == "已修改目录", "释放文件占用后可继续完成保存");
-        // 上次成功校验不能掩盖磁盘引用的后续修改；失败发生在任何写入之前。
-        first.Edit(root => root["Core"]!["Damage"] = 11);
-        string firstBefore = File.ReadAllText(firstPath), externalBefore = File.ReadAllText(externalPath);
-        fixture.Edit(root => root["Core"]!["Damage"] = -1); File.WriteAllText(externalPath, fixture.Text);
-        Reject(session.SaveAll, "新保存批次须重新检查已变为无效的外部Emitter");
-        Check(File.ReadAllText(firstPath) == firstBefore && first.Dirty, "外部引用校验失败不部分写盘");
-        File.Delete(externalPath);
-        Reject(session.SaveAll, "新保存批次须发现已删除的外部引用");
-        File.WriteAllText(externalPath, externalBefore);
-        first.Draft = "{";
-        Reject(session.SaveAll, "新出现的引用草稿不能复用先前校验结果");
-        first.Draft = null; session.SaveAll();
-        Check(!session.HasUnsaved && VBulletEmitter.Load(firstResource).Core.Damage == 11, "修复依赖后能正常重新校验和保存");
-        // 预览仍冻结文本且每次创建独立运行树，不与保存用的校验结果共享对象。
-        var frozen = session.CaptureEmitters();
-        var original = frozen(externalResource);
-        fixture.Undo(); fixture.Edit(root => root["Core"]!["Damage"] = 4); fixture.Save(externalPath);
-        var sameSnapshot = frozen(externalResource); var fresh = session.CaptureEmitters()(externalResource);
-        Check(original.Core.Damage == 1 && sameSnapshot.Core.Damage == 1 && fresh.Core.Damage == 4,
-            "现有预览冻结外部文本，新的预览读取最新文件");
-        Check(!ReferenceEquals(original, sameSnapshot) && !ReferenceEquals(original.Root, sameSnapshot.Root),
-            "同一冻结文本也必须创建独立Emitter与Creator树");
-        // 纯校验回调不能跳过Boss自身字段、阶段或重复引用的协议检查。
-        int references = 0;
-        BossCatalog.CheckJson(session.Catalog.Text, catalogPath, _ => references++);
-        Check(references == 4, "目录纯检查入口覆盖每个阶段引用，批次自行去重资源解析");
-        session.Catalog.Edit(root => root["Bosses"]![0]!["Phases"]![0]!["Unexpected"] = true);
-        Reject(session.SaveAll, "批次复用不能放宽目录未知字段检查");
+        Check(!session.HasUnsaved && BossCatalog.Load(catalogPath).Entries[0].DisplayName == "修改乙", "重试按Boss再目录完成写入");
+        first.Edit(root => root["Core"]!["DisplayName"] = "再次修改"); string before = File.ReadAllText(firstPath);
+        emitter.Edit(root => root["Core"]!["Damage"] = 0); File.WriteAllText(emitterPath, emitter.Text);
+        Reject(session.SaveAll, "磁盘Emitter错误阻止Boss保存"); Check(File.ReadAllText(firstPath) == before && first.Dirty, "预校验失败无部分写入");
+        File.Delete(emitterPath); Reject(session.SaveAll, "引用缺失使下一保存失败"); emitter.Undo(); emitter.Save(emitterPath);
+        first.Draft = "{"; Reject(session.SaveAll, "Boss草稿阻止批量保存"); first.Draft = null;
+        var emitterSession = new EditorSession(); var draft = emitterSession.OpenEmitter(emitterResource);
+        draft.Edit(root => root["Core"]!["Damage"] = 9); draft.Draft = "{";
+        session.SaveAll(); Check(!session.HasUnsaved && draft.Dirty && draft.Draft == "{" && VBulletEmitter.Load(emitterResource).Core.Damage == 1, "保存全部不读写Emitter草稿");
+        // 同次工厂冻结磁盘文本，每次创建独立运行对象。
+        var frozen = BossEditorSession.CaptureDiskEmitters(); var original = frozen(emitterResource);
+        emitter.Edit(root => root["Core"]!["Damage"] = 4); emitter.Save(emitterPath);
+        var same = frozen(emitterResource); var fresh = BossEditorSession.CaptureDiskEmitters()(emitterResource);
+        Check(original.Core.Damage == 1 && same.Core.Damage == 1 && fresh.Core.Damage == 4, "预览快照固定磁盘内容，新预览读取最新文件");
+        Check(!ReferenceEquals(original.Root, same.Root), "同一冻结文本创建独立树");
+        first.Edit(root => root["Phases"]![0]!["Unexpected"] = true); Reject(session.SaveAll, "批次校验不放宽未知字段");
         GD.Print($"PASS: {_checks} targeted document/save assertions");
     }
 }

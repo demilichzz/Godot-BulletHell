@@ -25,7 +25,7 @@ public partial class EditorVerification
                 "Emitter路径字段与独立协议期望一致：" + item.Mode);
             Check(BossEditorSchema.Fields(typeof(VPathSegmentAttribute), segment, "PathQueue").Select(field => field.Name).OrderBy(name => name).SequenceEqual(expected),
                 "Boss路径字段与独立协议期望一致：" + item.Mode);
-            var document = new EmitterDocument(); document.Edit(root => { root["VNodes"] = EditorSchema.Creator("VPath"); root["VNodes"]!["PathQueue"] = new JsonArray(segment); });
+            var document = new EditorDocument(); document.Edit(root => { root["VNodes"] = EditorSchema.Creator("VPath"); root["VNodes"]!["PathQueue"] = new JsonArray(segment); });
             document.Validate();
             document.Edit(root => root["VNodes"]!["PathQueue"]![0]![item.Invalid] = item.Value);
             Reject(() => document.Validate(), "共用模式表仍拒绝跨模式字段：" + item.Mode);
@@ -35,7 +35,7 @@ public partial class EditorVerification
             var action = EditorSchema.Item(typeof(VNodeMoveActionAttribute), "RefMoveQueue", item.Item1).AsObject();
             Check(EditorSchema.Fields(typeof(VNodeMoveActionAttribute), action, "VNode", "RefMoveQueue").Select(field => field.Name).OrderBy(name => name)
                 .SequenceEqual(item.Item2.Split(',').OrderBy(name => name)), "位移菜单不提供其他模式字段：" + item.Item1);
-            var document = new EmitterDocument();
+            var document = new EditorDocument();
             document.Edit(root => root["VNodes"]!["BaseAttributes"]![0]!["RefMoveQueue"] = new JsonArray(action)); document.Validate();
             document.Edit(root => root["VNodes"]!["BaseAttributes"]![0]!["RefMoveQueue"]![0]![item.Item3] = 0);
             Reject(() => document.Validate(), "位移加载器继续拒绝混用字段：" + item.Item1);
@@ -62,7 +62,7 @@ public partial class EditorVerification
     {
         // 隐藏测试控件仅发信号，不干扰后续编辑器布局。
         var host = new Control { Visible = false }; AddChild(host);
-        var document = new EmitterDocument(); document.Edit(root => root["Core"]!["StopMode"] = "RetiredMode");
+        var document = new EditorDocument(); document.Edit(root => root["Core"]!["StopMode"] = "RetiredMode");
         bool refreshing = false, fail = false; int errors = 0;
         /// <summary>模拟面板展示错误，文档事务仍由真实Document处理。</summary>
         /// <param name="action">控件提交回调。</param>
@@ -100,7 +100,7 @@ public partial class EditorVerification
     /// <summary>通过真实按钮验证共用数组操作的边界、原文、深复制与事务回滚。</summary>
     private void VerifyArrayControls()
     {
-        var document = new EmitterDocument();
+        var document = new EditorDocument();
         document.Edit(root => root["VNodes"]!["BaseAttributes"] = JsonNode.Parse("""[{"Angle":"PI / 3"},null]"""));
         string original = document.Text;
         long revision = document.Revision;

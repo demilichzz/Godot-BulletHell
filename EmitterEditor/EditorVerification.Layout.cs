@@ -85,7 +85,7 @@ public partial class EditorVerification
     /// <summary>验证队列对齐、复制覆盖、保存往返和协议顺序。</summary>
     private void VerifyPositionData()
     {
-        var document = new EmitterDocument();
+        var document = new EditorDocument();
         document.Edit(root =>
         {
             root["VNodes"]!["BaseAttributes"] = JsonNode.Parse("[{\"RefMoveQueue\":[{\"Type\":\"PMove\",\"Dist\":50}]},{\"RefMoveQueue\":[{\"Type\":\"PMove\",\"Dist\":100}]}]");
@@ -112,7 +112,7 @@ public partial class EditorVerification
         document.Validate();
         Check(document.Root["VNodes"]!["Children"]![1]!["Children"]![0]!["Core"]!["Name"]!.ToString() == "Inner_copy_B", "继承深层节点编辑保留加载器定义的名称后缀");
         string path = ProjectSettings.GlobalizePath("res://.tools/editor-drag-roundtrip.json"); _temporary.Add(path);
-        var layout = new EditorLayout(document.Validate()); document.Save(path); var reopened = new EmitterDocument(); reopened.Open(path);
+        var layout = new EditorLayout(document.Validate()); document.Save(path); var reopened = new EditorDocument(); reopened.Open(path);
         Check(new EditorLayout(reopened.Validate()).Markers.Select(marker => marker.Position).SequenceEqual(layout.Markers.Select(marker => marker.Position)), "拖动保存重开布局一致");
         // 新字段按协议排序，即使现有对象键故意倒序。
         var obj = JsonNode.Parse("{\"ASpeed\":3,\"Speed\":100}")!.AsObject();
@@ -140,7 +140,7 @@ public partial class EditorVerification
         // CopySource展开后的运行定义足以显示激光，无需再提供原始JSON或创建路径生成器。
         var original = editor.Document.At("/VNodes")!.AsObject(); original["Core"]!["Name"] = "Source";
         var copy = JsonNode.Parse("""{"Core":{"Name":"Copy","CopySource":"Source"},"BaseAttributes":[{"RefMoveQueue":[{"Type":"XYMove","X":25,"Y":30}]}]}""");
-        var copiedDocument = new EmitterDocument();
+        var copiedDocument = new EditorDocument();
         copiedDocument.Edit(root => root["VNodes"] = new JsonObject
         {
             ["Core"] = new JsonObject { ["Type"] = "VNode" },
