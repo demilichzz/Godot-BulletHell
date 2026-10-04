@@ -206,7 +206,7 @@ public partial class DeterminismVerification : Node
         var boss = battle.Boss;
         var phase = boss.CurrentPhase!;
         var center = new Vector2(640, 250);
-        Check(Math.Abs(VMath.getB2PAngle() - VMath.GetAngleBetween2Points(boss.GlobalPosition,
+        Check(Math.Abs(GlobalEvent.GetBossToPlayerAngle() - VMath.GetAngleBetween2Points(boss.GlobalPosition,
             battle.Player.GlobalPosition)) < 1e-12, "Boss到玩家方向使用全局坐标");
         VerificationClock.BossSeconds(battle, 4.99);
         Check(boss.Position == center && !phase.IsMoving, "5秒前静止");

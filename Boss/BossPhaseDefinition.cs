@@ -17,17 +17,27 @@ public sealed record BossPhaseDefinition
     public required string EndCondition { get; init; }
     /// <summary>按声明顺序绑定的独立Emitter资源路径，允许空队列。</summary>
     public required IReadOnlyList<string> Emitters { get; init; }
-    /// <summary>阶段移动定义；位置为战场逻辑像素。</summary>
-    public required JsonElement Movement { get; init; }
+    /// <summary>已经校验的阶段移动配置；位置为战场逻辑像素。</summary>
+    public required BossMovement Movement { get; init; }
 
     /// <summary>读取并检查阶段；验证发射器不启动战斗或消耗随机。</summary>
     /// <param name="element">完整阶段JSON对象。</param>
-    /// <returns>带独立移动JSON和只读路径队列的定义。</returns>
+    /// <returns>带已校验移动配置和只读路径队列的定义。</returns>
     /// <param name="loadEmitter">可选预览加载入口，不共享有状态Emitter。</param>
     internal static BossPhaseDefinition Read(JsonElement element, Func<string, VBulletEmitter>? loadEmitter = null)
     {
-        // 序列化器拒绝未知字段，公共解析入口拒绝重复字段。
-        var value = JsonData.Read<BossPhaseDefinition>(element);
+        // 移动配置只解析一次，运行阶段不再持有未解释的JSON对象。
+        JsonData.CheckFields(element, new[] { "Name", "Hp", "DurationMs", "EndCondition", "Emitters", "Movement" });
+        if (!element.TryGetProperty("DurationMs", out var duration)) throw new JsonException("DurationMs缺失。");
+        var value = new BossPhaseDefinition
+        {
+            Name = JsonData.Read<string>(JsonData.Required(element, "Name")),
+            Hp = JsonData.Read<int>(JsonData.Required(element, "Hp")),
+            DurationMs = duration.ValueKind == JsonValueKind.Null ? null : JsonData.Read<int>(duration),
+            EndCondition = JsonData.Read<string>(JsonData.Required(element, "EndCondition")),
+            Emitters = JsonData.Read<string[]>(JsonData.Required(element, "Emitters")),
+            Movement = BossMovement.Read(JsonData.Required(element, "Movement"))
+        };
         if (string.IsNullOrWhiteSpace(value.Name) || value.Hp <= 0
             || value.EndCondition is not ("Health" or "Time" or "HealthOrTime")
             || value.DurationMs is <= 0 || (value.EndCondition != "Health" && value.DurationMs is null)
@@ -41,10 +51,8 @@ public sealed record BossPhaseDefinition
                 throw new JsonException("Emitter必须引用res://下的独立JSON文件。");
             (loadEmitter ?? VBulletEmitter.Load)(path);
         }
-        BossMovement.Read(value.Movement);
         return value with
         {
-            Movement = value.Movement.Clone(),
             Emitters = Array.AsReadOnly(value.Emitters.ToArray())
         };
     }
@@ -133,7 +141,12 @@ public sealed record BossMovement
             if (value.PointCount < 2 || value.PointCount > 65536) throw new JsonException("PointCount须为2至65536。");
             VPathCreator.CreateGeometry(value.PathQueue, value.PointCount);
         }
-        return value;
+        // 路径JSON和目标队列均脱离加载器生命周期，供各运行实例只读使用。
+        return value with
+        {
+            Targets = value.Targets is null ? null : Array.AsReadOnly(value.Targets.ToArray()),
+            PathQueue = value.PathQueue.ValueKind == JsonValueKind.Undefined ? default : value.PathQueue.Clone()
+        };
     }
 
     /// <summary>严格读取包含X与Y的配置点。</summary>

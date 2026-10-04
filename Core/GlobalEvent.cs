@@ -9,9 +9,6 @@ public static class GlobalEvent
     private static BattleManager? _current;
     // 初始化、清理和固定步推进期间的临时绑定，允许嵌套恢复。
     private static BattleManager? _context;
-    // 查询形状只在尺寸变化时重建；平移圆心后查询，移动感知框无需逐步分配。
-    private static RectangleRegionShape _queryRectangle = new(new Rect2(0, 0, 200, 200));
-
     /// <summary>绑定一场新的持久当前战斗。</summary>
     /// <param name="battle">已完成初始化的战斗管理器。</param>
     internal static void BindCurrent(BattleManager battle) => _current = battle ?? throw new ArgumentNullException(nameof(battle));
@@ -39,6 +36,10 @@ public static class GlobalEvent
         if (battle.State != BattleState.Running) throw new InvalidOperationException("当前战斗未处于运行状态，不能创建时间线。");
         return new VTimeline(battle.Timers, owner, owner is VNode or VBulletEmitter);
     }
+    /// <summary>取得当前 Boss 指向玩家的标准弧度。</summary>
+    /// <returns>[0,2π)内的弧度，使用双方全局逻辑像素坐标。</returns>
+    public static double GetBossToPlayerAngle()
+        => VMath.GetAngleBetween2Points(GetBoss().GlobalPosition, GetPlayer().GlobalPosition);
     /// <summary>取得当前 Boss。</summary>
     /// <returns>当前战斗中的 Boss 实体。</returns>
     public static BossController GetBoss() => RequireBattle().Boss;
@@ -57,23 +58,7 @@ public static class GlobalEvent
     {
         ArgumentNullException.ThrowIfNull(results);
         VMath.ValidateQueryRectangle(rectangle);
-        // 先验证战斗绑定，失败时不清除调用方原结果。
-        var bullets = RequireBattle().Bullets.ActiveBullets;
-        // 区域接口要求正尺寸；原工具允许退化矩形，兼容分支继续使用数学函数。
-        bool hasArea = rectangle.Size.X > 0 && rectangle.Size.Y > 0;
-        if (hasArea && _queryRectangle.Bounds.Size != rectangle.Size)
-            _queryRectangle = new RectangleRegionShape(new Rect2(Vector2.Zero, rectangle.Size));
-        IRegionShape region = _queryRectangle;
-        results.Clear();
-        for (int index = 0; index < bullets.Count; index++)
-        {
-            // Follow对象使用逻辑世界位置，不依赖显示变换是否已经刷新。
-            var bullet = bullets[index];
-            if (!bullet.IsAlive || bullet.PendingBirth || (team.HasValue && bullet.Team != team.Value)) continue;
-            if (bullet is VLaser laser ? laser.IntersectsRect(rectangle)
-                : hasArea ? region.IntersectsCircle(bullet.WorldPosition - rectangle.Position, bullet.Radius)
-                : VMath.CircleIntersectsRect(bullet.WorldPosition, bullet.Radius, rectangle)) results.Add(bullet);
-        }
+        RequireBattle().Bullets.CollectBulletsInRect(rectangle, results, team);
     }
 
     /// <summary>向所属战斗处理器通知目标失效，避免旧节点污染新战斗。</summary>

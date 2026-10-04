@@ -13,10 +13,6 @@ public enum RandomDiffMode
 /// <summary>提供统一弧度的坐标数学工具及固定算法的可重现随机序列。</summary>
 public static partial class VMath
 {
-    /// <summary>取得当前 Boss 指向玩家的标准弧度。</summary>
-    /// <returns>[0,2π)内的弧度，使用双方全局逻辑像素坐标。</returns>
-    public static double getB2PAngle()
-        => GetAngleBetween2Points(GlobalEvent.GetBoss().GlobalPosition, GlobalEvent.GetPlayer().GlobalPosition);
     /// <summary>计算同一坐标系中两点的欧氏距离。</summary>
     /// <param name="x">起点横坐标，有限逻辑像素。</param>
     /// <param name="y">起点纵坐标，有限逻辑像素。</param>
@@ -139,74 +135,26 @@ public static partial class VMath
     /// <returns>有限结果，否则抛错。</returns>
     private static double FiniteResult(double value)
         => double.IsFinite(value) ? value : throw new OverflowException("数学结果超出double范围。");
-    // SplitMix64内部状态，按无符号64位整数回绕，不受运行库随机实现影响。
-    private static ulong _state;
+    // 默认业务流与独立AI流共用同一算法实现，各自持有独立状态。
+    private static VRandomStream _defaultRandom = new(0);
     /// <summary>最近设置的初始种子，默认0；抽样不会修改此值。</summary>
-    public static int randomSeed { get; private set; }
+    public static int randomSeed => _defaultRandom.Seed;
     /// <summary>设置初始种子并从头重置随机序列。</summary>
     /// <param name="seed">32位有符号种子，默认0；负数按32位无符号位模式映射后扩展到64位。</param>
-    public static void setRandomSeed(int seed = 0)
-    {
-        randomSeed = seed;
-        _state = unchecked((uint)seed);
-    }
+    public static void setRandomSeed(int seed = 0) => _defaultRandom = new VRandomStream(seed);
     /// <summary>获取闭区间内的均匀随机整数；相等端点不消耗序列。</summary>
     /// <param name="min">包含的下界，可为int.MinValue。</param>
     /// <param name="max">包含的上界，须不小于min，可为int.MaxValue。</param>
     /// <returns>位于[min,max]的整数。</returns>
-    public static int getRandomInt(int min, int max)
-    {
-        if (min > max) throw new ArgumentOutOfRangeException(nameof(max));
-        if (min == max) return min;
-        // 使用64位计算跨度，完整int范围包含2的32次方个值。
-        ulong span = (ulong)((long)max - min) + 1;
-        ulong domain = 1UL << 32;
-        ulong limit = domain - domain % span;
-        ulong sample;
-        // 拒绝不能均分的尾部样本，避免取模偏差。
-        do { sample = NextUInt64() >> 32; } while (sample >= limit);
-        return (int)((long)min + (long)(sample % span));
-    }
+    public static int getRandomInt(int min, int max) => _defaultRandom.GetRandomInt(min, max);
     /// <summary>获取包含两端的随机小数，使用53位离散均匀样本；相等端点不消耗序列。</summary>
     /// <param name="min">包含的有限下界。</param>
     /// <param name="max">包含的有限上界，须不小于min。</param>
     /// <returns>位于[min,max]的有限双精度数。</returns>
-    public static double getRandomDouble(double min, double max)
-    {
-        if (!double.IsFinite(min)) throw new ArgumentOutOfRangeException(nameof(min));
-        if (!double.IsFinite(max) || min > max) throw new ArgumentOutOfRangeException(nameof(max));
-        if (min == max) return min;
-        // 53位整数除以最大53位整数，使0和1均可取到。
-        double fraction = (NextUInt64() >> 11) / 9007199254740991.0;
-        // 加权插值避免max-min在跨越双精度两极时溢出，夹紧舍入误差。
-        return Math.Clamp(min * (1 - fraction) + max * fraction, min, max);
-    }
+    public static double getRandomDouble(double min, double max) => _defaultRandom.GetRandomDouble(min, max);
     /// <summary>按给定总宽度获取随机偏移，沿用现有双精度随机序列。</summary>
     /// <param name="diff">非负有限总偏差值；零不消耗随机序列。</param>
     /// <param name="mode">Forward为[0,diff]，Center为[-diff/2,diff/2]；默认Forward。</param>
     /// <returns>指定区间内的随机偏移。</returns>
-    public static double getRandomDiff(double diff, RandomDiffMode mode = RandomDiffMode.Forward)
-    {
-        if (!double.IsFinite(diff) || diff < 0) throw new ArgumentOutOfRangeException(nameof(diff));
-        return mode switch
-        {
-            RandomDiffMode.Forward => getRandomDouble(0, diff),
-            RandomDiffMode.Center => getRandomDouble(-diff / 2, diff / 2),
-            _ => throw new ArgumentOutOfRangeException(nameof(mode))
-        };
-    }
-    /// <summary>按固定SplitMix64常量产生下一份64位样本。</summary>
-    /// <returns>覆盖64位空间的无符号随机整数。</returns>
-    private static ulong NextUInt64()
-    {
-        unchecked
-        {
-            _state += 0x9E3779B97F4A7C15UL;
-            // 混合临时状态，固定移位和乘数属于序列版本的一部分。
-            ulong value = _state;
-            value = (value ^ (value >> 30)) * 0xBF58476D1CE4E5B9UL;
-            value = (value ^ (value >> 27)) * 0x94D049BB133111EBUL;
-            return value ^ (value >> 31);
-        }
-    }
+    public static double getRandomDiff(double diff, RandomDiffMode mode = RandomDiffMode.Forward) => _defaultRandom.GetRandomDiff(diff, mode);
 }

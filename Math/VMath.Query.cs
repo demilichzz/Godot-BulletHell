@@ -93,4 +93,17 @@ public static partial class VMath
         upper = Math.Min(upper, to);
         return lower <= upper;
     }
+	/// <summary>判断相对运动线段是否穿过原点圆。</summary>
+	/// <param name="start">相对起点，单位为像素。</param>
+	/// <param name="end">相对终点，单位为像素。</param>
+	/// <param name="radius">双方半径之和，单位为非负像素。</param>
+	/// <returns>线段接触或穿过圆时为真。</returns>
+	public static bool SweptHit(Vector2 start, Vector2 end, double radius)
+	{
+		// 将原点投影到有限线段，退化线段按点处理。
+		var movement = end - start;
+		var lengthSquared = movement.LengthSquared();
+		var fraction = lengthSquared > 0 ? Mathf.Clamp(-start.Dot(movement) / lengthSquared, 0, 1) : 0;
+		return (start + movement * fraction).LengthSquared() <= radius * radius;
+	}
 }

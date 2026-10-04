@@ -172,23 +172,10 @@ public partial class EmitterEditor
         }
         else
         {
-            // 保留表达式原文的字段输入框。
-            var input = new LineEdit { Text = value?.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : value?.ToJsonString() ?? "null", SizeFlagsHorizontal = SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(100, 0), TooltipText = tip, SelectAllOnFocus = true };
+            // 两类工作区共用标量解析及回车/失焦去重，领域事务仍由当前面板执行。
+            var input = EditorFieldControls.Text(value, type, path, Guard, () => _refreshing,
+                parsed => Mutate(() => SetAt(path, parsed), name is "Type" or "Name" or "CopySource", EditorPositionTools.IsSpatial(path)), tip);
             row.AddChild(input);
-            // 记录已应用文本，焦点离开及回车不会重复生成撤销记录。
-            string applied = input.Text;
-            /// <summary>提交当前输入；保持未通过业务校验的文本供继续修复。</summary>
-            void Commit()
-            {
-                if (input.Text == applied || !IsInstanceValid(input)) return;
-                Guard(() =>
-                {
-                    // 按照字段类型转换的独立JSON值。
-                    JsonNode? parsed = EditorSchema.Scalar(input.Text, type);
-                    Mutate(() => SetAt(path, parsed), name is "Type" or "Name" or "CopySource", EditorPositionTools.IsSpatial(path)); applied = input.Text;
-                });
-            }
-            input.TextSubmitted += _ => Commit(); input.FocusExited += Commit;
             if (scalar == typeof(double) && name.Contains("Angle", StringComparison.Ordinal))
             {
                 // 使用相同表达式规则绘制的角度示意。

@@ -158,6 +158,8 @@ public static class EditorSchema
     /// <param name="Default">显式添加时使用的值。</param>
     /// <param name="Tip">简要说明及单位。</param>
     public sealed record Field(string Name, Type ValueType, JsonNode? Default, string Tip);
+    // 仅在编辑器主线程访问；缓存不持有文档节点或运行状态。
+    private static readonly Dictionary<Type, Field[]> FieldCache = new();
     /// <summary>根据当前对象类型取得可编辑字段。</summary>
     /// <param name="type">属性组类型。</param>
     /// <param name="value">当前JSON对象。</param>
@@ -193,13 +195,17 @@ public static class EditorSchema
         // 实际属性的声明类型决定字符串与数字表达式的区别。
         // 错误形状仍展示原始字段，避免业务无效文件阻断JSON修复入口。
         if (type == typeof(string) || type.IsPrimitive || type.IsEnum || Nullable.GetUnderlyingType(type) is not null || ElementType(type) is not null) return new();
-        // 用于读取缺省属性值的独立配置对象。
-        var instance = Activator.CreateInstance(type);
-        // 剔除运行字段后的可编辑属性列表。
-        var result = type.GetProperties().Where(property => property.GetCustomAttribute<JsonIgnoreAttribute>() is null && property.CanWrite)
-            .OrderBy(property => InheritanceDepth(property.DeclaringType!)).ThenBy(property => property.MetadataToken)
-            .Select(property => new Field(property.Name, property.PropertyType, Default(property, instance),
-                Descriptions.GetValueOrDefault(property.DeclaringType!.Name + "." + property.Name, property.Name))).ToList();
+        // 类型的反射和默认配置只计算一次，返回独立默认值供模式筛选及添加字段。
+        if (!FieldCache.TryGetValue(type, out var cached))
+        {
+            var instance = Activator.CreateInstance(type);
+            cached = type.GetProperties().Where(property => property.GetCustomAttribute<JsonIgnoreAttribute>() is null && property.CanWrite)
+                .OrderBy(property => InheritanceDepth(property.DeclaringType!)).ThenBy(property => property.MetadataToken)
+                .Select(property => new Field(property.Name, property.PropertyType, Default(property, instance),
+                    Descriptions.GetValueOrDefault(property.DeclaringType!.Name + "." + property.Name, property.Name))).ToArray();
+            FieldCache.Add(type, cached);
+        }
+        var result = cached.Select(field => field with { Default = field.Default?.DeepClone() }).ToList();
         if (typeof(VNodeCoreAttribute).IsAssignableFrom(type))
             result.Add(new("CopySource", typeof(string), JsonValue.Create(""), "引用同级更早的非复制Creator名称；Name用作复制后缀，保留原始指令。"));
         if (context is "Batch" or "Member") result.RemoveAll(field => field.Name == "SpawnDelayMs");

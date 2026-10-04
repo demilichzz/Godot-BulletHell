@@ -121,15 +121,15 @@ public partial class VBullet
     internal bool SweptRegionHit(Vector2 previous, Vector2 targetStart, Vector2 targetEnd, double radius)
     {
         if (_reflectionMotion is null || _reflectionMotion.Count == 0)
-            return VBulletManager.SweptHit(previous - targetStart, GlobalPosition - targetEnd, radius);
+            return VMath.SweptHit(previous - targetStart, GlobalPosition - targetEnd, radius);
         // 父平移在本节点运动前完成；保留原位置到当前参考位置之间的扫掠。
         if (previous != _reflectionMotion[0].Start
-            && VBulletManager.SweptHit(previous - targetStart, _reflectionMotion[0].Start - targetStart, radius)) return true;
+            && VMath.SweptHit(previous - targetStart, _reflectionMotion[0].Start - targetStart, radius)) return true;
         foreach (var segment in _reflectionMotion)
         {
             Vector2 start = targetStart.Lerp(targetEnd, (float)segment.From);
             Vector2 end = targetStart.Lerp(targetEnd, (float)segment.To);
-            if (VBulletManager.SweptHit(segment.Start - start, segment.End - end, radius)) return true;
+            if (VMath.SweptHit(segment.Start - start, segment.End - end, radius)) return true;
         }
         return false;
     }

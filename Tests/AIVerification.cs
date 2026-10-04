@@ -429,7 +429,6 @@ public partial class AIVerification : Node
         battle.StepFixed(Vector2.Zero, false);
         Check(ai.HitCount == 1 && battle.Player.Health.Hp == 2 && !bullet.IsAlive, "同一步双方命中各自生效，原玩家释放规则不变");
         battle.Restart();
-        battle.Boss.Stop();
         battle.Player.Attack.Stop();
         ai = battle.AI!;
         // 激光伤害不会释放光束，路径沿用既有连续碰撞。
@@ -440,8 +439,10 @@ public partial class AIVerification : Node
         battle.StepFixed(Vector2.Zero, false);
         Check(ai.HitCount == 1 && laser.IsAlive, "激光独立受击且不释放");
         battle.StepFixed(Vector2.Zero, false, nextPhasePressed: true);
-        Check(ai.HitCount == 1, "切阶段保留受击次数");
-        battle.Boss.TakeDamage(int.MaxValue);
+        Check(ai.HitCount == 1 && battle.Boss.PhaseIndex == 1, "切阶段保留受击次数");
+        // 阶段拥有独立血池，逐阶段结束，不让超额伤害穿透。
+        for (int phase = battle.Boss.PhaseIndex; phase < battle.Boss.PhaseCount; phase++)
+            battle.Boss.TakeDamage(battle.Boss.PhaseHp);
         battle.StepFixed(Vector2.Zero, false);
         Check(battle.State == BattleState.Victory && battle.Bullets.ActiveCount == 0 && battle.Timers.TimelineActionCount == 0, "胜利清理AI时间线和弹幕");
         // 胜利冻结时的位置，后续输入不得改变它。

@@ -115,14 +115,14 @@ public partial class EditorVerification
             Check(panel.Document.ValidateBoss().Phases.Count == 2, "移动模式模板有效");
         }
         ChooseBossField(panel, "/Phases/1/Movement/PathQueue/0/PathMode", 1); await Settle();
-        Check(panel.Document.ValidateBoss().Phases[1].Movement.GetProperty("PathQueue")[0].GetProperty("PathMode").GetString() == "Bezier", "Bezier曲线表单");
+        Check(panel.Document.ValidateBoss().Phases[1].Movement.PathQueue[0].GetProperty("PathMode").GetString() == "Bezier", "Bezier曲线表单");
         ChooseBossField(panel, "/Phases/1/Movement/PathQueue/0/PathMode", 2); await Settle();
         SetBossField(panel, "/Phases/1/Movement/PathQueue/0/Y", "60*sin(PI*t)"); await Settle();
         Check(panel.Document.Text.Contains("60*sin(PI*t)"), "函数表达式保留原文");
         // VPath瞄准玩家简写同样可以通过实际表单编辑。
         PressBoss(panel, "切为瞄准玩家直线"); await Settle();
         SetBossField(panel, "/Phases/1/Movement/PathQueue/0/X", "20"); await Settle();
-        Check(panel.Document.ValidateBoss().Phases[1].Movement.GetProperty("PathQueue")[0].GetProperty("X").GetDouble() == 20, "瞄准玩家路径数值偏移表单");
+        Check(panel.Document.ValidateBoss().Phases[1].Movement.PathQueue[0].GetProperty("X").GetDouble() == 20, "瞄准玩家路径数值偏移表单");
         PressBoss(panel, "切为普通路径"); await Settle();
         // Boss与Emitter草稿在整体模式来回切换中互不覆盖。
         var bossCode = Descendants<CodeEdit>(panel).Single(); bossCode.Text += " ";

@@ -69,7 +69,7 @@ public partial class BattleVerification : Node
 		Check(container.GetChildCount() == 0, "第一秒前不能发射");
 		VerificationClock.BossSeconds(battle, 0.01);
 		Check(container.GetChildCount() == 40, $"第一秒双发射器各自按既有参数发射，实际{container.GetChildCount()}发");
-		double aimedAngle = VMath.getB2PAngle();
+		double aimedAngle = GlobalEvent.GetBossToPlayerAngle();
 		// 前24颗为默认环形弹，后16颗为既有定制环形弹。
 		for (int index = 0; index < 40; index++)
 		{
@@ -206,9 +206,9 @@ public partial class BattleVerification : Node
 	/// <summary>验证连续碰撞、自动瞄准、胜负及重开。</summary>
 	private void VerifyCombat()
 	{
-		Check(VBulletManager.SweptHit(new Vector2(-100, 0), new Vector2(100, 0), 1), "高速穿越");
-		Check(!VBulletManager.SweptHit(new Vector2(-100, 2), new Vector2(100, 2), 1), "擦身未命中");
-		Check(VBulletManager.SweptHit(Vector2.Zero, Vector2.Zero, 1), "静止重叠");
+		Check(VMath.SweptHit(new Vector2(-100, 0), new Vector2(100, 0), 1), "高速穿越");
+		Check(!VMath.SweptHit(new Vector2(-100, 2), new Vector2(100, 2), 1), "擦身未命中");
+		Check(VMath.SweptHit(Vector2.Zero, Vector2.Zero, 1), "静止重叠");
 		// 隔离攻击发射，验证首次时机与瞄准方向。
 		var battle = CreateBattle(out var world);
 		VerificationClock.BattleSeconds(battle, 11.0 / 60, Vector2.Zero, false);

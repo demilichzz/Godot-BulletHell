@@ -43,7 +43,7 @@ public sealed class BossPhase : IVTimelineOwner
         Definition = definition;
         Index = index;
         _loadEmitter = loadEmitter ?? VBulletEmitter.Load;
-        _movement = BossMovement.Read(definition.Movement);
+        _movement = definition.Movement;
     }
     /// <summary>进入阶段时的Boss总血量；未来阶段尚未受伤。</summary>
     /// <param name="boss">所属Boss。</param>

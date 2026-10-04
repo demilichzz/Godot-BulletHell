@@ -261,24 +261,10 @@ public partial class BossEditorPanel : VBoxContainer
             toggle.SetMeta("json_path", path); row.AddChild(toggle);
             toggle.Toggled += enabled => Guard(() => Change(_ => Set(path, JsonValue.Create(enabled)))); return;
         }
-        // 文本输入保留表达式与显式null。
-        var input = new LineEdit { Text = value?.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : value?.ToJsonString() ?? "null", SizeFlagsHorizontal = SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(110, 0), SelectAllOnFocus = true };
-        input.SetMeta("json_path", path); row.AddChild(input);
-        // 防止回车与随后失焦重复登记撤销记录。
-        string applied = input.Text;
-        /// <summary>回车或失焦时提交一次字段修改。</summary>
-        void Commit()
-        {
-            if (_refreshing || input.Text == applied) return;
-            // 固定当前输入，事务完成后再更新已应用基线。
-            string next = input.Text;
-            Guard(() =>
-            {
-                Change(root => { Set(path, EditorSchema.Scalar(next, type)); if (name == "Hp") BossEditorSchema.SumHealth(root); });
-                applied = next;
-            });
-        }
-        input.TextSubmitted += _ => Commit(); input.FocusExited += Commit;
+        // 输入提交共用基础控件；Boss血量汇总仍在同一文档事务中执行。
+        var input = EditorFieldControls.Text(value, type, path, Guard, () => _refreshing,
+            parsed => Change(root => { Set(path, parsed); if (name == "Hp") BossEditorSchema.SumHealth(root); }));
+        input.CustomMinimumSize = new Vector2(110, 0); row.AddChild(input);
     }
     /// <summary>应用枚举选择并提供新模式的必需字段。</summary>
     /// <param name="path">字段指针。</param>
@@ -403,7 +389,7 @@ public partial class BossEditorPanel : VBoxContainer
             if (SelectedPhase >= 0)
             {
                 // 所选阶段的独立移动配置。
-                var movement = BossMovement.Read(data.Phases[SelectedPhase].Movement);
+                var movement = data.Phases[SelectedPhase].Movement;
                 if (movement.Target is not null) Canvas.Markers.Add(new EditorCanvas.Marker("", 1, BossMovement.Point(movement.Target), "入场目标"));
                 if (movement.Type == "RandomRect")
                 {
