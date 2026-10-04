@@ -98,7 +98,7 @@ public partial class EditorVerification
             confirm.EmitSignal(ConfirmationDialog.SignalName.Canceled); confirm.Hide();
             Check(original.Draft == "{" && File.ReadAllText(source).Contains("\"Damage\": 9"),
                 "取消退出保留草稿且不写盘");
-            if (OS.GetCmdlineUserArgs().Contains("--capture")) await Capture("shared-editor-session");
+            if (_capture) await Capture("shared-editor-session");
         }
         finally { editor.Free(); }
         await Settle();

@@ -157,7 +157,7 @@ public partial class EditorVerification
         editor.SwitchMode(true); panel.Open(BossCatalog.DefaultPath); panel.SelectBoss(2, 0); await Settle();
         // 布局尺寸验证在无显示设备环境也执行。
         Check(panel.Canvas.Size.X >= 400 && panel.Canvas.Size.Y >= 360, "Boss画布具有可用尺寸");
-        if (OS.GetCmdlineUserArgs().Contains("--capture"))
+        if (_capture)
         {
             await Capture("boss-editor-phase");
             panel.SelectPhase(-1); await Settle(); await Capture("boss-editor-core");

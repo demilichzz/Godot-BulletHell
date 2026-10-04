@@ -107,7 +107,7 @@ public partial class EditorVerification
         // 切换目录只替换目录文档，文件草稿继续保留在当前会话。
         panel.Open(catalogPath); panel.SelectEmitter(0, 0, 0); await Settle();
         Check(ReferenceEquals(shared, panel.EmitterPanel!.Document) && shared.Dirty, "重开目录保留外部文件未保存编辑");
-        if (OS.GetCmdlineUserArgs().Contains("--capture")) await Capture("catalog-emitter-workspace");
+        if (_capture) await Capture("catalog-emitter-workspace");
         panel.SelectBoss(0); PressBoss(panel, "删除"); await Settle();
         Check(panel.Document.ValidateCatalog().Entries.Count == 0 && panel.SelectedBossIndex == -1, "删除最后Boss后保留可编辑空目录");
         PressBoss(panel, "+ 添加Boss"); await Settle(); panel.SelectPhase(0);

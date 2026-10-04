@@ -148,7 +148,7 @@ public partial class EditorVerification : Node
         menu.Select(Enumerable.Range(0, menu.ItemCount).First(index => menu.GetItemText(index) == "加速度（ASpeed）"));
         menu.GetParent().GetChildren().OfType<Button>().Single(button => button.Text == "+ 属性").EmitSignal(BaseButton.SignalName.Pressed); await Settle();
         Check(Descendants<Label>(editor).Any(label => label.Text == "加速度（ASpeed）" && label.IsVisibleInTree()), "搜索结果可添加缺省属性");
-        if (OS.GetCmdlineUserArgs().Contains("--capture")) await Capture("editor-search");
+        if (_capture) await Capture("editor-search");
         // 文本框中的撤销不应回退刚刚完成的文档操作。
         string edited = editor.Document.Text;
         search.GrabFocus();
@@ -181,7 +181,7 @@ public partial class EditorVerification : Node
         Check(editor.Canvas.SelectedBasis == 7 && search.Text == "" && target.ButtonPressed, "图标点击清除筛选并展开对应基础项");
         Check(scroll.ScrollVertical > 0 && scroll.GetGlobalRect().Encloses(target.GetGlobalRect()) &&
             target.GlobalPosition.Y - scroll.GlobalPosition.Y < 30, "属性面板自动滚动让目标标题位于顶部并展示其字段");
-        if (OS.GetCmdlineUserArgs().Contains("--capture")) await Capture("editor-basis-navigation");
+        if (_capture) await Capture("editor-basis-navigation");
         // 快捷键聚焦搜索，JSON草稿存在时禁用文档历史且保留草稿。
         target.GrabFocus();
         Input.ParseInputEvent(new InputEventKey { Keycode = Key.F, CtrlPressed = true, Pressed = true }); await Settle();
@@ -196,12 +196,31 @@ public partial class EditorVerification : Node
     {
         try
         {
-            if (OS.GetCmdlineUserArgs().Contains("--targeted-boss"))
+            // 先解析所有参数；错误或无渲染截图请求不运行测试，也不产生临时文档。
+            var selected = SelectVerificationGroup(OS.GetCmdlineUserArgs());
+            _capture = selected.Capture;
+            if (_capture && DisplayServer.GetName() == "headless")
+                throw new ArgumentException("--capture需要启用图形渲染，不能与--headless同时使用。");
+            if (selected.Group == "--list-groups")
+            {
+                GD.Print(string.Join("\n", GroupNames));
+                GetTree().Quit();
+                return;
+            }
+            if (selected.Group == "--targeted-test-selection")
+            {
+                VerifyGroupSelection();
+                GD.Print($"PASS: {_checks} editor selection assertions; group={selected.Group}");
+                GetTree().Quit();
+                return;
+            }
+            if (selected.Group == "--targeted-boss")
             {
                 VerifySaveSnapshots();
                 await VerifyBossEditor();
                 await VerifyCatalogWorkspace();
                 await VerifySharedModes();
+                GD.Print($"PASS: {_checks} targeted Boss editor assertions; group={selected.Group}");
                 GetTree().Quit();
                 return;
             }
@@ -315,7 +334,7 @@ public partial class EditorVerification : Node
             Check(editor.Preview.Emitter!.Bullets.Any(bullet => bullet is VLaser), "路径激光预览");
             editor.Preview.Stop(); editor.OpenEmitter(ProjectSettings.GlobalizePath("res://Data/Emitters/B01P03_Emitter01.json")); editor.Refresh();
             await Settle();
-            if (OS.GetCmdlineUserArgs().Contains("--capture"))
+            if (_capture)
             {
                 await Capture("editor-layout");
                 // 点击实际子Creator，截图验证多个基础项中的角度控件。
@@ -332,7 +351,7 @@ public partial class EditorVerification : Node
             }
             editor.Preview.Stop(); RemoveChild(editor); editor.QueueFree(); await Settle();
             Reject(() => GlobalEvent.GetBoss(), "退出后无残留全局战斗绑定");
-            GD.Print($"PASS: {_checks} targeted editor assertions");
+            GD.Print($"PASS: {_checks} targeted editor assertions; group={selected.Group}");
             GetTree().Quit();
         }
         catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }

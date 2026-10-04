@@ -74,11 +74,11 @@ public partial class EditorVerification
         var basis = Descendants<Button>(editor).Single(button => button.Text == "基础项 [0] · 已选中");
         Check(basis.GetParent().GetChildren().OfType<Button>().Select(button => button.Text).SequenceEqual(new[] { "基础项 [0] · 已选中", "复制", "↑", "↓", "×" }), "队列标题和操作按钮严格同一行排列");
         Check(Descendants<Button>(editor).Any(button => button.Text.StartsWith("基础属性(队列)")), "数组属性显示队列后缀");
-        if (OS.GetCmdlineUserArgs().Contains("--capture")) await Capture("editor-tree-drag");
+        if (_capture) await Capture("editor-tree-drag");
         follow.ButtonPressed = true;
         VerifyPositionData();
         VerifyStaticPaths(editor);
-        await Settle(); if (OS.GetCmdlineUserArgs().Contains("--capture")) await Capture("editor-paths");
+        await Settle(); if (_capture) await Capture("editor-paths");
         editor.NewEmitter(); editor.Refresh(); await Settle();
     }
 

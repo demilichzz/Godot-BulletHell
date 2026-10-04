@@ -354,7 +354,11 @@ public partial class StageVerification : Node
         single.Portrait = GD.Load<Texture2D>("res://Assets/Units/Boss_05.png");
         Check(single.GetSelectionTexture() == single.Portrait, "独立肖像优先");
         // 无效行列、不可整除尺寸以及非法帧率必须被拒绝。
-        var invalid = (BossData)data.Duplicate();
+        // 测试副本同样从完整JSON加载，包含有序阶段；不依赖Godot资源复制遗漏未导出字段的行为。
+        var source = JsonNode.Parse(JsonData.ReadFile(BossCatalog.DefaultPath))!["Bosses"]!.AsArray()
+            .Single(boss => boss!["Core"]!["Id"]!.GetValue<string>() == data.Id)!;
+        var invalid = BossData.FromJson(source.ToJsonString(), "动画验证副本");
+        Check(invalid.PhaseCount == data.PhaseCount && !ReferenceEquals(invalid.Phases, data.Phases), "JSON测试副本包含独立完整阶段");
         invalid.Hframes = 3;
         CheckInvalidAnimation(invalid);
         invalid.Hframes = 0;
