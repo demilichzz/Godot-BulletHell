@@ -15,16 +15,14 @@ internal static class VMoveJson
         if (element.ValueKind != JsonValueKind.Array) throw new JsonException("位移队列必须为数组且不可为null。");
         // 每个动作缺省数值为0，显式null仍视为无效配置。
         var actions = Read<VNodeMoveActionAttribute[]>(element);
-        foreach (var action in actions)
+        // 白名单来自共用模式表；数值仍按原协议检查有限性及随机总宽度。
+        for (int index = 0; index < actions.Length; index++)
         {
+            var action = actions[index];
             if (action is null) throw new JsonException("位移动作不可为null。");
-            if (action.Type == "PMove" && action.X is null && action.Y is null)
-            { ValidateNumber(action.Angle ?? 0, random); ValidateNumber(action.Dist ?? 0, random); }
-            else if (action.Type == "XYMove" && action.Angle is null && action.Dist is null)
-            { ValidateNumber(action.X ?? 0, random); ValidateNumber(action.Y ?? 0, random); }
-            else if (action.Type == "TarMove" && action.Angle is null)
-            { ValidateNumber(action.X ?? 0, random); ValidateNumber(action.Y ?? 0, random); ValidateNumber(action.Dist ?? 0, random); }
-            else throw new JsonException("位移Type与字段不匹配。");
+            CheckFields(element[index], ProtocolModes.Displacement.Fields(action.Type) ?? throw new JsonException("位移Type与字段不匹配。"));
+            ValidateNumber(action.X ?? 0, random); ValidateNumber(action.Y ?? 0, random);
+            ValidateNumber(action.Angle ?? 0, random); ValidateNumber(action.Dist ?? 0, random);
         }
         foreach (var action in element.EnumerateArray())
             foreach (var field in action.EnumerateObject())

@@ -205,12 +205,15 @@ public partial class EditorVerification : Node
                 GetTree().Quit();
                 return;
             }
+            VerifyProtocolFields();
+            VerifySharedFieldControls();
             VerifyDocumentTransactions();
             VerifyDocuments();
             // 实际实例化的编辑器场景。
             var editor = GD.Load<PackedScene>("res://EmitterEditor/EmitterEditor.tscn").Instantiate<EmitterEditor>();
             editor.StartInCatalog = false; AddChild(editor);
             await Settle();
+            await VerifyPathFieldControls(editor);
             Check(editor.Canvas.Markers.Count == 1, "默认根基础项图标");
             // 显式校验按钮必须检查当前文档，不能沿用上次布局或预览的成功状态。
             editor.Document.Edit(root => root["Unknown"] = true); Press(editor, "校验");

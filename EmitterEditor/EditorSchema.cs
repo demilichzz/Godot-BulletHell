@@ -126,12 +126,14 @@ public static class EditorSchema
             "TextureName" => new[] { "Scale", "Dot", "Drop", "Star" },
             "Mode" => new[] { "Fixed", "Path" },
             "EndCap" => new[] { "Round", "Point" },
-            "PathMode" => new[] { "XY", "Bezier", "Function" },
-            "AxisMode" => new[] { "Absolute", "Relative" },
+            "PathMode" => ProtocolModes.Path.Values.ToArray(),
+            "AxisMode" => ProtocolModes.PathAxes.ToArray(),
+            "EndCondition" => ProtocolModes.EndConditions.ToArray(),
             "Edges" => new[] { "Left", "Right", "Top", "Bottom" },
             "Type" when path.Contains("/ReflectionRegion/") || path.Contains("/OutsideRegion/") => new[] { "Circle", "Rectangle" },
-            "Type" when path.Contains("MoveQueue/") => new[] { "XYMove", "PMove", "TarMove" },
-            "Type" when path.Contains("/PathQueue/") => new[] { "AimPlayer" },
+            "Type" when path.EndsWith("/Movement/Type", StringComparison.Ordinal) => ProtocolModes.BossMovement.Values.ToArray(),
+            "Type" when path.Contains("MoveQueue/") => ProtocolModes.Displacement.Values.ToArray(),
+            "Type" when path.Contains("/PathQueue/") => ProtocolModes.PathAim.Values.ToArray(),
             "Type" => new[] { "VNode", "VBullet", "VPath", "VLaser" },
             _ => Array.Empty<string>()
         };
@@ -160,7 +162,7 @@ public static class EditorSchema
     public sealed record Field(string Name, Type ValueType, JsonNode? Default, string Tip);
     // 仅在编辑器主线程访问；缓存不持有文档节点或运行状态。
     private static readonly Dictionary<Type, Field[]> FieldCache = new();
-    /// <summary>根据当前对象类型取得可编辑字段。</summary>
+    /// <summary>根据当前对象类型与模式取得可添加字段；已有非法字段由面板保留供修复。</summary>
     /// <param name="type">属性组类型。</param>
     /// <param name="value">当前JSON对象。</param>
     /// <param name="creatorType">所属Creator的实际类型。</param>
@@ -188,7 +190,7 @@ public static class EditorSchema
                 new("Children", typeof(JsonObject[]), new JsonArray(), "按声明顺序运行的子生成器。")
             };
             if (creatorType is "VBullet" or "VLaser") fields.Add(new("Display", typeof(VBulletDisplayAttribute), new JsonObject(), "仅显示参数，不改变运动。"));
-            if (creatorType is "VPath" or "VLaser") fields.Add(new("PathQueue", typeof(VPathSegmentAttribute[]), JsonNode.Parse("[{\"PathMode\":\"XY\",\"EndMoveQueue\":[{\"Type\":\"XYMove\",\"X\":200,\"Y\":0}]}]"), "依次相连的路径段。"));
+            if (creatorType is "VPath" or "VLaser") fields.Add(new("PathQueue", typeof(VPathSegmentAttribute[]), new JsonArray(PathSegment()), "依次相连的路径段。"));
             if (creatorType == "VLaser") fields.Add(new("Laser", typeof(VLaserAttribute), new JsonObject(), "激光长度、阶段时间与颜色。"));
             return fields;
         }
@@ -226,6 +228,14 @@ public static class EditorSchema
                 result.Add(new("Y", typeof(double), JsonValue.Create(0), "相对玩家世界纵坐标的偏移，逻辑像素。"));
             }
         }
+        // 模式只限制可添加字段；已有不合法字段仍按原文显示，供用户修复。
+        IReadOnlyList<string>? allowed = null;
+        if (type == typeof(VPathSegmentAttribute))
+            allowed = value.ContainsKey("Type") ? ProtocolModes.PathAim.Fields("AimPlayer")
+                : ProtocolModes.Path.Fields(value["PathMode"]?.ToString() ?? "XY") ?? new[] { "PathMode" };
+        if (type == typeof(VNodeMoveActionAttribute))
+            allowed = ProtocolModes.Displacement.Fields(value["Type"]?.ToString() ?? "XYMove") ?? new[] { "Type" };
+        if (allowed is not null) result.RemoveAll(field => !allowed.Contains(field.Name));
         return result;
     }
     /// <summary>使基础类型字段先于派生类型字段，保持源码声明顺序。</summary>
@@ -273,7 +283,7 @@ public static class EditorSchema
         if (type == "VPath")
         {
             node["Core"]!["Amount"] = 8;
-            node["PathQueue"] = JsonNode.Parse("[{\"PathMode\":\"XY\",\"EndMoveQueue\":[{\"Type\":\"XYMove\",\"X\":200,\"Y\":0}]}]");
+            node["PathQueue"] = new JsonArray(PathSegment());
         }
         return node;
     }
@@ -292,11 +302,36 @@ public static class EditorSchema
             _ => "{\"Type\":\"XYMove\",\"X\":0,\"Y\":0}"
         })!;
         if (type == typeof(TimelineAttribute)) return JsonNode.Parse(context == "MemberTimeline" ? "{\"StartMs\":0,\"Set\":{\"Speed\":180}}" : "{\"StartMs\":0}")!;
-        if (type == typeof(VPathSegmentAttribute)) return JsonNode.Parse("{\"PathMode\":\"XY\",\"EndMoveQueue\":[{\"Type\":\"XYMove\",\"X\":200,\"Y\":0}]}")!;
+        if (type == typeof(VPathSegmentAttribute)) return PathSegment();
         if (type == typeof(VPathPointAttribute)) return JsonNode.Parse("{\"X\":0,\"Y\":0}")!;
         if (type == typeof(string)) return JsonValue.Create("Left")!;
         if (type.IsPrimitive) return JsonValue.Create(0)!;
         return new JsonObject();
+    }
+    /// <summary>两种工作区共用的独立路径段模板，只有显式添加或切换时写入文档。</summary>
+    /// <param name="aim">为真生成玩家瞄准简写，否则生成200像素向右直线。</param>
+    /// <returns>独立JSON对象，不共享默认值节点。</returns>
+    public static JsonObject PathSegment(bool aim = false) => JsonNode.Parse(aim
+        ? """{"Type":"AimPlayer","X":0,"Y":0}"""
+        : """{"PathMode":"XY","EndMoveQueue":[{"Type":"XYMove","X":200,"Y":0}]}""")!.AsObject();
+
+    /// <summary>显式切换普通路径模式，保留端点、未知字段及可继续使用的原文表达式。</summary>
+    /// <param name="value">当前文档事务内的路径段。</param>
+    /// <param name="mode">XY、Bezier或Function。</param>
+    public static void ChangePathMode(JsonObject value, string mode)
+    {
+        // 只清理其他模式专属字段，未知输入不会被顺手删除。
+        var allowed = ProtocolModes.Path.Fields(mode) ?? throw new ArgumentException("未知路径模式。", nameof(mode));
+        foreach (string key in ProtocolModes.Path.Values.SelectMany(name => ProtocolModes.Path.Fields(name)!).Distinct())
+            if (!allowed.Contains(key)) value.Remove(key);
+        value["PathMode"] = mode;
+        if (mode == "Bezier" && !value.ContainsKey("ControlPoints")) value["ControlPoints"] = JsonNode.Parse("""[{"X":100,"Y":80}]""");
+        if (mode == "Function")
+        {
+            if (!value.ContainsKey("AxisMode")) value["AxisMode"] = "Relative";
+            if (!value.ContainsKey("X")) value["X"] = "L*t";
+            if (!value.ContainsKey("Y")) value["Y"] = "80*sin(PI*t)";
+        }
     }
     /// <summary>把表单文本转换成JSON，数字表达式保留字符串。</summary>
     /// <param name="text">用户文本；null表示显式空值。</param>

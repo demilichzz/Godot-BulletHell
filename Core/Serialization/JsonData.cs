@@ -68,7 +68,7 @@ public static class JsonData
     /// <summary>校验对象的所有字段在允许集合内。</summary>
     /// <param name="element">JSON对象。</param>
     /// <param name="allowed">合法字段名。</param>
-    internal static void CheckFields(JsonElement element, string[] allowed)
+    internal static void CheckFields(JsonElement element, IReadOnlyCollection<string> allowed)
     {
         if (element.ValueKind != JsonValueKind.Object) throw new JsonException("需要JSON对象。");
         foreach (var property in element.EnumerateObject())

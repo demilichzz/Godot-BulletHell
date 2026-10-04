@@ -1,5 +1,7 @@
 using Godot;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -37,5 +39,61 @@ public static class EditorFieldControls
         }
         input.TextSubmitted += _ => Commit(); input.FocusExited += Commit;
         return input;
+    }
+    /// <summary>建立保留未知原值的协议菜单；重复选择、重建事件及占位项不写入文档。</summary>
+    /// <param name="value">原始JSON标量，允许显式null或暂时无效值。</param>
+    /// <param name="choices">按声明顺序排列的合法原值。</param>
+    /// <param name="path">用于定位控件的JSON指针。</param>
+    /// <param name="guard">面板的异常展示入口。</param>
+    /// <param name="refreshing">界面重建期间为真。</param>
+    /// <param name="apply">在所属事务中应用选中的协议原值。</param>
+    /// <param name="tip">说明与单位，默认空。</param>
+    /// <param name="label">可选显示文字转换，不改变实际协议值。</param>
+    /// <returns>已绑定的一次性选择控件。</returns>
+    public static OptionButton Choice(JsonNode? value, IReadOnlyList<string> choices, string path, Action<Action> guard,
+        Func<bool> refreshing, Action<string> apply, string tip = "", Func<string, string>? label = null)
+    {
+        // 冻结选项，后续回调不受外部列表变化影响。
+        string[] options = choices.ToArray();
+        string applied = value?.ToString() ?? "null";
+        var menu = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, FitToLongestItem = false, ClipText = true, TooltipText = tip };
+        menu.SetMeta("json_path", path);
+        foreach (string choice in options) menu.AddItem(label?.Invoke(choice) ?? choice);
+        int appliedIndex = Array.IndexOf(options, applied);
+        if (appliedIndex < 0) { menu.AddItem(applied + "（当前值）"); appliedIndex = menu.ItemCount - 1; }
+        menu.Select(appliedIndex);
+        menu.ItemSelected += index =>
+        {
+            if (refreshing() || index < 0 || index >= options.Length || options[index] == applied) return;
+            // 事务失败时恢复上次实际值的显示，不伪装成已经接受选择。
+            bool success = false;
+            guard(() => { apply(options[index]); applied = options[index]; appliedIndex = (int)index; success = true; });
+            if (!success && GodotObject.IsInstanceValid(menu)) menu.Select(appliedIndex);
+        };
+        return menu;
+    }
+
+    /// <summary>建立布尔开关，保留面板事务并抑制重复或重建期间的信号。</summary>
+    /// <param name="value">已确认的JSON布尔值。</param>
+    /// <param name="path">用于定位控件的JSON指针。</param>
+    /// <param name="guard">面板的异常展示入口。</param>
+    /// <param name="refreshing">界面重建期间为真。</param>
+    /// <param name="apply">在所属事务中应用新值。</param>
+    /// <param name="tip">说明与单位，默认空。</param>
+    /// <returns>已绑定的布尔开关。</returns>
+    public static CheckButton Toggle(bool value, string path, Action<Action> guard, Func<bool> refreshing, Action<bool> apply, string tip = "")
+    {
+        // 仅成功提交更新基线，错误回调不会改变文档或控件显示。
+        bool applied = value;
+        var toggle = new CheckButton { ButtonPressed = value, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = tip };
+        toggle.SetMeta("json_path", path);
+        toggle.Toggled += enabled =>
+        {
+            if (refreshing() || enabled == applied) return;
+            bool success = false;
+            guard(() => { apply(enabled); applied = enabled; success = true; });
+            if (!success && GodotObject.IsInstanceValid(toggle)) toggle.SetPressedNoSignal(applied);
+        };
+        return toggle;
     }
 }

@@ -145,9 +145,8 @@ public partial class BossEditorPanel : VBoxContainer
     private void ObjectFields(VBoxContainer parent, JsonObject value, Type type, string path, string context)
     {
         if (type == typeof(VPathSegmentAttribute))
-            Button(parent, value.ContainsKey("Type") ? "切为普通路径" : "切为瞄准玩家直线", () => Change(_ =>
-                Set(path, value.ContainsKey("Type") ? EditorSchema.Item(typeof(VPathSegmentAttribute), "PathQueue", "")
-                    : JsonNode.Parse("""{"Type":"AimPlayer","X":0,"Y":0}"""))));
+            Button(parent, value.ContainsKey("Type") ? "切为普通路径" : "切为瞄准玩家直线",
+                () => Change(_ => Set(path, EditorSchema.PathSegment(!value.ContainsKey("Type")))));
         // 运行属性类型提供当前模式的可编辑字段。
         var fields = BossEditorSchema.Fields(type, value, context);
         // 按声明顺序保留字段，包括待修复的未知输入。
@@ -213,31 +212,18 @@ public partial class BossEditorPanel : VBoxContainer
         var row = new HBoxContainer(); parent.AddChild(row);
         row.AddChild(new Label { Text = BossEditorSchema.Label(name), CustomMinimumSize = new Vector2(172, 0), CustomMaximumSize = new Vector2(192, -1), AutowrapMode = TextServer.AutowrapMode.WordSmart });
         // 固定协议字符串用下拉选择，存储值保持英文键。
-        string[]? choices = name switch
+        var choices = EditorSchema.Choices(name, Nullable.GetUnderlyingType(type) ?? type, path, "");
+        if (choices.Length > 0)
         {
-            "EndCondition" => new[] { "Health", "Time", "HealthOrTime" },
-            "Type" when path.EndsWith("/Movement/Type", StringComparison.Ordinal) => new[] { "Center", "RandomCircle", "RandomRect", "Sequence", "Path" },
-            "Type" when System.Text.RegularExpressions.Regex.IsMatch(path, @"/PathQueue/\d+/Type$") => new[] { "AimPlayer" },
-            "PathMode" => new[] { "XY", "Bezier", "Function" },
-            "AxisMode" => new[] { "Absolute", "Relative" },
-            "Type" => new[] { "XYMove", "PMove", "TarMove" },
-            _ => null
-        };
-        if (choices is not null)
-        {
-            // 可选字段菜单保持中文名与真实JSON键的对应。
-        var menu = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill }; menu.SetMeta("json_path", path);
-            // 仅翻译显示文本，不改变保存的枚举字符串。
-            foreach (string choice in choices) menu.AddItem(choice switch { "Health" => "仅血量", "Time" => "仅时间", "HealthOrTime" => "血量或时间", "Center" => "移动到中心并停止", "RandomCircle" => "圆形范围随机", "RandomRect" => "矩形范围随机", "Sequence" => "固定目标循环", "Path" => "VPath路径", _ => choice });
-            menu.Select(Array.IndexOf(choices, value?.ToString() ?? "")); row.AddChild(menu);
-            menu.ItemSelected += index => Guard(() => Change(root => Choose(path, choices[(int)index], root))); return;
+            var menu = EditorFieldControls.Choice(value, choices, path, Guard, () => _refreshing,
+                choice => Change(root => Choose(path, choice, root)), label: BossEditorSchema.ChoiceLabel);
+            row.AddChild(menu); return;
         }
-        if (type == typeof(bool))
+        if (type == typeof(bool) && value?.GetValueKind() is System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False)
         {
-            // 布尔开关直接写入JSON布尔值。
-            var toggle = new CheckButton { ButtonPressed = value?.ToString().Equals("true", StringComparison.OrdinalIgnoreCase) == true };
-            toggle.SetMeta("json_path", path); row.AddChild(toggle);
-            toggle.Toggled += enabled => Guard(() => Change(_ => Set(path, JsonValue.Create(enabled)))); return;
+            var toggle = EditorFieldControls.Toggle(value.GetValue<bool>(), path, Guard, () => _refreshing,
+                enabled => Change(_ => Set(path, JsonValue.Create(enabled))));
+            row.AddChild(toggle); return;
         }
         // 输入提交共用基础控件；Boss血量汇总仍在同一文档事务中执行。
         var input = EditorFieldControls.Text(value, type, path, Guard, () => _refreshing,
@@ -258,10 +244,7 @@ public partial class BossEditorPanel : VBoxContainer
         var parent = At(parentPath)!.AsObject();
         if (path.EndsWith("/EndCondition") && choice != "Health" && parent["DurationMs"] is null) parent["DurationMs"] = 60000;
         if (!path.EndsWith("/PathMode")) return;
-        // 删除旧曲线模式专有字段，端点与位移队列保留。
-        foreach (string key in new[] { "ControlPoints", "AxisMode", "X", "Y", "TMin", "TMax", "Samples" }) parent.Remove(key);
-        if (choice == "Bezier") parent["ControlPoints"] = JsonNode.Parse("""[{"X":100,"Y":80}]""");
-        if (choice == "Function") { parent["AxisMode"] = "Relative"; parent["X"] = "L*t"; parent["Y"] = "80*sin(PI*t)"; }
+        EditorSchema.ChangePathMode(parent, choice);
     }
     /// <summary>将独立JSON值写入指针位置。</summary>
     /// <param name="path">非空JSON指针。</param>

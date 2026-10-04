@@ -26,6 +26,15 @@ public static class BossEditorSchema
     public static string Label(string key) => key == "Emitters项" ? "文件路径"
         : key.EndsWith("项", StringComparison.Ordinal) ? Label(key[..^1]) + "项"
         : Names.TryGetValue(key, out string? name) ? $"{name}（{key}）" : EditorSchema.DisplayName(key);
+    /// <summary>翻译Boss专有选项，存储值始终使用原协议字符串。</summary>
+    /// <param name="value">合法协议值。</param>
+    /// <returns>中文显示文字；共用路径选项保留原名。</returns>
+    public static string ChoiceLabel(string value) => value switch
+    {
+        "Health" => "仅血量", "Time" => "仅时间", "HealthOrTime" => "血量或时间",
+        "Center" => "移动到中心并停止", "RandomCircle" => "圆形范围随机", "RandomRect" => "矩形范围随机",
+        "Sequence" => "固定目标循环", "Path" => "VPath路径", _ => value
+    };
     /// <summary>创建独立阶段模板，默认60秒内血量或时间任一满足结束。</summary>
     /// <returns>可运行的新阶段。</returns>
     public static JsonObject Phase() => JsonNode.Parse("""
@@ -35,14 +44,20 @@ public static class BossEditorSchema
     /// <summary>创建模式对应的完整移动模板。</summary>
     /// <param name="type">已支持的移动类型。</param>
     /// <returns>只包含本模式字段的JSON对象。</returns>
-    public static JsonObject Movement(string type) => JsonNode.Parse(type switch
+    public static JsonObject Movement(string type)
     {
-        "RandomCircle" => """{"Type":"RandomCircle","Speed":100,"Center":{"X":640,"Y":250},"MinRadius":200,"MaxRadius":200,"StartMs":5000,"IntervalMs":5000}""",
-        "RandomRect" => """{"Type":"RandomRect","Speed":100,"Min":{"X":440,"Y":160},"Max":{"X":840,"Y":350},"StartMs":3000,"IntervalMs":3000}""",
-        "Sequence" => """{"Type":"Sequence","Speed":200,"Target":{"X":640,"Y":240},"StartMs":3000,"IntervalMs":3000,"Targets":[{"X":500,"Y":230},{"X":780,"Y":230}]}""",
-        "Path" => """{"Type":"Path","Speed":100,"PointCount":1025,"Loop":false,"PathQueue":[{"PathMode":"XY","EndMoveQueue":[{"Type":"XYMove","X":200,"Y":0}]}]}""",
-        _ => """{"Type":"Center","Speed":200,"Target":{"X":640,"Y":240}}"""
-    })!.AsObject();
+        // 模板只提供显式切换后的初值，合法字段由共用协议表限定。
+        var result = JsonNode.Parse(type switch
+        {
+            "RandomCircle" => """{"Type":"RandomCircle","Speed":100,"Center":{"X":640,"Y":250},"MinRadius":200,"MaxRadius":200,"StartMs":5000,"IntervalMs":5000}""",
+            "RandomRect" => """{"Type":"RandomRect","Speed":100,"Min":{"X":440,"Y":160},"Max":{"X":840,"Y":350},"StartMs":3000,"IntervalMs":3000}""",
+            "Sequence" => """{"Type":"Sequence","Speed":200,"Target":{"X":640,"Y":240},"StartMs":3000,"IntervalMs":3000,"Targets":[{"X":500,"Y":230},{"X":780,"Y":230}]}""",
+            "Path" => """{"Type":"Path","Speed":100,"PointCount":1025,"Loop":false}""",
+            _ => """{"Type":"Center","Speed":200,"Target":{"X":640,"Y":240}}"""
+        })!.AsObject();
+        if (type == "Path") result["PathQueue"] = new JsonArray(EditorSchema.PathSegment());
+        return result;
+    }
     /// <summary>按运行类型和模式筛选可编辑字段。</summary>
     /// <param name="type">Boss或复用的VPath属性类型。</param>
     /// <param name="value">当前属性对象。</param>
@@ -56,26 +71,14 @@ public static class BossEditorSchema
         {
             var field = fields[index];
             if (field.Name == "Movement") fields[index] = field with { ValueType = typeof(BossMovement), Default = Movement("Center") };
-            if (field.Name == "PathQueue") fields[index] = field with { ValueType = typeof(VPathSegmentAttribute[]), Default = Movement("Path")["PathQueue"]!.DeepClone() };
+            if (field.Name == "PathQueue") fields[index] = field with { ValueType = typeof(VPathSegmentAttribute[]), Default = new JsonArray(EditorSchema.PathSegment()) };
             if (field.ValueType == typeof(VPathPointAttribute)) fields[index] = field with { Default = JsonNode.Parse("""{"X":640,"Y":240}""") };
         }
         if (type == typeof(BossMovement))
         {
-            // 随机和序列允许省略入场目标；路径不显示无关参数。
-            var allowed = Movement(value["Type"]?.ToString() ?? "Center").Select(pair => pair.Key).ToHashSet();
-            if (value["Type"]?.ToString() is "RandomCircle" or "RandomRect") allowed.Add("Target");
+            // 加载器和编辑菜单使用同一字段集合，已有无效字段仍由面板展示。
+            var allowed = ProtocolModes.BossMovement.Fields(value["Type"]?.ToString() ?? "Center") ?? new[] { "Type", "Speed" };
             fields.RemoveAll(field => !allowed.Contains(field.Name));
-        }
-        if (type == typeof(VPathSegmentAttribute))
-        {
-            if (value["Type"]?.ToString() == "AimPlayer")
-                return fields.Where(field => field.Name is "Type" or "X" or "Y").ToList();
-            // 模式切换自动提供对应曲线参数，保留端点位移队列。
-            string mode = value["PathMode"]?.ToString() ?? "XY";
-            fields.RemoveAll(field => field.Name == "Type" || field.Name == "AimPlayerOffset"
-                || (mode != "Bezier" && field.Name == "ControlPoints")
-                || (mode != "Function" && field.Name is "AxisMode" or "X" or "Y" or "TMin" or "TMax")
-                || (mode == "XY" && field.Name == "Samples"));
         }
         return fields;
     }

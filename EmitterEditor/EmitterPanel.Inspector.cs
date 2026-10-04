@@ -59,6 +59,10 @@ public partial class EmitterPanel
     /// <param name="depth">显示层级。</param>
     private void ObjectFields(VBoxContainer parent, JsonObject value, Type type, string path, string creatorType, string context, int depth)
     {
+        // 路径种类切换使用共用模板，并保留一次文档事务和后代位置补偿。
+        if (type == typeof(VPathSegmentAttribute) && _propertySearch.Text.Trim().Length == 0)
+            AddButton(parent, value.ContainsKey("Type") ? "切为普通路径" : "切为瞄准玩家直线",
+                () => Mutate(() => SetAt(path, EditorSchema.PathSegment(!value.ContainsKey("Type"))), true, true));
         // 目录提供全部可选属性，原始JSON中的额外属性仍可删除修复。
         var fields = EditorSchema.Fields(type, value, creatorType, context);
         // 当前JSON键值对，按原声明顺序显示。
@@ -156,19 +160,20 @@ public partial class EmitterPanel
         }
         if (choices.Length > 0)
         {
-            var menu = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill, FitToLongestItem = false, ClipText = true, TooltipText = tip };
-            string current = value?.ToString() ?? "null";
-            foreach (string choice in choices) menu.AddItem(choice);
-            int selectedIndex = Array.IndexOf(choices, current);
-            if (selectedIndex < 0) { menu.AddItem(current + "（当前值）"); selectedIndex = menu.ItemCount - 1; }
-            menu.Select(selectedIndex); row.AddChild(menu);
-            menu.ItemSelected += index => { if (index < choices.Length) Guard(() => Mutate(() => SetAt(path, EditorSchema.Scalar(choices[index], type)), true, EditorPositionTools.IsSpatial(path))); };
+            var menu = EditorFieldControls.Choice(value, choices, path, Guard, () => _refreshing,
+                choice => Mutate(() =>
+                {
+                    // 普通路径模式沿用端点和表达式，只调整模式专属字段。
+                    if (name == "PathMode") EditorSchema.ChangePathMode(Document.At(path[..path.LastIndexOf('/')])!.AsObject(), choice);
+                    else SetAt(path, EditorSchema.Scalar(choice, type));
+                }, true, EditorPositionTools.IsSpatial(path)), tip);
+            row.AddChild(menu);
         }
-        else if (scalar == typeof(bool) && value is not null)
+        else if (scalar == typeof(bool) && value?.GetValueKind() is JsonValueKind.True or JsonValueKind.False)
         {
-            // 布尔字段的实际开关控件。
-            var check = new CheckButton { ButtonPressed = value.ToString().Equals("true", StringComparison.OrdinalIgnoreCase), TooltipText = tip, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-            row.AddChild(check); check.Toggled += enabled => Guard(() => Mutate(() => SetAt(path, JsonValue.Create(enabled)), false));
+            var toggle = EditorFieldControls.Toggle(value.GetValue<bool>(), path, Guard, () => _refreshing,
+                enabled => Mutate(() => SetAt(path, JsonValue.Create(enabled)), false), tip);
+            row.AddChild(toggle);
         }
         else
         {

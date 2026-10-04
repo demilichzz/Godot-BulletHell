@@ -40,7 +40,7 @@ public sealed record BossPhaseDefinition
             Movement = BossMovement.Read(JsonData.Required(element, "Movement"))
         };
         if (string.IsNullOrWhiteSpace(value.Name) || value.Hp <= 0
-            || value.EndCondition is not ("Health" or "Time" or "HealthOrTime")
+            || !ProtocolModes.EndConditions.Contains(value.EndCondition)
             || value.DurationMs is <= 0 || (value.EndCondition != "Health" && value.DurationMs is null)
             || value.Emitters is null)
             throw new JsonException("阶段名称、血量、时限或切换条件无效。");
@@ -99,16 +99,7 @@ public sealed record BossMovement
     {
         // 先检查类型，再限定该模式可以使用的字段。
         string type = JsonData.Required(element, "Type").GetString() ?? "";
-        string[] extra = type switch
-        {
-            "Center" => new[] { "Target" },
-            "RandomCircle" => new[] { "Target", "Center", "MinRadius", "MaxRadius", "StartMs", "IntervalMs" },
-            "RandomRect" => new[] { "Target", "Min", "Max", "StartMs", "IntervalMs" },
-            "Sequence" => new[] { "Target", "Targets", "StartMs", "IntervalMs" },
-            "Path" => new[] { "PathQueue", "PointCount", "Loop" },
-            _ => throw new JsonException("未知Boss移动类型。")
-        };
-        JsonData.CheckFields(element, new[] { "Type", "Speed" }.Concat(extra).ToArray());
+        JsonData.CheckFields(element, ProtocolModes.BossMovement.Fields(type) ?? throw new JsonException("未知Boss移动类型。"));
         // 配置位置必须同时声明X/Y，避免拼漏坐标静默落到原点。
         foreach (string key in new[] { "Target", "Center", "Min", "Max" })
             if (element.TryGetProperty(key, out var point)) ReadPoint(point);

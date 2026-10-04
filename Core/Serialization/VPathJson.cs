@@ -34,7 +34,7 @@ internal static class VPathJson
         // 瞄准简写独占Type/X/Y字段，避免与普通PathMode或端点队列产生两套含义。
         if (element.TryGetProperty("Type", out _))
         {
-            CheckFields(element, new[] { "Type", "X", "Y" });
+            CheckFields(element, ProtocolModes.PathAim.Fields("AimPlayer")!);
             if (Required(element, "Type").GetString() != "AimPlayer")
                 throw new JsonException("路径段Type只支持AimPlayer。");
             var offset = VMath.ValidatePathPoint((
@@ -47,13 +47,7 @@ internal static class VPathJson
         }
         // 普通模式共用起终点队列，AxisMode仅允许用于Function。
         string mode = Required(element, "PathMode").GetString() ?? "";
-        CheckFields(element, mode switch
-        {
-            "XY" => new[] { "PathMode", "StartMoveQueue", "EndMoveQueue" },
-            "Bezier" => new[] { "PathMode", "StartMoveQueue", "EndMoveQueue", "ControlPoints", "Samples" },
-            "Function" => new[] { "PathMode", "StartMoveQueue", "EndMoveQueue", "AxisMode", "X", "Y", "TMin", "TMax", "Samples" },
-            _ => throw new JsonException("PathMode只支持XY、Bezier或Function。")
-        });
+        CheckFields(element, ProtocolModes.Path.Fields(mode) ?? throw new JsonException("PathMode只支持XY、Bezier或Function。"));
         var segment = new VPathSegmentAttribute
         {
             PathMode = mode,
@@ -76,7 +70,7 @@ internal static class VPathJson
         string axis = element.TryGetProperty("AxisMode", out _) ? Required(element, "AxisMode").GetString() ?? "" : "Absolute";
         double minimum = element.TryGetProperty("TMin", out _) ? Read<double>(Required(element, "TMin")) : 0;
         double maximum = element.TryGetProperty("TMax", out _) ? Read<double>(Required(element, "TMax")) : 1;
-        if (axis is not ("Absolute" or "Relative")) throw new JsonException("AxisMode只支持Absolute或Relative。");
+        if (!ProtocolModes.PathAxes.Contains(axis)) throw new JsonException("AxisMode只支持Absolute或Relative。");
         if (minimum >= maximum) throw new JsonException("TMin必须小于TMax。");
         return segment with
         {
