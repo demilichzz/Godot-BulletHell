@@ -8,35 +8,91 @@
   },
   "VNodes": {
     "Core": {
-      "Amount": 24,
-      "Radius": 6,
-      "VisualScale": 3,
-      "AAngleIsSameAsAngle": true,
-      "AngleMode": "Fixed",
-      "Name": "Rings",
-      "Type": "VBullet",
-      "CreatePositionMode": "Snapshot",
-      "LifeTimeMs": 4000
-    },
-    "Display": {
-      "TextureName": "Scale",
-      "TextureIndex": 0
+      "Type": "VNode",
+      "Name": "PhaseRoot",
+      "CreatePositionMode": "Follow",
+      "Amount": 1
     },
     "BaseAttributes": [
       {
-        "Angle": 0,
-        "Speed": 180,
-        "AAngle": 0,
-        "ASpeed": 0
+        "Speed": 0
       }
     ],
-    "AddAttributes": {
-      "Angle": "TAU/24"
-    },
     "Timeline": [
       {
-        "StartMs": 1000,
-        "IntervalMs": 1000
+        "AtMs": [
+          0
+        ]
+      }
+    ],
+    "Children": [
+      {
+        "Core": {
+          "Amount": 24,
+          "Radius": 6,
+          "VisualScale": 3,
+          "AAngleIsSameAsAngle": true,
+          "AngleMode": "Fixed",
+          "Name": "FixedRings",
+          "Type": "VBullet",
+          "CreatePositionMode": "Snapshot",
+          "LifeTimeMs": 4000
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 0
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0,
+            "Speed": 180,
+            "AAngle": 0,
+            "ASpeed": 0
+          }
+        ],
+        "AddAttributes": {
+          "Angle": "TAU/24"
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 1000
+          }
+        ]
+      },
+      {
+        "Core": {
+          "Amount": 16,
+          "Radius": 6,
+          "VisualScale": 3,
+          "AAngleIsSameAsAngle": true,
+          "AngleMode": "AimPlayer",
+          "Name": "AimRings",
+          "Type": "VBullet",
+          "CreatePositionMode": "Snapshot",
+          "LifeTimeMs": 4000
+        },
+        "Display": {
+          "TextureName": "Scale",
+          "TextureIndex": 3
+        },
+        "BaseAttributes": [
+          {
+            "Angle": 0,
+            "Speed": 300,
+            "AAngle": 0,
+            "ASpeed": 0
+          }
+        ],
+        "AddAttributes": {
+          "Angle": "TAU/16"
+        },
+        "Timeline": [
+          {
+            "StartMs": 1000,
+            "IntervalMs": 1000
+          }
+        ]
       }
     ]
   }

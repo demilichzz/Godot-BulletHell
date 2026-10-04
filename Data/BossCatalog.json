@@ -23,8 +23,7 @@
           "DurationMs": null,
           "EndCondition": "Health",
           "Emitters": [
-            "res://Data/Emitters/B01P01_Emitter01.json",
-            "res://Data/Emitters/B01P01_Emitter02.json"
+            "res://Data/Emitters/B01P01_Emitter01.json"
           ],
           "Movement": {
             "Type": "RandomCircle",

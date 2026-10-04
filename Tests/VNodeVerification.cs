@@ -219,10 +219,10 @@ public partial class BattleVerification
         VerifyCreatorIdentityAndDispatch();
     }
 
-    /// <summary>对四个迁移发射器逐固定步重放并比较节点、子弹与后续随机值。</summary>
+    /// <summary>对三个B01发射器逐固定步重放并比较节点、子弹与后续随机值。</summary>
     private void VerifyVNodeReplay()
     {
-        foreach (string name in new[] { "B01P01_Emitter01", "B01P01_Emitter02", "B01P02_Emitter01", "B01P03_Emitter01" })
+        foreach (string name in new[] { "B01P01_Emitter01", "B01P02_Emitter01", "B01P03_Emitter01" })
         {
             // 每次使用全新Emitter与同一输入、种子，捕获结构和实际运动。
             string[] Capture()

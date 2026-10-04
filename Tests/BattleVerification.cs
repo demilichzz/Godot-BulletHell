@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Linq;
+using System.Text.Json.Nodes;
 
 /// <summary>独立运行的战斗回归验证节点，不进入正式游戏场景。</summary>
 public partial class BattleVerification : Node
@@ -355,7 +356,7 @@ public partial class BattleVerification : Node
         var bossPosition = boss.Position = new Vector2(321, 234);
         var initialPhase = boss.CurrentPhase!;
         var initialActions = battle.Timers.TimelineActionCount;
-		Check(initialPhase.Name == "环形弹幕 · 阶段01" && boss.Hp == 300 && initialActions == 4, "阶段切换初始状态");
+		Check(initialPhase.Name == "环形弹幕 · 阶段01" && boss.Hp == 300 && initialActions == 3, "阶段切换初始状态");
         // 旧阶段弹幕用于验证切换时仍由管理器保留。
         var oldBullet = battle.Bullets.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with
         {
@@ -553,13 +554,19 @@ public partial class BattleVerification : Node
         var surviving = first.Emitters[0];
         // 保存成功产生子弹的批次，阶段退出清理索引后仍能验证存活子弹。
         var batches = first.Emitters.ToList();
-        Check(first.Emitters.Count == 2 && first.Emitters[0].Core.Name == "B01P01_Emitter01"
-            && first.Emitters[1].Core.Name == "B01P01_Emitter02", "阶段01独立双发射器");
+        Check(first.Emitters.Count == 1 && surviving.Core.Name == "B01P01_Emitter01"
+            && surviving.Root.Children.Count == 2, "阶段01单Emitter包含两组有序弹幕");
+        Check(surviving.Root.Core.Type == "VNode" && surviving.Root.Core.CreatePositionMode == "Follow"
+            && surviving.Root.Core.LifeTimeMs is null && surviving.Nodes.Count == 1
+            && surviving.Nodes[0].Speed == 0, "零龄根只生成一个持久静止Follow节点");
+        Check(surviving.Bullets.Take(24).All(bullet => bullet.Speed == 180)
+            && surviving.Bullets.Skip(24).Count() == 16 && surviving.Bullets.Skip(24).All(bullet => bullet.Speed == 300),
+            "生成顺序保持24颗固定环后16颗瞄准环");
         boss.TakeDamage(99);
         Check(boss.Hp == 201 && ReferenceEquals(first, boss.CurrentPhase), "201血保持阶段01");
         boss.TakeDamage(1);
         Check(boss.Hp == 200 && boss.CurrentPhase is BossPhase { Index: 1 }, "200血立即进入阶段02");
-        Check(first.Emitters.Count == 0 && surviving.Bullets.Count == 24
+        Check(first.Emitters.Count == 0 && surviving.Bullets.Count == 40
             && surviving.Timeline is null, "旧阶段停止发射器但保留既有子弹");
         VerificationClock.BossSeconds(battle, 0.99);
         Check(boss.CurrentPhase!.Emitters.Count == 1 && battle.Bullets.ActiveCount == 40, "新阶段首次等待完整周期");
@@ -579,7 +586,7 @@ public partial class BattleVerification : Node
         batches.AddRange(third.Emitters);
         Check(third.Emitters.Count == 1 && third.Emitters[0].Core.Name == "B01P03_Emitter01"
             && third.Emitters[0].Bullets.Count == 1, "阶段03第一批首颗立即生成");
-        Check(batches.Count == 4, "记录三个阶段的四个有效数据发射器");
+        Check(batches.Count == 3, "记录三个阶段各一个有效数据发射器");
         boss.TakeDamage(99);
         Check(boss.Hp == 1 && ReferenceEquals(third, boss.CurrentPhase), "1血保持最后阶段");
         boss.TakeDamage(1);
@@ -588,7 +595,7 @@ public partial class BattleVerification : Node
             && battle.Timers.TimelineActionCount == 0, "0血胜利清理全部阶段");
         battle.Restart();
         Check(battle.Boss.Hp == 300 && battle.Boss.CurrentPhase is BossPhase { Index: 0 }
-            && battle.Timers.TimelineActionCount == 4, "重开恢复三阶段初始配置");
+            && battle.Timers.TimelineActionCount == 3, "重开恢复玩家周期、阶段移动和根零龄动作");
         // 超额伤害只消耗当前独立血池，只进入下一个阶段。
         var entered = new System.Collections.Generic.List<int>();
         battle.Boss.PhaseChanged += phase => entered.Add(((BossPhase)phase).Index);
@@ -668,6 +675,16 @@ public partial class BattleVerification : Node
     /// <summary>验证周期发射、双列表注销、外部控制和容量限制。</summary>
     private void VerifyBatches()
     {
+        /// <summary>提取合并文件中的单组弹幕，以隔离批次和容量验证。</summary>
+        /// <param name="index">子树序号，0固定环，1瞄准环。</param>
+        /// <returns>沿用正式参数的独立单组Emitter。</returns>
+        static VBulletEmitter Ring(int index)
+        {
+            // 只拆测试输入，不复制第二份生产数据文件。
+            var root = JsonNode.Parse(JsonData.ReadFile("res://Data/Emitters/B01P01_Emitter01.json"))!;
+            root["VNodes"] = root["VNodes"]!["Children"]![index]!.DeepClone();
+            return VBulletEmitter.FromJson(root.ToJsonString());
+        }
         // 隔离场景，所有批次远离双方，避免非目标碰撞。
         var battle = CreateBattle(out var world);
         var manager = battle.Bullets;
@@ -677,7 +694,7 @@ public partial class BattleVerification : Node
         // 停止初始阶段，以下计时验证只观察单独启动的发射器。
         battle.Boss.Stop();
         battle.Boss.GlobalPosition = origin;
-        var delayed = VBulletEmitter.Load("res://Data/Emitters/B01P01_Emitter02.json");
+        var delayed = Ring(1);
         delayed.Start(battle.Boss, manager);
         VerificationClock.EmitterSeconds(battle, 1, delayed);
         Check(delayed.Bullets.Count == 16 && delayed.Bullets.All(bullet => bullet.Speed == 300),
@@ -687,8 +704,8 @@ public partial class BattleVerification : Node
         Check(delayed.Bullets.All(bullet => bullet.Speed == 300), "发射器02两秒前保持初速");
         VerificationClock.BossSeconds(battle, 0.001);
         Check(delayed.Bullets.All(bullet => bullet.Speed == 300), "发射器02两秒后仍保持出生速度300");
-        var first = VBulletEmitter.Load("res://Data/Emitters/B01P01_Emitter01.json");
-        var second = VBulletEmitter.Load("res://Data/Emitters/B01P01_Emitter01.json");
+        var first = Ring(0);
+        var second = Ring(0);
         first.Start(battle.Boss, manager);
         second.Start(battle.Boss, manager);
         VerificationClock.EmitterSeconds(battle, 1, first, second);
@@ -737,13 +754,13 @@ public partial class BattleVerification : Node
         manager.Advance(0, battle.Player, battle.Boss);
         Check(manager.ActiveCount == 0, "直接生成的单颗弹幕命中后注销");
         for (int index = 0; index < BattleConfig.MaxBullets - 1; index++) manager.Spawn(VBulletDefaultSet.Get(VBulletType.ScaleSet) with { Position = origin });
-        var partial = VBulletEmitter.Load("res://Data/Emitters/B01P01_Emitter01.json");
+        var partial = Ring(0);
         partial.Start(battle.Boss, manager);
         VerificationClock.EmitterSeconds(battle, 1, partial);
         Check(partial.Bullets.Count == 1 && manager.ActiveCount == BattleConfig.MaxBullets
             && manager.GetChildCount() == BattleConfig.MaxBullets, "满额只登记成功对象");
         partial.Stop();
-        var blocked = VBulletEmitter.Load("res://Data/Emitters/B01P01_Emitter01.json");
+        var blocked = Ring(0);
         blocked.Start(battle.Boss, manager);
         VerificationClock.EmitterSeconds(battle, 1, blocked);
         Check(blocked.Bullets.Count == 0 && manager.GetChildCount() == BattleConfig.MaxBullets, "满额不产生孤立节点");
@@ -757,7 +774,7 @@ public partial class BattleVerification : Node
         var phase = battle.Boss.CurrentPhase!;
         var surviving = phase.Emitters[0];
         battle.Boss.Stop();
-        Check(phase.Emitters.Count == 0 && surviving.Bullets.Count == 24, "退出阶段保留已发弹幕");
+        Check(phase.Emitters.Count == 0 && surviving.Bullets.Count == 40, "退出阶段保留两组已发弹幕");
         battle.Timers.AdvanceByUnits(0, dispatchLocal: battle.Bullets.DispatchTimelines);
         battle.Bullets.Advance(0.1, battle.Player, battle.Boss);
         Check(surviving.Bullets[0].Age > 0, "退出后管理器继续推进");
@@ -768,7 +785,7 @@ public partial class BattleVerification : Node
         phase = battle.Boss.CurrentPhase!;
         battle.Bullets.Clear();
         battle.Boss.Advance(0);
-        Check(phase.Emitters.Count == 2 && phase.Emitters[0].Bullets.Count == 0,
+        Check(phase.Emitters.Count == 1 && phase.Emitters[0].Bullets.Count == 0,
             "清场不解除阶段绑定的发射器");
         VerificationClock.BossSeconds(battle, 1);
         surviving = phase.Emitters[0];
