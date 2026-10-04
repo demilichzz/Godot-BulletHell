@@ -1,0 +1,70 @@
+{
+  "Core": {
+    "Id": "Boss_AIGen_02",
+    "DisplayName": "Boss_AIGen_02",
+    "TexturePath": "res://Assets/Units/Boss_05.png",
+    "Hframes": 2,
+    "Vframes": 2,
+    "AnimationFps": 4,
+    "MaxHp": 300,
+    "CollisionRadius": 32,
+    "VisualScale": 3,
+    "SpawnPosition": {
+      "X": 640,
+      "Y": 250
+    }
+  },
+  "Phases": [
+    {
+      "Name": "琪露诺 · 雪符「Diamond Blizzard」",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_02_Phase01.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    },
+    {
+      "Name": "琪露诺 · 冰符「Icicle Fall」",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_02_Phase02.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    },
+    {
+      "Name": "琪露诺 · 冻符「Perfect Freeze」",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_02_Phase03.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    }
+  ]
+}

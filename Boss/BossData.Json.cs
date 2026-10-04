@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 
-/// <summary>读取目录内嵌Boss属性和有序阶段，不嵌入Emitter数据。</summary>
+/// <summary>读取独立Boss属性和有序阶段，不嵌入Emitter数据。</summary>
 public partial class BossData
 {
     /// <summary>正式运行使用的非空有序阶段队列。</summary>
@@ -13,6 +13,10 @@ public partial class BossData
     public int PhaseCount => Phases.Count;
     /// <summary>本份数据创建独立Emitter的入口；编辑预览可绑定冻结的内存文本。</summary>
     internal Func<string, VBulletEmitter> EmitterLoader { get; private set; } = VBulletEmitter.Load;
+    /// <summary>读取独立Boss文件，身份由Core.Id决定，不限制文件名。</summary>
+    /// <param name="path">Godot资源路径或文件路径。</param>
+    /// <returns>严格校验后的Boss与阶段配置。</returns>
+    public static BossData Load(string path) => FromJson(JsonData.ReadFile(path), path);
     /// <summary>解析完整Boss JSON，严格拒绝未知、重复及旧字段。</summary>
     /// <param name="json">含Core和非空Phases队列的JSON。</param>
     /// <param name="sourceName">用于错误定位的来源名称。</param>
@@ -20,7 +24,7 @@ public partial class BossData
     /// <param name="loadEmitter">可选预览资源入口；每次返回全新的运行树。</param>
     public static BossData FromJson(string json, string sourceName = "内存Boss", Func<string, VBulletEmitter>? loadEmitter = null)
         => JsonData.Parse(json, sourceName, element => Read(element, loadEmitter));
-    /// <summary>读取目录内的Boss对象，供目录和内存预览共用。</summary>
+    /// <summary>读取独立文件内的Boss对象，供目录和内存预览共用。</summary>
     /// <param name="element">包含Core与非空Phases的对象。</param>
     /// <returns>独立的Boss静态配置。</returns>
     /// <param name="loadEmitter">可选Emitter创建入口。</param>

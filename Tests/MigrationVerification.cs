@@ -17,8 +17,10 @@ public partial class BattleVerification
         catalog.Validate();
         var entries = new JsonArray();
         using var document = JsonDocument.Parse(JsonData.ReadFile(BossCatalog.DefaultPath));
-        foreach (var boss in document.RootElement.GetProperty("Bosses").EnumerateArray())
+        foreach (var reference in document.RootElement.GetProperty("Bosses").EnumerateArray())
         {
+            using var bossFile = JsonDocument.Parse(JsonData.ReadFile(reference.GetString()!));
+            var boss = bossFile.RootElement;
             entries.Add(new JsonObject
             {
                 ["Id"] = boss.GetProperty("Core").GetProperty("Id").GetString(),

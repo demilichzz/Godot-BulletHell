@@ -60,7 +60,7 @@ public partial class StageVerification : Node
                 && ResourceUid.GetIdPath(ResourceUid.TextToId("uid://cyx82pr2q67tt")) == "res://Assets/Units/Boss_05.png", "图片资源身份保留");
             // 使用七个仅测试可见的配置，覆盖多行和不完整末行。
             var entries = new System.Collections.Generic.List<BossData>();
-            var template = JsonNode.Parse(JsonData.ReadFile(BossCatalog.DefaultPath))!["Bosses"]![0]!;
+            var template = JsonNode.Parse(JsonData.ReadFile("res://Data/Bosses/B01.json"))!;
             for (int index = 0; index < 7; index++)
             {
                 // 测试目录同样经过正式JSON加载，不依赖已移除的Profile入口。
@@ -355,7 +355,7 @@ public partial class StageVerification : Node
         Check(single.GetSelectionTexture() == single.Portrait, "独立肖像优先");
         // 无效行列、不可整除尺寸以及非法帧率必须被拒绝。
         // 测试副本同样从完整JSON加载，包含有序阶段；不依赖Godot资源复制遗漏未导出字段的行为。
-        var source = JsonNode.Parse(JsonData.ReadFile(BossCatalog.DefaultPath))!["Bosses"]!.AsArray()
+        var source = BossCatalog.ReadPaths(JsonData.ReadFile(BossCatalog.DefaultPath)).Select(path => JsonNode.Parse(JsonData.ReadFile(path))!)
             .Single(boss => boss!["Core"]!["Id"]!.GetValue<string>() == data.Id)!;
         var invalid = BossData.FromJson(source.ToJsonString(), "动画验证副本");
         Check(invalid.PhaseCount == data.PhaseCount && !ReferenceEquals(invalid.Phases, data.Phases), "JSON测试副本包含独立完整阶段");

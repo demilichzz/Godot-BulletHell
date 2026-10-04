@@ -48,7 +48,7 @@ public partial class BossDataVerification : Node
     private static JsonObject Fixture()
     {
         // 10与30点血池便于独立验证伤害、超时扣血和总血量。
-        var root = JsonNode.Parse(JsonData.ReadFile(BossCatalog.DefaultPath))!["Bosses"]![0]!.DeepClone().AsObject();
+        var root = JsonNode.Parse(JsonData.ReadFile("res://Data/Bosses/B01.json"))!.DeepClone().AsObject();
         root["Core"]!["MaxHp"] = 40;
         root["Phases"] = JsonNode.Parse("""
         [{"Name":"甲","Hp":10,"DurationMs":100,"EndCondition":"Time","Emitters":[],

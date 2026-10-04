@@ -1,0 +1,70 @@
+{
+  "Core": {
+    "Id": "Boss_AIGen_11",
+    "DisplayName": "Boss_AIGen_11",
+    "TexturePath": "res://Assets/Units/Boss_14.png",
+    "Hframes": 2,
+    "Vframes": 2,
+    "AnimationFps": 4,
+    "MaxHp": 300,
+    "CollisionRadius": 32,
+    "VisualScale": 3,
+    "SpawnPosition": {
+      "X": 640,
+      "Y": 250
+    }
+  },
+  "Phases": [
+    {
+      "Name": "三角弹墙分层下移",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_11_Phase01.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    },
+    {
+      "Name": "菱形阵列左右分离",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_11_Phase02.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    },
+    {
+      "Name": "五芒星阵列延迟瞄准",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/AIGen/Boss_AIGen_11_Phase03.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    }
+  ]
+}

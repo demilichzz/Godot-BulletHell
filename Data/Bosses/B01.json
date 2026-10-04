@@ -1,0 +1,78 @@
+{
+  "Core": {
+    "Id": "Boss_01",
+    "DisplayName": "环形守卫",
+    "TexturePath": "res://Assets/Units/Boss_01.png",
+    "Hframes": 2,
+    "Vframes": 2,
+    "AnimationFps": 4,
+    "MaxHp": 300,
+    "CollisionRadius": 32,
+    "VisualScale": 3,
+    "SpawnPosition": {
+      "X": 640,
+      "Y": 250
+    }
+  },
+  "Phases": [
+    {
+      "Name": "环形弹幕 · 阶段01",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/B01P01_Emitter01.json"
+      ],
+      "Movement": {
+        "Type": "RandomCircle",
+        "Speed": 100,
+        "Center": {
+          "X": 640,
+          "Y": 250
+        },
+        "MinRadius": 200,
+        "MaxRadius": 200,
+        "StartMs": 5000,
+        "IntervalMs": 5000
+      }
+    },
+    {
+      "Name": "环形弹幕 · 阶段02",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/B01P02_Emitter01.json"
+      ],
+      "Movement": {
+        "Type": "Center",
+        "Speed": 200,
+        "Target": {
+          "X": 640,
+          "Y": 240
+        }
+      }
+    },
+    {
+      "Name": "环形弹幕 · 阶段03",
+      "Hp": 100,
+      "DurationMs": null,
+      "EndCondition": "Health",
+      "Emitters": [
+        "res://Data/Emitters/B01P03_Emitter01.json"
+      ],
+      "Movement": {
+        "Type": "RandomCircle",
+        "Speed": 100,
+        "Center": {
+          "X": 640,
+          "Y": 250
+        },
+        "MinRadius": 200,
+        "MaxRadius": 200,
+        "StartMs": 5000,
+        "IntervalMs": 5000
+      }
+    }
+  ]
+}
