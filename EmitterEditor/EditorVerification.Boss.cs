@@ -124,6 +124,22 @@ public partial class EditorVerification
         SetBossField(panel, "/Phases/1/Movement/PathQueue/0/X", "20"); await Settle();
         Check(panel.Document.ValidateBoss().Phases[1].Movement.PathQueue[0].GetProperty("X").GetDouble() == 20, "瞄准玩家路径数值偏移表单");
         PressBoss(panel, "切为普通路径"); await Settle();
+        // 实际Boss嵌套数组也通过共用按钮排序和删除，阶段选择与完整撤销保持一致。
+        string beforeQueue = panel.Document.Text;
+        panel.Document.Edit(_ => panel.SelectedBossRoot["Phases"]![1]!["Movement"]!["PathQueue"]!.AsArray().Add(EditorSchema.PathSegment(true)));
+        panel.Refresh(); await Settle();
+        QueueButton("down").EmitSignal(BaseButton.SignalName.Pressed); await Settle();
+        Check(panel.Document.ValidateBoss().Phases[1].Movement.PathQueue[0].GetProperty("Type").GetString() == "AimPlayer"
+            && panel.SelectedPhase == 1, "Boss路径队列排序不改变阶段选择");
+        QueueButton("remove").EmitSignal(BaseButton.SignalName.Pressed); await Settle();
+        Check(panel.Document.ValidateBoss().Phases[1].Movement.PathQueue.GetArrayLength() == 1, "Boss共用数组按钮删除指定路径段");
+        PressBoss(panel, "撤销"); await Settle(); PressBoss(panel, "撤销"); await Settle(); PressBoss(panel, "撤销"); await Settle();
+        Check(panel.Document.Text == beforeQueue, "Boss路径队列编辑可完整撤销到原配置");
+        /// <summary>定位当前Boss表单中的第一个路径数组项按钮。</summary>
+        /// <param name="action">共用数组动作标识。</param>
+        /// <returns>当前刷新后的真实按钮。</returns>
+        Button QueueButton(string action) => Descendants<Button>(panel).Single(button => button.HasMeta("array_action")
+            && button.GetMeta("array_action").AsString() == action && button.GetMeta("json_path").AsString() == "/Phases/1/Movement/PathQueue/0");
         // Boss与Emitter草稿在整体模式来回切换中互不覆盖。
         var bossCode = Descendants<CodeEdit>(panel).Single(); bossCode.Text += " ";
         editor.SwitchMode(false);

@@ -199,8 +199,9 @@ public partial class BossEditorPanel : VBoxContainer
                 // 数组项排序与删除按钮行。
                 var actions = new HBoxContainer(); parent.AddChild(actions);
                 actions.AddChild(new Label { Text = $"[{index}]", SizeFlagsHorizontal = SizeFlags.ExpandFill });
-                Button(actions, "↑", () => Shift(path, position, -1)); Button(actions, "↓", () => Shift(path, position, 1));
-                Button(actions, "删除项", () => Change(_ => At(path)!.AsArray().RemoveAt(position)));
+                EditorArrayControls.AddActions(actions, path + "/" + position, position, array.Count, Guard, () => _refreshing,
+                    direction => Shift(path, position, direction),
+                    remove: () => Change(_ => At(path)!.AsArray().RemoveAt(position)), removeText: "删除项");
                 ValueField(parent, array[index], itemType, path + "/" + index, name + "项");
             }
             if (name == "Emitters")
@@ -268,7 +269,7 @@ public partial class BossEditorPanel : VBoxContainer
     /// <summary>追加独立阶段，自动同步Boss总血量。</summary>
     public void AddPhase() => Change(root => { var phases = root["Phases"]!.AsArray(); phases.Add(BossEditorSchema.Phase()); SelectedPhase = phases.Count - 1; BossEditorSchema.SumHealth(root); });
     /// <summary>深复制选中阶段，不共享可变JSON对象。</summary>
-    private void DuplicatePhase() => Change(root => { RequirePhase(); var phases = root["Phases"]!.AsArray(); phases.Insert(SelectedPhase + 1, phases[SelectedPhase]!.DeepClone()); SelectedPhase++; BossEditorSchema.SumHealth(root); });
+    private void DuplicatePhase() => Change(root => { RequirePhase(); var phases = root["Phases"]!.AsArray(); EditorArrayControls.Duplicate(phases, SelectedPhase); SelectedPhase++; BossEditorSchema.SumHealth(root); });
     /// <summary>删除选中阶段；至少保留一个阶段。</summary>
     private void DeletePhase() => Change(root => { RequirePhase(); var phases = root["Phases"]!.AsArray(); if (phases.Count == 1) throw new InvalidOperationException("至少保留一个阶段。"); phases.RemoveAt(SelectedPhase); SelectedPhase = Math.Min(SelectedPhase, phases.Count - 1); BossEditorSchema.SumHealth(root); });
     /// <summary>调整阶段队列顺序。</summary>
@@ -280,12 +281,9 @@ public partial class BossEditorPanel : VBoxContainer
     /// <param name="direction">-1或1。</param>
     private void Shift(string path, int index, int direction) => Change(_ =>
     {
-        // 当前有序数组与移动后的目标下标。
-        var array = At(path)!.AsArray(); int next = index + direction;
-        if (next < 0 || next >= array.Count) return;
-        // 先解除父引用，再插入新位置，不复制或丢失节点。
-        var item = array[index]; array.RemoveAt(index); array.Insert(next, item);
-        if (path == "/Phases") SelectedPhase = next;
+        // 只有实际移动后才改变阶段选择，嵌套队列不影响当前阶段。
+        if (EditorArrayControls.Move(At(path)!.AsArray(), index, direction) && path == "/Phases")
+            SelectedPhase = index + direction;
     });
     /// <summary>阻止对Boss共用项使用阶段操作。</summary>
     private void RequirePhase() { if (SelectedPhase < 0) throw new InvalidOperationException("请先选择一个阶段。"); }

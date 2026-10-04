@@ -123,7 +123,7 @@ public partial class EmitterPanel
                 }
             }
             toggle.ClipText = true;
-            header.AddChild(toggle); AddQueueActions(header, path, itemIndex); AddButton(header, "×", () => Mutate(() => RemoveAt(path), true, EditorPositionTools.IsSpatial(path)));
+            header.AddChild(toggle); AddQueueActions(header, path, itemIndex); if (!itemIndex.HasValue) AddButton(header, "×", () => Mutate(() => RemoveAt(path), true, EditorPositionTools.IsSpatial(path)));
             // 嵌套属性的左侧缩进容器。
             var inset = new MarginContainer(); inset.AddThemeConstantOverride("margin_left", 10); parent.AddChild(inset);
             // 属性组展开后的内容容器。
@@ -188,7 +188,7 @@ public partial class EmitterPanel
                 indicator.SetText(input.Text); input.TextChanged += indicator.SetText;
             }
         }
-        AddQueueActions(row, path, itemIndex); AddButton(row, "×", () => Mutate(() => RemoveAt(path), true, EditorPositionTools.IsSpatial(path)));
+        AddQueueActions(row, path, itemIndex); if (!itemIndex.HasValue) AddButton(row, "×", () => Mutate(() => RemoveAt(path), true, EditorPositionTools.IsSpatial(path)));
     }
     /// <summary>显示数组项，并提供追加、复制、移动和删除。</summary>
     /// <param name="parent">显示容器。</param>
@@ -210,7 +210,7 @@ public partial class EmitterPanel
         // 新数组项的模板选择器。
         var variants = new OptionButton();
         // 可添加数组项的模板名称。
-        foreach (string variant in type == typeof(VNodeMoveActionAttribute) ? new[] { "XYMove", "PMove", "TarMove" } : new[] { "默认" }) variants.AddItem(variant);
+        foreach (string variant in type == typeof(VNodeMoveActionAttribute) ? ProtocolModes.Displacement.Values : new[] { "默认" }) variants.AddItem(variant);
         row.AddChild(variants);
         AddButton(row, "+ 添加项", () => Mutate(() => Document.At(path)!.AsArray().Add(EditorSchema.Item(type, context, variants.GetItemText(variants.Selected))), true, EditorPositionTools.IsSpatial(path)));
     }
@@ -223,22 +223,17 @@ public partial class EmitterPanel
         if (!index.HasValue) return;
         // 当前队列与稳定下标，操作完成后重建控件。
         string parent = path[..path.LastIndexOf('/')]; int position = index.Value;
-        AddButton(row, "复制", () => Mutate(() => { var list = Document.At(parent)!.AsArray(); list.Insert(position + 1, list[position]?.DeepClone()); }, true, EditorPositionTools.IsSpatial(parent)));
-        AddButton(row, "↑", () => ShiftItem(parent, position, -1)).Disabled = position == 0;
-        AddButton(row, "↓", () => ShiftItem(parent, position, 1)).Disabled = position == Document.At(parent)!.AsArray().Count - 1;
+        EditorArrayControls.AddActions(row, path, position, Document.At(parent)!.AsArray().Count, Guard, () => _refreshing,
+            direction => ShiftItem(parent, position, direction),
+            duplicate: () => Mutate(() => EditorArrayControls.Duplicate(Document.At(parent)!.AsArray(), position), true, EditorPositionTools.IsSpatial(parent)),
+            remove: () => Mutate(() => RemoveAt(path), true, EditorPositionTools.IsSpatial(path)));
     }
     /// <summary>按顺序移动列表成员。</summary>
     /// <param name="path">列表指针。</param>
     /// <param name="index">原下标。</param>
     /// <param name="direction">-1上移或1下移。</param>
-    private void ShiftItem(string path, int index, int direction) => Mutate(() =>
-    {
-        // 正在调整顺序的数组及目标下标。
-        var list = Document.At(path)!.AsArray(); int target = index + direction;
-        if (target < 0 || target >= list.Count) return;
-        // 需要显示或移动的当前列表项。
-        var item = list[index]; list.RemoveAt(index); list.Insert(target, item);
-    }, true, EditorPositionTools.IsSpatial(path));
+    private void ShiftItem(string path, int index, int direction) => Mutate(
+        () => EditorArrayControls.Move(Document.At(path)!.AsArray(), index, direction), true, EditorPositionTools.IsSpatial(path));
     /// <summary>提交表单修改并同步校验与原文。</summary>
     /// <param name="change">对当前JSON节点的修改。</param>
     /// <param name="rebuild">结构变化时延迟重建表单。</param>

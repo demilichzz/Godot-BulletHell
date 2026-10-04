@@ -226,6 +226,7 @@ public partial class EditorVerification : Node
             }
             VerifyProtocolFields();
             VerifySharedFieldControls();
+            VerifyArrayControls();
             VerifyDocumentTransactions();
             VerifyDocuments();
             // 实际实例化的编辑器场景。

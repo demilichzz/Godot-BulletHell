@@ -97,6 +97,57 @@ public partial class EditorVerification
         finally { host.Free(); }
     }
 
+    /// <summary>通过真实按钮验证共用数组操作的边界、原文、深复制与事务回滚。</summary>
+    private void VerifyArrayControls()
+    {
+        var document = new EmitterDocument();
+        document.Edit(root => root["VNodes"]!["BaseAttributes"] = JsonNode.Parse("""[{"Angle":"PI / 3"},null]"""));
+        string original = document.Text;
+        long revision = document.Revision;
+        bool refreshing = false, fail = false; int errors = 0;
+        var row = new HBoxContainer { Visible = false }; AddChild(row);
+        try
+        {
+            EditorArrayControls.AddActions(row, "/VNodes/BaseAttributes/0", 0, 2, GuardArray, () => refreshing,
+                direction => EditArray(array => EditorArrayControls.Move(array, 0, direction)),
+                duplicate: () => EditArray(array => EditorArrayControls.Duplicate(array, 0)),
+                remove: () => EditArray(array => array.RemoveAt(0)));
+            var buttons = row.GetChildren().OfType<Button>().ToArray();
+            Check(buttons.Select(button => button.Text).SequenceEqual(new[] { "复制", "↑", "↓", "×" })
+                && buttons[1].Disabled && !buttons[2].Disabled, "共用数组按钮保持顺序并禁用首项上移");
+            buttons[1].EmitSignal(BaseButton.SignalName.Pressed);
+            refreshing = true; buttons[2].EmitSignal(BaseButton.SignalName.Pressed); refreshing = false;
+            Check(document.Revision == revision, "边界按钮与重建信号不产生数组事务");
+            buttons[2].EmitSignal(BaseButton.SignalName.Pressed);
+            Check(document.At("/VNodes/BaseAttributes/0") is null && document.At("/VNodes/BaseAttributes/1/Angle")!.ToString() == "PI / 3",
+                "数组移动保留显式null和表达式原文");
+            document.Undo(); Check(document.Text == original, "数组移动完整撤销");
+            buttons[0].EmitSignal(BaseButton.SignalName.Pressed);
+            document.Edit(root => root["VNodes"]!["BaseAttributes"]![1]!["Angle"] = 9);
+            Check(document.At("/VNodes/BaseAttributes/0/Angle")!.ToString() == "PI / 3"
+                && document.At("/VNodes/BaseAttributes")!.AsArray().Count == 3, "复制数组项不共享可变JSON节点");
+            document.Undo(); document.Undo();
+            fail = true; buttons[2].EmitSignal(BaseButton.SignalName.Pressed); fail = false;
+            Check(errors == 1 && document.Text == original, "失败数组动作由原文档事务完整回滚");
+            buttons[3].EmitSignal(BaseButton.SignalName.Pressed);
+            Check(document.At("/VNodes/BaseAttributes")!.AsArray().Count == 1 && document.At("/VNodes/BaseAttributes/0") is null,
+                "删除项只删除指定内容且保持余下null");
+            document.Undo(); Check(document.Text == original, "删除数组项可完整撤销");
+        }
+        finally { row.Free(); }
+
+        /// <summary>执行真实文档事务，模拟动作完成前的失败。</summary>
+        /// <param name="change">数组变更。</param>
+        void EditArray(Action<JsonArray> change) => document.Edit(root =>
+        {
+            change(root["VNodes"]!["BaseAttributes"]!.AsArray());
+            if (fail) throw new InvalidOperationException("预期数组操作失败");
+        });
+        /// <summary>模拟所属面板的错误展示，不吞掉断言异常。</summary>
+        /// <param name="action">数组控件回调。</param>
+        void GuardArray(Action action) { try { action(); } catch (InvalidOperationException) { errors++; } }
+    }
+
     /// <summary>通过Emitter路径表单验证模式切换、表达式保留、未知值和完整撤销。</summary>
     /// <param name="editor">已就绪的实际编辑器。</param>
     /// <returns>全部延迟表单刷新完成后的任务。</returns>

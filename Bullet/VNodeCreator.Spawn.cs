@@ -1,9 +1,7 @@
-using static JsonData;
 using Godot;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 
 /// <summary>Creator的单批延迟出生和统一属性求值。</summary>
 public partial class VNodeCreator
@@ -31,25 +29,6 @@ public partial class VNodeCreator
             View = Members.AsReadOnly();
             Positions = positions;
         }
-    }
-
-    /// <summary>解析、校验并冻结一个出生、增量或随机属性组。</summary>
-    /// <param name="element">当前格式JSON对象。</param>
-    /// <param name="random">随机宽度必须非负，且不能包含时间。</param>
-    /// <returns>只读属性组。</returns>
-    private static VNodeSpawnAttribute ReadSpawn(JsonElement element, bool random)
-    {
-        if (element.ValueKind != JsonValueKind.Object) throw new JsonException("出生属性必须为对象。");
-        if (random && element.TryGetProperty("SpawnDelayMs", out _)) throw new JsonException("随机组不支持SpawnDelayMs。");
-        var spawn = Read<VNodeSpawnAttribute>(element);
-        if (spawn.SpawnDelayMs < 0 || spawn.RefMoveQueue is null) throw new JsonException("延迟须非负，位移动作不可为null。");
-        foreach (double value in new[] { spawn.Angle, spawn.Speed, spawn.AAngle, spawn.ASpeed })
-            VMoveJson.ValidateNumber(value, random);
-        return spawn with
-        {
-            RefMoveQueue = element.TryGetProperty("RefMoveQueue", out var actions)
-                ? VMoveJson.ReadQueue(actions, random) : Array.Empty<VNodeMoveActionAttribute>()
-        };
     }
 
     /// <summary>按运动字段、位移动作顺序抽取一份偏移；同向加速度忽略AAngle。</summary>
