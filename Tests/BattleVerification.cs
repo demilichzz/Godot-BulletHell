@@ -36,112 +36,15 @@ public partial class BattleVerification : Node
     {
         try
         {
-            var userArgs = OS.GetCmdlineUserArgs();
-            if (userArgs.Contains("--targeted-copy"))
-            {
-                VerifyCopies();
-                GD.Print($"PASS: {_checks} targeted copy assertions");
-            }
-            else if (userArgs.Contains("--targeted-regions"))
-            {
-                VerifyRegions();
-                GD.Print($"PASS: {_checks} targeted region assertions");
-            }
-            else if (userArgs.Contains("--targeted-boss03"))
-            {
-                VerifyBoss03();
-                GD.Print($"PASS: {_checks} targeted Boss03 assertions");
-            }
-            else if (userArgs.Contains("--targeted-player-combat"))
-            {
-                VerifyPlayer();
-                VerifyCombat();
-                VerifyNegativePlayerHealth();
-                GD.Print($"PASS: {_checks} targeted player combat assertions");
-            }
-            else if (userArgs.Contains("--targeted-laser"))
-            {
-                VerifyLasers();
-                GD.Print($"PASS: {_checks} targeted laser assertions");
-            }
-            else if (userArgs.Contains("--targeted-path"))
-            {
-                VerifyPaths();
-                GD.Print($"PASS: {_checks} targeted path assertions");
-            }
-            else if (userArgs.Contains("--targeted-spawn"))
-            {
-                VerifySpawnLists();
-                GD.Print($"PASS: {_checks} targeted spawn assertions");
-            }
-            else if (userArgs.Contains("--targeted-doc-json"))
-            {
-                foreach (string argument in userArgs.Where(value => value.StartsWith("--json-example=")))
-                {
-                    VBulletEmitter.FromJson(System.IO.File.ReadAllText(argument[15..]), argument[15..]);
-                    _checks++;
-                }
-                Check(_checks > 0, "至少读取一个文档JSON示例");
-                GD.Print($"PASS: {_checks} document JSON assertions");
-            }
-            else if (userArgs.Contains("--targeted-vnode"))
-            {
-                VerifyVNodeModel();
-                VerifyVNodeSchedules();
-                VerifyVNodeLifecycle();
-                VerifyVNodeValidation();
-                VerifyVNodeReplay();
-                GD.Print($"PASS: {_checks} targeted VNode assertions");
-            }
-            else if (userArgs.Contains("--targeted-data"))
-            {
-                VerifyBulletData();
-                VerifyOriginal();
-                VerifyBatches();
-                VerifyDefaultSets();
-                GD.Print($"PASS: {_checks} targeted data and bullet assertions");
-            }
-            else if (userArgs.Contains("--targeted-sprites"))
-            {
-                VerifySpriteSets();
-                GD.Print($"PASS: {_checks} targeted sprite assertions");
-            }
-            else if (userArgs.Contains("--targeted-bullet"))
-            {
-                VerifyOriginal();
-                VerifyBatches();
-                VerifyDefaultSets();
-                GD.Print($"PASS: {_checks} targeted bullet assertions");
-            }
-            else if (userArgs.Contains("--targeted-phase-switch"))
-            {
-                VerifyPhaseSwitch();
-                GD.Print($"PASS: {_checks} targeted phase switch assertions");
-            }
-            else if (userArgs.Contains("--targeted-global-services"))
-            {
-                VerifyGlobalServices();
-                GD.Print($"PASS: {_checks} targeted global service assertions");
-            }
-            else if (userArgs.Contains("--targeted-b01"))
-            {
-                VerifyBoss01Sequence();
-                VerifyBoss01Stages();
-                VerifyPhaseSwitch();
-                GD.Print($"PASS: {_checks} targeted B01 assertions");
-            }
+            // 校验参数后才执行，输出准确组名与本组断言数。
+            var arguments = OS.GetCmdlineUserArgs();
+            var groups = VerificationGroups(arguments);
+            string selected = SelectVerificationGroup(arguments, groups.Keys);
+            if (selected == "--list-groups") GD.Print(string.Join("\n", groups.Keys));
             else
             {
-                VerifyOriginal();
-                VerifyPlayer();
-                VerifyCombat();
-                VerifyPhases();
-                VerifyBoss01Stages();
-                VerifyNegativePlayerHealth();
-                VerifyBatches();
-                VerifyDefaultSets();
-                VerifyInput();
-                GD.Print($"PASS: {_checks} battle regression assertions");
+                groups[selected]();
+                GD.Print($"PASS: {_checks} assertions; group={selected}");
             }
             GetTree().Quit();
 		}

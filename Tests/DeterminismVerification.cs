@@ -204,7 +204,7 @@ public partial class DeterminismVerification : Node
         var battle = CreateBattle(out var world);
         battle.Player.Attack.Stop();
         var boss = battle.Boss;
-        var phase = (B01_Phase01)boss.CurrentPhase!;
+        var phase = boss.CurrentPhase!;
         var center = new Vector2(640, 250);
         Check(Math.Abs(VMath.getB2PAngle() - VMath.GetAngleBetween2Points(boss.GlobalPosition,
             battle.Player.GlobalPosition)) < 1e-12, "Boss到玩家方向使用全局坐标");
@@ -256,7 +256,7 @@ public partial class DeterminismVerification : Node
         battle.Player.Attack.Stop();
         foreach (double step in steps) VerificationClock.BossSeconds(battle, step);
         // 子弹未推进，SpawnPosition精确反映每个射击事件的起点。
-        var result = (battle.Boss.Position, ((B01_Phase01)battle.Boss.CurrentPhase!).MoveTarget,
+        var result = (battle.Boss.Position, battle.Boss.CurrentPhase!.MoveTarget,
             battle.Bullets.ActiveBullets.Select(bullet => bullet.SpawnPosition).ToArray(), VMath.getRandomInt(0, int.MaxValue));
         world.Free();
         return result;
@@ -295,8 +295,8 @@ public partial class DeterminismVerification : Node
             if (extraDisplayUpdates)
                 for (int frame = 0; frame < 3; frame++) battle.Player.FinishStep();
             battle.StepFixed(input, tick % 60 == 0);
-            var target = (battle.Boss.CurrentPhase as B01_Phase01)?.MoveTarget;
-            sawMovement |= (battle.Boss.CurrentPhase as B01_Phase01)?.IsMoving == true;
+            var target = battle.Boss.CurrentPhase?.MoveTarget;
+            sawMovement |= battle.Boss.CurrentPhase?.IsMoving == true;
             frames.Add($"{battle.State}|{battle.Timers.NowUnits}|{battle.Player.Timeline?.ElapsedUnits}|{battle.Elapsed:R}|{FormatVector(battle.Player.Position)}|{battle.Player.Health.Hp}|{FormatVector(battle.Boss.Position)}|{FormatVector(target ?? Vector2.Zero)}|{battle.Boss.Hp}|"
                 + string.Join(";", battle.Bullets.ActiveBullets.Select(bullet => $"{FormatVector(bullet.Position)}:{FormatVector(bullet.Velocity)}:{bullet.Age:R}:{bullet.Team}")));
         }
