@@ -25,6 +25,7 @@ public partial class BattleVerification
         ["--targeted-bullet"] = () => { VerifyOriginal(); VerifyBatches(); VerifyDefaultSets(); },
         ["--targeted-phase-switch"] = VerifyPhaseSwitch,
         ["--targeted-global-services"] = VerifyGlobalServices,
+        ["--targeted-battle-random"] = VerifyBattleRandomIsolation,
         ["--targeted-b01"] = () => { VerifyBoss01Sequence(); VerifyBoss01Stages(); VerifyPhaseSwitch(); },
         ["--targeted-test-selection"] = VerifyGroupSelection,
         ["--targeted-migration"] = VerifyMigrationBaseline,

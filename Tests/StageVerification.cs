@@ -31,6 +31,13 @@ public partial class StageVerification : Node
     {
         try
         {
+            if (Array.Exists(OS.GetCmdlineUserArgs(), argument => argument == "--targeted-random-rollback"))
+            {
+                await VerifyRandomRollback();
+                GD.Print($"PASS: {_checks} targeted random rollback assertions");
+                GetTree().Quit();
+                return;
+            }
             if (Array.Exists(OS.GetCmdlineUserArgs(), argument => argument == "--targeted-new-bosses"))
             {
                 await VerifyNewBosses();

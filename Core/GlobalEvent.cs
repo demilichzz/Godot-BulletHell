@@ -9,6 +9,8 @@ public static class GlobalEvent
     private static BattleManager? _current;
     // 初始化、清理和固定步推进期间的临时绑定，允许嵌套恢复。
     private static BattleManager? _context;
+    /// <summary>让数学入口解析唯一战斗上下文，不额外维护随机流绑定。</summary>
+    static GlobalEvent() => VMath.SetRandomSource(() => ResolveBattle()?.Random);
     /// <summary>绑定一场新的持久当前战斗。</summary>
     /// <param name="battle">已完成初始化的战斗管理器。</param>
     internal static void BindCurrent(BattleManager battle) => _current = battle ?? throw new ArgumentNullException(nameof(battle));

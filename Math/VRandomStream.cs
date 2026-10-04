@@ -6,10 +6,14 @@ public sealed class VRandomStream
     // 按固定算法回绕的独立64位状态。
     private ulong _state;
     /// <summary>初始32位种子，抽样不修改此值。</summary>
-    public int Seed { get; }
+    public int Seed { get; private set; }
     /// <summary>从指定种子建立全新状态。</summary>
     /// <param name="seed">32位种子，负值按无符号32位映射。</param>
-    internal VRandomStream(int seed) { Seed = seed; _state = unchecked((uint)seed); }
+    internal VRandomStream(int seed) => Reset(seed);
+
+    /// <summary>原位重置本流，保留所属战斗与当前上下文的同一引用。</summary>
+    /// <param name="seed">32位种子，负值按无符号32位映射。</param>
+    internal void Reset(int seed) { Seed = seed; _state = unchecked((uint)seed); }
 
     /// <summary>取得闭区间均匀整数，相等端点不消耗状态。</summary>
     /// <param name="min">包含的整数下界。</param>

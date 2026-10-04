@@ -276,7 +276,9 @@ public partial class DeterminismVerification : Node
         battle.Restart();
         battle.StopBattle();
         VerificationClock.BattleSeconds(battle, 20, Vector2.Zero, false);
-        Check(battle.Elapsed == 0 && VMath.getRandomInt(0, 100000) == expected, "战斗停止后不推进随机序列");
+        // 离场后默认入口回到工具流，检查原战斗状态须显式选择其上下文。
+        using (GlobalEvent.UseBattle(battle))
+            Check(battle.Elapsed == 0 && VMath.getRandomInt(0, 100000) == expected, "战斗停止后不推进随机序列");
         world.Free();
     }
     /// <summary>施加固定的移动与闪避输入，并记录玩家、Boss及弹幕状态。</summary>

@@ -135,26 +135,34 @@ public static partial class VMath
     /// <returns>有限结果，否则抛错。</returns>
     private static double FiniteResult(double value)
         => double.IsFinite(value) ? value : throw new OverflowException("数学结果超出double范围。");
-    // 默认业务流与独立AI流共用同一算法实现，各自持有独立状态。
-    private static VRandomStream _defaultRandom = new(0);
-    /// <summary>最近设置的初始种子，默认0；抽样不会修改此值。</summary>
-    public static int randomSeed => _defaultRandom.Seed;
-    /// <summary>设置初始种子并从头重置随机序列。</summary>
+    // 无战斗上下文时使用独立工具流，战斗初始化和退出均不改变它。
+    private static readonly VRandomStream _defaultRandom = new(0);
+    // 上层提供当前流，不让数学模块依赖战斗类型或维护另一份战斗绑定。
+    private static Func<VRandomStream?>? _randomSource;
+    /// <summary>当前上下文的随机流；未绑定时使用独立工具流。</summary>
+    private static VRandomStream CurrentRandom => _randomSource?.Invoke() ?? _defaultRandom;
+    /// <summary>登记上层随机上下文解析入口，只解析引用，不进行抽样。</summary>
+    /// <param name="source">返回当前所属流或null的主线程入口。</param>
+    internal static void SetRandomSource(Func<VRandomStream?> source)
+        => _randomSource = source ?? throw new ArgumentNullException(nameof(source));
+    /// <summary>当前上下文的初始种子，默认0；抽样不会修改此值。</summary>
+    public static int randomSeed => CurrentRandom.Seed;
+    /// <summary>只重置当前上下文的随机序列；没有战斗时重置工具流。</summary>
     /// <param name="seed">32位有符号种子，默认0；负数按32位无符号位模式映射后扩展到64位。</param>
-    public static void setRandomSeed(int seed = 0) => _defaultRandom = new VRandomStream(seed);
+    public static void setRandomSeed(int seed = 0) => CurrentRandom.Reset(seed);
     /// <summary>获取闭区间内的均匀随机整数；相等端点不消耗序列。</summary>
     /// <param name="min">包含的下界，可为int.MinValue。</param>
     /// <param name="max">包含的上界，须不小于min，可为int.MaxValue。</param>
     /// <returns>位于[min,max]的整数。</returns>
-    public static int getRandomInt(int min, int max) => _defaultRandom.GetRandomInt(min, max);
+    public static int getRandomInt(int min, int max) => CurrentRandom.GetRandomInt(min, max);
     /// <summary>获取包含两端的随机小数，使用53位离散均匀样本；相等端点不消耗序列。</summary>
     /// <param name="min">包含的有限下界。</param>
     /// <param name="max">包含的有限上界，须不小于min。</param>
     /// <returns>位于[min,max]的有限双精度数。</returns>
-    public static double getRandomDouble(double min, double max) => _defaultRandom.GetRandomDouble(min, max);
+    public static double getRandomDouble(double min, double max) => CurrentRandom.GetRandomDouble(min, max);
     /// <summary>按给定总宽度获取随机偏移，沿用现有双精度随机序列。</summary>
     /// <param name="diff">非负有限总偏差值；零不消耗随机序列。</param>
     /// <param name="mode">Forward为[0,diff]，Center为[-diff/2,diff/2]；默认Forward。</param>
     /// <returns>指定区间内的随机偏移。</returns>
-    public static double getRandomDiff(double diff, RandomDiffMode mode = RandomDiffMode.Forward) => _defaultRandom.GetRandomDiff(diff, mode);
+    public static double getRandomDiff(double diff, RandomDiffMode mode = RandomDiffMode.Forward) => CurrentRandom.GetRandomDiff(diff, mode);
 }

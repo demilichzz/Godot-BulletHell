@@ -14,6 +14,8 @@ public partial class BattleManager : Node
 {
     // 每次进入与重开使用相同种子，保证随机序列从固定起点开始。
     private const int BattleRandomSeed = 0;
+    /// <summary>本场业务随机状态，统一经VMath访问；其他战斗和AI不共享此流。</summary>
+    internal VRandomStream Random { get; } = VMath.CreateRandomStream(BattleRandomSeed);
 	/// <summary>当前战斗状态。</summary>
 	public BattleState State { get; private set; }
 	/// <summary>当前玩家实例。</summary>
