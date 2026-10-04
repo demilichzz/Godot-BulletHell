@@ -30,7 +30,7 @@ public partial class EditorVerification
     private async Task VerifyLayoutTools(EmitterEditor editor)
     {
         // 三层树包含极坐标和世界目标位移，用于验证非线性父子参考。
-        editor.Document.New();
+        editor.NewEmitter();
         editor.Document.Edit(root => root["VNodes"] = JsonNode.Parse("""
         {"Core":{"Type":"VNode","Name":"Root"},"BaseAttributes":[{"RefMoveQueue":[{"Type":"XYMove","X":"PI * 10","Y":0}]}],"Timeline":[{"StartMs":0}],
         "Children":[{"Core":{"Type":"VNode","Name":"Child"},"BaseAttributes":[{"RefMoveQueue":[{"Type":"PMove","Angle":"PI/2","Dist":90}]}],"Timeline":[{"StartMs":0}],
@@ -79,7 +79,7 @@ public partial class EditorVerification
         VerifyPositionData();
         VerifyStaticPaths(editor);
         await Settle(); if (OS.GetCmdlineUserArgs().Contains("--capture")) await Capture("editor-paths");
-        editor.Document.New(); editor.Refresh(); await Settle();
+        editor.NewEmitter(); editor.Refresh(); await Settle();
     }
 
     /// <summary>验证队列对齐、复制覆盖、保存往返和协议顺序。</summary>
@@ -125,7 +125,7 @@ public partial class EditorVerification
     /// <param name="editor">用于展示路径的编辑器。</param>
     private void VerifyStaticPaths(EmitterEditor editor)
     {
-        editor.Document.New(); editor.Document.Edit(root => root["VNodes"] = EditorSchema.Creator("VPath"));
+        editor.NewEmitter(); editor.Document.Edit(root => root["VNodes"] = EditorSchema.Creator("VPath"));
         editor.Document.Edit(root => root["VNodes"]!["PathQueue"] = JsonNode.Parse("""
         [{"PathMode":"Bezier","EndMoveQueue":[{"Type":"XYMove","X":250}],"ControlPoints":[{"X":100,"Y":-130}]},{"Type":"AimPlayer","X":30,"Y":-20}]
         """));
@@ -135,7 +135,7 @@ public partial class EditorVerification
         Check(editor.Canvas.Paths[0].Points[^1].DistanceTo(BattleConfig.PlayerSpawn + new Vector2(30, -20)) < 0.001, "瞄准路径冻结编辑器玩家参考坐标");
         Check(VMath.getRandomDouble(0, 1) == expected, "路径采样不改变随机序列");
         Reject(() => GlobalEvent.GetBoss(), "路径显示不创建全局战斗环境");
-        editor.Document.Open(ProjectSettings.GlobalizePath("res://Data/Emitters/Examples/PathLaser.json")); editor.Refresh();
+        editor.OpenEmitter(ProjectSettings.GlobalizePath("res://Data/Emitters/Examples/PathLaser.json")); editor.Refresh();
         Check(editor.Canvas.Paths.Count == 1 && editor.Canvas.Paths[0].Points.Length == 257, "路径激光复用Function采样并显示完整曲线");
     }
 }

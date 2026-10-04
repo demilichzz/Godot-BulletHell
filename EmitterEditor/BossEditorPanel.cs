@@ -11,7 +11,11 @@ public partial class BossEditorPanel : VBoxContainer
     /// <summary>本模式独立的Boss文档及撤销栈。</summary>
     public EmitterDocument Document => Session.Catalog;
     /// <summary>目录及所有已打开Emitter共用的文档会话。</summary>
-    public EditorSession Session { get; } = new();
+    public EditorSession Session { get; init; } = null!;
+    /// <summary>顶层提供的文件窗口服务，不由内容面板另建窗口。</summary>
+    public EditorFileDialogs Files { get; init; } = null!;
+    /// <summary>嵌入Emitter向顶层请求保存或另存。</summary>
+    public event Action<EmitterPanel, bool>? SaveEmitterRequested;
     /// <summary>Boss预览环境；与Emitter模式不会同时运行。</summary>
     public EditorPreview Preview { get; } = new();
     /// <summary>静态移动示意与动态战斗共用画布。</summary>
@@ -22,20 +26,16 @@ public partial class BossEditorPanel : VBoxContainer
     public bool HasUnsaved => Session.HasUnsaved || HasDraft;
     /// <summary>当前是否有未应用的JSON草稿。</summary>
     public bool HasDraft => _json.Text != _jsonBaseline;
-    // 工作区控件及模式独立的文件窗口。
+    // 目录内容控件；文件窗口由顶层注入。
     private readonly Tree _phases = new();
     private readonly VBoxContainer _fields = new();
     private readonly CodeEdit _json = new();
     private readonly Label _title = new(), _status = new(), _clock = new();
     private readonly SubViewport _viewport = new();
-    private readonly FileDialog _open = new(), _save = new(), _emitter = new();
-    private readonly ConfirmationDialog _discard = new();
     private Button _play = null!;
-    // 刷新保护、播放状态、文本快照及文件操作的待确认回调。
+    // 刷新保护、播放状态及文本快照。
     private bool _refreshing, _playing;
     private string _jsonBaseline = "", _previewText = "";
-    private Action? _pending;
-    private string _emitterPath = "";
 
     /// <summary>建立专用Boss界面，所有操作共用正式数据验证。</summary>
     public override void _Ready()
@@ -46,7 +46,7 @@ public partial class BossEditorPanel : VBoxContainer
         // 文件及历史工具栏。
         var files = new HBoxContainer(); AddChild(files);
         Button(files, "新建目录", () => DiscardThen(() => { Document.New(); Refresh(); }));
-        Button(files, "打开目录…", () => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640))));
+        Button(files, "打开目录…", () => DiscardThen(() => Files.Open("打开Boss目录", "res://Data", Open)));
         Button(files, "保存目录", () => Save(false));
         Button(files, "另存目录…", () => Save(true));
         Button(files, "保存全部", () => { EmitterPanel?.PrepareWorkspaceSave(); RequireApplied(); Session.SaveAll(); Refresh(); });
@@ -103,34 +103,12 @@ public partial class BossEditorPanel : VBoxContainer
         _viewport.Size = new Vector2I(640, 400); _viewport.Size2DOverride = new Vector2I(1280, 800); _viewport.Size2DOverrideStretch = true;
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled; _viewport.Disable3D = true;
         AddChild(_viewport); _viewport.AddChild(Preview);
-        SetupDialogs();
-        Document.Open(ProjectSettings.GlobalizePath(BossCatalog.DefaultPath));
+        Session.EnsureCatalog();
         Refresh();
-    }
-    /// <summary>建立打开、保存和独立Emitter引用选择窗口。</summary>
-    private void SetupDialogs()
-    {
-        // 打开与保存窗口共享Boss目录和文件过滤。
-        foreach (var dialog in new[] { _open, _save })
-        {
-            dialog.Access = FileDialog.AccessEnum.Filesystem; dialog.Filters = new[] { "*.json ; Boss Catalog JSON" };
-            dialog.CurrentDir = ProjectSettings.GlobalizePath("res://Data"); AddChild(dialog);
-        }
-        _open.FileMode = FileDialog.FileModeEnum.OpenFile; _open.Title = "打开Boss目录";
-        _save.FileMode = FileDialog.FileModeEnum.SaveFile; _save.Title = "保存Boss目录";
-        _open.FileSelected += path => Guard(() => Open(path));
-        _save.FileSelected += path => Guard(() => { Document.Save(path); UpdateTitle(); Status("已保存：" + Document.FilePath); });
-        _emitter.Access = FileDialog.AccessEnum.Resources; _emitter.FileMode = FileDialog.FileModeEnum.OpenFile;
-        _emitter.Filters = new[] { "*.json ; Emitter JSON" }; _emitter.CurrentDir = "res://Data/Emitters"; AddChild(_emitter);
-        _emitter.FileSelected += path => Guard(() => Change(_ => At(_emitterPath)!.AsArray().Add(ProjectSettings.LocalizePath(path))));
-        _discard.Title = "未保存的目录修改"; _discard.DialogText = "继续将放弃当前目录及其JSON草稿中的未保存修改。已打开Emitter的编辑内容继续保留。";
-        _discard.OkButtonText = "放弃并继续"; AddChild(_discard);
-        _discard.Confirmed += () => { var action = _pending; _pending = null; if (action is not null) Guard(action); };
-        _discard.Canceled += () => _pending = null;
     }
     /// <summary>载入Boss文件，失败时保留原文档。</summary>
     /// <param name="path">文件绝对路径或res://路径。</param>
-    public void Open(string path) { Document.Open(ProjectSettings.GlobalizePath(path)); SelectedPhase = -1; Refresh(); }
+    public void Open(string path) { Session.OpenCatalog(path); SelectedPhase = -1; Refresh(); }
     /// <summary>选择Boss共用属性或指定阶段。</summary>
     /// <param name="index">-1为Boss；其他值为零基阶段序号。</param>
     public void SelectPhase(int index)
@@ -227,7 +205,7 @@ public partial class BossEditorPanel : VBoxContainer
                 ValueField(parent, array[index], itemType, path + "/" + index, name + "项");
             }
             if (name == "Emitters")
-                Button(parent, "+ 引用Emitter文件…", () => { RequireApplied(); _emitterPath = path; _emitter.PopupCentered(new Vector2I(960, 640)); });
+                Button(parent, "+ 引用Emitter文件…", () => { RequireApplied(); Files.Open("引用Emitter文件", "res://Data/Emitters", selected => Guard(() => Change(_ => At(path)!.AsArray().Add(ProjectSettings.LocalizePath(selected)))), true); });
             else Button(parent, "+ 添加项", () => Change(_ => At(path)!.AsArray().Add(EditorSchema.Item(itemType, name, "XYMove"))));
             return;
         }
@@ -335,17 +313,34 @@ public partial class BossEditorPanel : VBoxContainer
     private void Save(bool choosePath)
     {
         GetViewport().GuiGetFocusOwner()?.ReleaseFocus(); RequireApplied();
-        if (choosePath || Document.FilePath.Length == 0) { _save.CurrentFile = Document.FilePath.Length == 0 ? "BossCatalog.json" : Path.GetFileName(Document.FilePath); _save.PopupCentered(new Vector2I(960, 640)); }
-        else { Document.Save(Document.FilePath); UpdateTitle(); Status("已保存：" + Document.FilePath); }
+        // 保存回调保持当前目录文档，路径冲突由会话统一检查。
+        /// <summary>通过统一会话保存当前目录并显示结果。</summary>
+        /// <param name="path">用户选定的目录文件路径。</param>
+        void Write(string path) { Session.SaveCatalog(path); UpdateTitle(); Status("已保存：" + Document.FilePath); }
+        if (choosePath || Document.FilePath.Length == 0)
+            Files.Save("保存Boss目录", "res://Data", Document.FilePath.Length == 0 ? "BossCatalog.json" : Path.GetFileName(Document.FilePath), Write);
+        else Write(Document.FilePath);
     }
-    /// <summary>在替换Boss文档前保护未保存内容。</summary>
-    /// <param name="action">确认后执行的动作。</param>
+    /// <summary>替换目录前保护未保存内容，Emitter会话继续保留。</summary>
+    /// <param name="action">用户确认后执行的目录操作。</param>
     private void DiscardThen(Action action)
     {
         GetViewport().GuiGetFocusOwner()?.ReleaseFocus();
         if (!Document.Dirty && !HasDraft) { action(); return; }
-        _pending = action; _discard.PopupCentered();
+        Files.Confirm("继续将放弃当前目录及其JSON草稿。已打开Emitter的编辑内容继续保留。", action);
     }
+    /// <summary>切出目录模式前保留草稿并停止全部预览。</summary>
+    public void Suspend()
+    {
+        GetViewport().GuiGetFocusOwner()?.ReleaseFocus();
+        Document.Draft = HasDraft ? _json.Text : null;
+        if (EmitterPanel?.IsVisibleInTree() == true) EmitterPanel.Suspend();
+        StopPreview();
+    }
+    /// <summary>接收顶层文件窗口的操作诊断。</summary>
+    /// <param name="message">完整诊断。</param>
+    /// <param name="error">是否为错误。</param>
+    internal void ReportWorkspaceStatus(string message, bool error) => Status(message, error);
     /// <summary>创建完整Boss战斗预览，时钟与随机从固定初态开始。</summary>
     private void StartPreview()
     {
@@ -443,6 +438,6 @@ public partial class BossEditorPanel : VBoxContainer
     {
         if (!IsVisibleInTree() || EmitterPanel?.IsVisibleInTree() == true || input is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true } key) return;
         if (key.Keycode == Key.S) { Guard(() => Save(key.ShiftPressed)); AcceptEvent(); }
-        if (key.Keycode == Key.O) { Guard(() => DiscardThen(() => _open.PopupCentered(new Vector2I(960, 640)))); AcceptEvent(); }
+        if (key.Keycode == Key.O) { Guard(() => DiscardThen(() => Files.Open("打开Boss目录", "res://Data", Open))); AcceptEvent(); }
     }
 }

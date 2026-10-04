@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 
 /// <summary>按JSON结构生成属性表单，支持完整嵌套数组、表达式与可选字段。</summary>
-public partial class EmitterEditor
+public partial class EmitterPanel
 {
     // 折叠状态只属于编辑器，不进入Emitter JSON。
     private readonly Dictionary<string, bool> _expanded = new();

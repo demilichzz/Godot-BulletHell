@@ -94,7 +94,7 @@ public partial class EditorVerification
         string emitterPath = "res://Data/Emitters/B01P01_Emitter01.json";
         string emitterBefore = File.ReadAllText(ProjectSettings.GlobalizePath(emitterPath));
         PressBoss(panel, "+ 引用Emitter文件…");
-        var picker = Descendants<FileDialog>(panel).Single(dialog => dialog.Access == FileDialog.AccessEnum.Resources);
+        var picker = Descendants<FileDialog>(editor).Single(dialog => dialog.Access == FileDialog.AccessEnum.Resources);
         picker.EmitSignal(FileDialog.SignalName.FileSelected, emitterPath); picker.Hide(); await Settle();
         Check(panel.Document.ValidateBoss().Phases[0].Emitters.Single() == emitterPath, "界面选择独立Emitter路径");
         PressBoss(panel, "复制"); await Settle();
@@ -135,7 +135,7 @@ public partial class EditorVerification
         // 保存按钮回调及文件名规则。
         string uiPath = ProjectSettings.GlobalizePath("res://.tools/B98.json"); _temporary.Add(uiPath);
         PressBoss(panel, "保存目录");
-        var saveDialog = Descendants<FileDialog>(panel).Single(dialog => dialog.FileMode == FileDialog.FileModeEnum.SaveFile);
+        var saveDialog = Descendants<FileDialog>(editor).Single(dialog => dialog.FileMode == FileDialog.FileModeEnum.SaveFile);
         Check(saveDialog.Visible, "保存目录打开文件窗口");
         saveDialog.EmitSignal(FileDialog.SignalName.FileSelected, uiPath); saveDialog.Hide(); await Settle();
         Check(File.Exists(uiPath) && !panel.Document.Dirty && File.ReadAllText(ProjectSettings.GlobalizePath(emitterPath)) == emitterBefore, "保存Boss不写Emitter引用文件");

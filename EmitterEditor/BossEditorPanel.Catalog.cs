@@ -13,7 +13,7 @@ public partial class BossEditorPanel
     public JsonObject SelectedBossRoot => Document.Root["Bosses"]?[SelectedBossIndex]?.AsObject()
         ?? throw new InvalidOperationException("请先选择有效Boss。");
     /// <summary>按需建立的共享Emitter编辑内容。</summary>
-    public EmitterEditor? EmitterPanel { get; private set; }
+    public EmitterPanel? EmitterPanel { get; private set; }
     // 当前Emitter引用及相对Creator指针，不作为业务标识保存。
     private int _selectedEmitter = -1;
     private string _creatorPath = "";
@@ -101,7 +101,9 @@ public partial class BossEditorPanel
                 var document = Session.OpenEmitter(path);
                 if (EmitterPanel is null)
                 {
-                    EmitterPanel = new EmitterEditor { Embedded = true, SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+                    EmitterPanel = new EmitterPanel { ShowHierarchy = false, ConfirmRequested = Files.Confirm, SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+                    // 引用面板只保存当前引用；另存由独立文件模式提供。
+                    EmitterPanel.SaveRequested += _ => SaveEmitterRequested?.Invoke(EmitterPanel, false);
                     _contentHost.AddChild(EmitterPanel);
                     EmitterPanel.WorkspaceChanged += EmitterChanged;
                 }

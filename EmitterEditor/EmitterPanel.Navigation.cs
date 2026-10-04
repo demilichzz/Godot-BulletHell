@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 
 /// <summary>属性搜索、折叠和图标定位，仅管理界面状态。</summary>
-public partial class EmitterEditor
+public partial class EmitterPanel
 {
     // 搜索栏固定在滚动区域外；筛选不写回文档。
     private readonly LineEdit _propertySearch = new();

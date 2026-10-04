@@ -49,7 +49,7 @@ public partial class EditorVerification : Node
     /// <summary>通过实际按钮信号执行UI操作。</summary>
     /// <param name="editor">已装配编辑器。</param>
     /// <param name="text">唯一按钮文本。</param>
-    private static void Press(EmitterEditor editor, string text) => Descendants<Button>(editor).First(button => button.Text == text).EmitSignal(BaseButton.SignalName.Pressed);
+    private static void Press(Node editor, string text) => Descendants<Button>(editor).First(button => button.Text == text).EmitSignal(BaseButton.SignalName.Pressed);
     /// <summary>采集当前运行对象状态，包含节点、子弹与随机序列下一值。</summary>
     /// <param name="preview">当前预览环境。</param>
     /// <returns>可逐字比较的确定性状态。</returns>
@@ -159,7 +159,7 @@ public partial class EditorVerification : Node
         search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text); await Settle();
         Check(!Descendants<Button>(editor).Single(button => button.Text == "核心属性（Core）").ButtonPressed, "清空搜索恢复原来的折叠状态");
         // 多基础项分散摆放，点击后应展开并滚动到准确的零基下标。
-        editor.Document.New();
+        editor.NewEmitter();
         editor.Document.Edit(root =>
         {
             // 由默认项派生多个互不重叠的图标，每项横向间隔60逻辑像素。
@@ -189,7 +189,7 @@ public partial class EditorVerification : Node
         var code = Descendants<CodeEdit>(editor).Single(); code.Text += " "; code.EmitSignal(TextEdit.SignalName.TextChanged); await Settle();
         Check(undo.Disabled && redo.Disabled, "未应用JSON草稿禁用文档历史");
         Press(editor, "应用 JSON 草稿"); await Settle();
-        editor.Document.New(); editor.Refresh(); await Settle();
+        editor.NewEmitter(); editor.Refresh(); await Settle();
     }
     /// <summary>执行运行及图形交互集成验证。</summary>
     private async void Run()
@@ -200,6 +200,7 @@ public partial class EditorVerification : Node
             {
                 await VerifyBossEditor();
                 await VerifyCatalogWorkspace();
+                await VerifySharedModes();
                 GetTree().Quit();
                 return;
             }
@@ -222,7 +223,7 @@ public partial class EditorVerification : Node
             Check(editor.Document.Root["VNodes"]!["Children"]!.AsArray().Count == 0, "树工具删除节点");
             Press(editor, "撤销"); await Settle();
             Check(editor.Document.Root["VNodes"]!["Children"]!.AsArray().Count == 1, "UI撤销恢复子树");
-            editor.Document.New(); editor.Refresh(); await Settle();
+            editor.NewEmitter(); editor.Refresh(); await Settle();
             await VerifyNavigation(editor);
             await VerifyLayoutTools(editor);
             // 找到图形Angle输入，模拟文本提交，检查原文与方向提示同步存在。
@@ -303,7 +304,7 @@ public partial class EditorVerification : Node
             // 固定60Hz模拟步下标。
             for (int tick = 0; tick < 60; tick++) editor.Preview.Advance();
             Check(editor.Preview.Emitter!.Bullets.Any(bullet => bullet is VLaser), "路径激光预览");
-            editor.Preview.Stop(); editor.Document.Open(ProjectSettings.GlobalizePath("res://Data/Emitters/B01P03_Emitter01.json")); editor.Refresh();
+            editor.Preview.Stop(); editor.OpenEmitter(ProjectSettings.GlobalizePath("res://Data/Emitters/B01P03_Emitter01.json")); editor.Refresh();
             await Settle();
             if (OS.GetCmdlineUserArgs().Contains("--capture"))
             {
